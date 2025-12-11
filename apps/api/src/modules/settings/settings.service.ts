@@ -1,0 +1,144 @@
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../../prisma/prisma.service';
+import { DEFAULT_STATUS_COLORS } from './constants/default-status-colors';
+
+@Injectable()
+export class SettingsService {
+    constructor(private readonly prisma: PrismaService) { }
+
+    async getSettings(tenantId: string) {
+        return this.prisma.setting.findMany({
+            where: { tenantId },
+        });
+    }
+
+    async getSettingByKey(tenantId: string, key: string) {
+        const setting = await this.prisma.setting.findUnique({
+            where: {
+                tenantId_key: {
+                    tenantId,
+                    key,
+                },
+            },
+        });
+
+        if (!setting) {
+            throw new NotFoundException(`Setting with key ${key} not found`);
+        }
+
+        return setting;
+    }
+
+    async updateSetting(tenantId: string, key: string, value: any, category: string = 'GENERAL', isPublic: boolean = false) {
+        return this.prisma.setting.upsert({
+            where: {
+                tenantId_key: {
+                    tenantId,
+                    key,
+                },
+            },
+            update: {
+                value,
+                category,
+                isPublic,
+            },
+            create: {
+                tenantId,
+                key,
+                value,
+                category,
+                isPublic,
+            },
+        });
+    }
+
+    async getPublicSettings(tenantId: string) {
+        return this.prisma.setting.findMany({
+            where: {
+                tenantId,
+                isPublic: true,
+            },
+        });
+    }
+
+    async getStatusColors(tenantId: string) {
+        try {
+            const setting = await this.prisma.setting.findUnique({
+                where: {
+                    tenantId_key: {
+                        tenantId,
+                        key: 'status_colors',
+                    },
+                },
+            });
+
+            if (!setting) {
+                // Return default colors if not found
+                return DEFAULT_STATUS_COLORS;
+            }
+
+            return setting.value;
+        } catch (error) {
+            // Return default colors on error
+            return DEFAULT_STATUS_COLORS;
+        }
+    }
+
+    async resetStatusColors(tenantId: string) {
+        return this.prisma.setting.upsert({
+            where: {
+                tenantId_key: {
+                    tenantId,
+                    key: 'status_colors',
+                },
+            },
+            update: {
+                value: DEFAULT_STATUS_COLORS,
+                category: 'APPEARANCE',
+                isPublic: true,
+            },
+            create: {
+                tenantId,
+                key: 'status_colors',
+                value: DEFAULT_STATUS_COLORS,
+                category: 'APPEARANCE',
+                isPublic: true,
+            },
+        });
+    }
+
+    // Scorecard Templates (Temporary Workaround)
+    async createScorecard(tenantId: string, data: any) {
+        return (this.prisma as any).scorecardTemplate.create({
+            data: { ...data, tenantId },
+        });
+    }
+
+    async getScorecards(tenantId: string) {
+        return (this.prisma as any).scorecardTemplate.findMany({
+            where: { tenantId },
+            orderBy: { createdAt: 'desc' },
+        });
+    }
+
+    async getScorecard(id: string) {
+        const template = await (this.prisma as any).scorecardTemplate.findUnique({
+            where: { id },
+        });
+        if (!template) throw new NotFoundException('Template not found');
+        return template;
+    }
+
+    async updateScorecard(id: string, data: any) {
+        return (this.prisma as any).scorecardTemplate.update({
+            where: { id },
+            data,
+        });
+    }
+
+    async deleteScorecard(id: string) {
+        return (this.prisma as any).scorecardTemplate.delete({
+            where: { id },
+        });
+    }
+}

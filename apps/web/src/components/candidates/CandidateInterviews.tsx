@@ -1,0 +1,285 @@
+import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Calendar, Clock, MapPin, Video, User, MessageSquare, Star, ChevronDown } from 'lucide-react';
+import { Card, CardHeader, Badge, Button } from '../ui';
+import { interviewsApi } from '../../lib/api';
+import { Interview } from '../../lib/types';
+import { format } from 'date-fns';
+import { InterviewFeedbackModal } from '../interviews/InterviewFeedbackModal';
+import toast from 'react-hot-toast';
+
+interface CandidateInterviewsProps {
+    candidateId: string;
+    candidateName?: string;
+}
+
+export function CandidateInterviews({ candidateId, candidateName }: CandidateInterviewsProps) {
+    const { t } = useTranslation();
+    const [interviews, setInterviews] = useState<Interview[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
+    const [selectedInterview, setSelectedInterview] = useState<Interview | null>(null);
+    const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
+
+    useEffect(() => {
+        fetchInterviews();
+    }, [candidateId]);
+
+    const handleSubmitFeedback = (interview: Interview) => {
+        setSelectedInterview(interview);
+        setIsFeedbackModalOpen(true);
+    };
+
+    const handleStatusChange = async (interviewId: string, newStatus: string) => {
+        try {
+            console.log('Updating interview status:', { interviewId, newStatus });
+            const response = await interviewsApi.update(interviewId, { status: newStatus });
+            console.log('Update response:', response.data);
+            toast.success(`Interview marked as ${newStatus.toLowerCase().replace('_', ' ')}`);
+            setOpenDropdownId(null); // Close dropdown
+            fetchInterviews(); // Refresh the list
+        } catch (error: any) {
+            console.error('Failed to update interview status:', error);
+            console.error('Error response:', error.response?.data);
+            const errorMessage = error.response?.data?.message || error.message || 'Failed to update interview status';
+            toast.error(String(errorMessage));
+        }
+    };
+
+    const fetchInterviews = async () => {
+        try {
+            setIsLoading(true);
+            const response = await interviewsApi.getAll({ candidateId });
+
+            // Handle both response.data and response.data.data structures
+            const interviewsData = response.data.data || response.data;
+            setInterviews(Array.isArray(interviewsData) ? interviewsData : []);
+        } catch (error) {
+            console.error('Failed to fetch interviews:', error);
+            setInterviews([]);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const getStatusColor = (status: string) => {
+        switch (status) {
+            case 'SCHEDULED':
+                return 'secondary';
+            case 'CONFIRMED':
+                return 'primary';
+            case 'COMPLETED':
+                return 'success';
+            case 'CANCELLED':
+            case 'NO_SHOW':
+                return 'error';
+            default:
+                return 'secondary';
+        }
+    };
+
+    if (isLoading) {
+        return (
+            <Card>
+                <CardHeader title={t('candidates.interviews', 'Interviews')} />
+                <div className="p-6 pt-0 text-center text-neutral-500">
+                    {t('common.loading', 'Loading...')}
+                </div>
+            </Card>
+        );
+    }
+
+    return (
+        <>
+            {isFeedbackModalOpen && selectedInterview && (
+                <InterviewFeedbackModal
+                    isOpen={isFeedbackModalOpen}
+                    onClose={() => {
+                        setIsFeedbackModalOpen(false);
+                        setSelectedInterview(null);
+                    }}
+                    interviewId={selectedInterview.id}
+                    candidateName={candidateName || 'Candidate'}
+                    onSuccess={() => {
+                        fetchInterviews();
+                    }}
+                />
+            )}
+
+            <Card>
+                <CardHeader title={t('candidates.interviews', 'Interviews')} />
+                <div className="p-6 pt-0 space-y-4 max-h-[600px] overflow-y-auto">
+                    {interviews.length > 0 ? (
+                        interviews.map((interview) => (
+                            <div
+                                key={interview.id}
+                                className="group bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl hover:shadow-md hover:border-primary-300 dark:hover:border-primary-700 transition-all duration-200 overflow-hidden"
+                            >
+                                {/* Header */}
+                                <div className="bg-gradient-to-r from-neutral-50 to-neutral-100 dark:from-neutral-800 dark:to-neutral-900 px-4 py-3 border-b border-neutral-200 dark:border-neutral-700">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <div className="flex items-center gap-2">
+                                            {/* Status Dropdown */}
+                                            <div className="relative flex-shrink-0">
+                                                <div
+                                                    className="cursor-pointer flex items-center gap-1"
+                                                    onClick={() => setOpenDropdownId(openDropdownId === interview.id ? null : interview.id)}
+                                                >
+                                                    <Badge
+                                                        variant={getStatusColor(interview.status)}
+                                                        className="hover:opacity-80 transition-opacity text-xs"
+                                                    >
+                                                        {interview.status}
+                                                    </Badge>
+                                                    <ChevronDown size={14} className="text-neutral-500 dark:text-neutral-400" />
+                                                </div>
+                                                {/* Dropdown Menu */}
+                                                {openDropdownId === interview.id && (
+                                                    <div className="absolute left-0 top-full mt-1 z-10 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg shadow-xl py-1 min-w-[150px]">
+                                                        <button
+                                                            onClick={() => handleStatusChange(interview.id, 'SCHEDULED')}
+                                                            className="w-full px-3 py-2 text-left text-sm hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
+                                                        >
+                                                            Scheduled
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleStatusChange(interview.id, 'CONFIRMED')}
+                                                            className="w-full px-3 py-2 text-left text-sm hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
+                                                        >
+                                                            Confirmed
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleStatusChange(interview.id, 'COMPLETED')}
+                                                            className="w-full px-3 py-2 text-left text-sm hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors text-green-600 dark:text-green-400 font-medium"
+                                                        >
+                                                            ✓ Completed
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleStatusChange(interview.id, 'CANCELLED')}
+                                                            className="w-full px-3 py-2 text-left text-sm hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors text-red-600 dark:text-red-400"
+                                                        >
+                                                            Cancelled
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleStatusChange(interview.id, 'NO_SHOW')}
+                                                            className="w-full px-3 py-2 text-left text-sm hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors text-red-600 dark:text-red-400"
+                                                        >
+                                                            No Show
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <span className="text-xs text-neutral-500 dark:text-neutral-400">
+                                            {format(new Date(interview.createdAt), 'MMM d, yyyy')}
+                                        </span>
+                                    </div>
+                                    <h4 className="text-sm font-semibold text-neutral-900 dark:text-white">
+                                        {interview.type.replace('_', ' ')}
+                                    </h4>
+                                </div>
+
+                                {/* Body */}
+                                <div className="p-4 space-y-3">
+                                    {/* Interview Details Grid */}
+                                    <div className="grid grid-cols-1 gap-2">
+                                        <div className="flex items-center gap-2 text-sm">
+                                            <div className="flex items-center justify-center w-7 h-7 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                                                <Calendar size={14} className="text-blue-600 dark:text-blue-400" />
+                                            </div>
+                                            <span className="text-neutral-700 dark:text-neutral-300 font-medium">
+                                                {format(new Date(interview.scheduledAt), 'MMM d, yyyy')}
+                                            </span>
+                                            <span className="text-neutral-500 dark:text-neutral-400">
+                                                at {format(new Date(interview.scheduledAt), 'h:mm a')}
+                                            </span>
+                                        </div>
+
+                                        <div className="flex items-center gap-2 text-sm">
+                                            <div className="flex items-center justify-center w-7 h-7 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                                                <Clock size={14} className="text-purple-600 dark:text-purple-400" />
+                                            </div>
+                                            <span className="text-neutral-700 dark:text-neutral-300">
+                                                {interview.duration} minutes
+                                            </span>
+                                        </div>
+
+                                        <div className="flex items-center gap-2 text-sm">
+                                            <div className="flex items-center justify-center w-7 h-7 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                                                <User size={14} className="text-green-600 dark:text-green-400" />
+                                            </div>
+                                            <span className="text-neutral-700 dark:text-neutral-300">
+                                                {interview.interviewer?.firstName} {interview.interviewer?.lastName}
+                                            </span>
+                                        </div>
+
+                                        {interview.location && (
+                                            <div className="flex items-center gap-2 text-sm">
+                                                <div className="flex items-center justify-center w-7 h-7 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
+                                                    <MapPin size={14} className="text-orange-600 dark:text-orange-400" />
+                                                </div>
+                                                <span className="text-neutral-700 dark:text-neutral-300">
+                                                    {interview.location}
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Meeting Link */}
+                                    {interview.meetingLink && (
+                                        <div className="pt-2">
+                                            <a
+                                                href={interview.meetingLink}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="inline-flex items-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg text-sm font-medium transition-colors"
+                                            >
+                                                <Video size={16} />
+                                                Join Meeting
+                                            </a>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Footer */}
+                                <div className="px-4 py-3 bg-neutral-50 dark:bg-neutral-900/50 border-t border-neutral-200 dark:border-neutral-700 flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        {interview.feedbacks && interview.feedbacks.length > 0 ? (
+                                            <>
+                                                <div className="flex items-center justify-center w-6 h-6 bg-primary-100 dark:bg-primary-900/30 rounded-full">
+                                                    <MessageSquare size={12} className="text-primary-600 dark:text-primary-400" />
+                                                </div>
+                                                <span className="text-xs font-medium text-neutral-700 dark:text-neutral-300">
+                                                    {interview.feedbacks.length} feedback{interview.feedbacks.length > 1 ? 's' : ''}
+                                                </span>
+                                            </>
+                                        ) : (
+                                            <span className="text-xs text-neutral-500 dark:text-neutral-400 italic">
+                                                No feedback yet
+                                            </span>
+                                        )}
+                                    </div>
+                                    {interview.status === 'COMPLETED' && (
+                                        <Button
+                                            variant="secondary"
+                                            size="sm"
+                                            onClick={() => handleSubmitFeedback(interview)}
+                                            className="gap-1.5 text-xs"
+                                        >
+                                            <Star size={14} />
+                                            Submit Feedback
+                                        </Button>
+                                    )}
+                                </div>
+                            </div>
+                        ))
+                    ) : (
+                        <div className="text-center py-8 text-neutral-500">
+                            {t('candidates.noInterviews', 'No interviews scheduled yet')}
+                        </div>
+                    )}
+                </div>
+            </Card>
+        </>
+    );
+}

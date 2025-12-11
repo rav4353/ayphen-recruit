@@ -1,0 +1,335 @@
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import { PrismaService } from '../../prisma/prisma.service';
+import { CheckrService } from './providers/checkr.service';
+
+type BGVProvider = 'CHECKR' | 'SPRINGVERIFY' | 'AUTHBRIDGE' | 'MANUAL';
+type BGVStatus = 'PENDING' | 'INITIATED' | 'IN_PROGRESS' | 'COMPLETED' | 'CLEAR' | 'CONSIDER' | 'FAILED' | 'CANCELLED';
+
+interface ConfigureBGVDto {
+    provider: BGVProvider;
+    apiKey: string;
+    apiSecret?: string;
+    webhookUrl?: string;
+    sandboxMode?: boolean;
+}
+
+interface InitiateBGVDto {
+    candidateId: string;
+    applicationId?: string;
+    packageType?: string;
+    checkTypes?: string[];
+}
+
+@Injectable()
+export class BGVService {
+    private readonly logger = new Logger(BGVService.name);
+
+    constructor(
+        private readonly prisma: PrismaService,
+        private readonly checkr: CheckrService,
+    ) {}
+
+    /**
+     * Get BGV settings for tenant
+     */
+    async getSettings(tenantId: string) {
+        const settings = await this.prisma.bGVSettings.findUnique({
+            where: { tenantId },
+            select: { id: true, provider: true, isConfigured: true, sandboxMode: true },
+        });
+        return settings;
+    }
+
+    /**
+     * Configure BGV provider
+     */
+    async configure(tenantId: string, dto: ConfigureBGVDto) {
+        const settings = await this.prisma.bGVSettings.upsert({
+            where: { tenantId },
+            update: {
+                provider: dto.provider,
+                apiKey: dto.apiKey,
+                apiSecret: dto.apiSecret,
+                webhookUrl: dto.webhookUrl,
+                sandboxMode: dto.sandboxMode ?? true,
+                isConfigured: true,
+            },
+            create: {
+                tenantId,
+                provider: dto.provider,
+                apiKey: dto.apiKey,
+                apiSecret: dto.apiSecret,
+                webhookUrl: dto.webhookUrl,
+                sandboxMode: dto.sandboxMode ?? true,
+                isConfigured: true,
+            },
+        });
+        return { id: settings.id, provider: settings.provider, isConfigured: true };
+    }
+
+    /**
+     * Initiate a background check
+     */
+    async initiate(tenantId: string, userId: string, dto: InitiateBGVDto) {
+        // Get settings
+        const settings = await this.prisma.bGVSettings.findUnique({ where: { tenantId } });
+        if (!settings?.apiKey) {
+            throw new BadRequestException('BGV provider not configured');
+        }
+
+        // Get candidate
+        const candidate = await this.prisma.candidate.findUnique({
+            where: { id: dto.candidateId },
+        });
+        if (!candidate || candidate.tenantId !== tenantId) {
+            throw new NotFoundException('Candidate not found');
+        }
+
+        // Check for existing pending BGV
+        const existing = await this.prisma.bGVCheck.findFirst({
+            where: {
+                candidateId: dto.candidateId,
+                status: { in: ['PENDING', 'INITIATED', 'IN_PROGRESS'] },
+            },
+        });
+        if (existing) {
+            throw new BadRequestException('A background check is already in progress for this candidate');
+        }
+
+        let externalId: string | null = null;
+        let status: BGVStatus = 'PENDING';
+
+        // Initiate with provider
+        if (settings.provider === 'CHECKR') {
+            try {
+                const config = { apiKey: settings.apiKey, sandboxMode: settings.sandboxMode };
+                
+                // Create candidate in Checkr
+                const checkrCandidate = await this.checkr.createCandidate(config, {
+                    email: candidate.email,
+                    firstName: candidate.firstName,
+                    lastName: candidate.lastName,
+                    phone: candidate.phone || undefined,
+                });
+
+                // Create invitation
+                const invitation = await this.checkr.createInvitation(
+                    config,
+                    checkrCandidate.id,
+                    dto.packageType || 'driver_pro'
+                );
+
+                externalId = invitation.id;
+                status = 'INITIATED';
+            } catch (error: any) {
+                this.logger.error('Failed to initiate Checkr BGV:', error);
+                throw new BadRequestException(`Failed to initiate background check: ${error.message}`);
+            }
+        } else if (settings.provider === 'MANUAL') {
+            status = 'INITIATED';
+        }
+
+        // Create BGV record
+        const bgvCheck = await this.prisma.bGVCheck.create({
+            data: {
+                provider: settings.provider,
+                externalId,
+                status,
+                packageType: dto.packageType || 'standard',
+                checkTypes: (dto.checkTypes as any) || ['IDENTITY', 'CRIMINAL', 'EMPLOYMENT'],
+                candidateId: dto.candidateId,
+                applicationId: dto.applicationId,
+                initiatedById: userId,
+                initiatedAt: new Date(),
+            },
+            include: {
+                candidate: { select: { firstName: true, lastName: true, email: true } },
+            },
+        });
+
+        return bgvCheck;
+    }
+
+    /**
+     * Get BGV check status
+     */
+    async getCheck(tenantId: string, checkId: string) {
+        const check = await this.prisma.bGVCheck.findUnique({
+            where: { id: checkId },
+            include: {
+                candidate: {
+                    select: { firstName: true, lastName: true, email: true, tenantId: true },
+                },
+                application: {
+                    select: { id: true, job: { select: { title: true } } },
+                },
+                initiatedBy: {
+                    select: { firstName: true, lastName: true },
+                },
+            },
+        });
+
+        if (!check || check.candidate.tenantId !== tenantId) {
+            throw new NotFoundException('BGV check not found');
+        }
+
+        return check;
+    }
+
+    /**
+     * List BGV checks for tenant
+     */
+    async listChecks(tenantId: string, filters?: { status?: BGVStatus; candidateId?: string }) {
+        const where: any = {
+            candidate: { tenantId },
+        };
+
+        if (filters?.status) where.status = filters.status;
+        if (filters?.candidateId) where.candidateId = filters.candidateId;
+
+        return this.prisma.bGVCheck.findMany({
+            where,
+            include: {
+                candidate: { select: { firstName: true, lastName: true, email: true } },
+                application: { select: { job: { select: { title: true } } } },
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+    }
+
+    /**
+     * Sync status with provider
+     */
+    async syncStatus(tenantId: string, checkId: string) {
+        const check = await this.getCheck(tenantId, checkId);
+        const settings = await this.prisma.bGVSettings.findUnique({ where: { tenantId } });
+
+        if (!settings?.apiKey || !check.externalId) {
+            return check;
+        }
+
+        if (settings.provider === 'CHECKR') {
+            try {
+                const config = { apiKey: settings.apiKey, sandboxMode: settings.sandboxMode };
+                const reports = await this.checkr.getCandidateReports(config, check.externalId);
+                
+                if (reports.length > 0) {
+                    const latestReport = reports[0];
+                    const newStatus = this.checkr.mapStatus(latestReport.status, latestReport.result) as BGVStatus;
+
+                    await this.prisma.bGVCheck.update({
+                        where: { id: checkId },
+                        data: {
+                            status: newStatus,
+                            result: latestReport as any,
+                            reportUrl: `https://dashboard.checkr.com/reports/${latestReport.id}`,
+                            completedAt: latestReport.completed_at ? new Date(latestReport.completed_at) : null,
+                        },
+                    });
+                }
+            } catch (error) {
+                this.logger.error('Failed to sync Checkr status:', error);
+            }
+        }
+
+        return this.getCheck(tenantId, checkId);
+    }
+
+    /**
+     * Handle webhook from BGV provider
+     */
+    async handleWebhook(provider: string, payload: any) {
+        this.logger.log(`Received ${provider} webhook:`, payload);
+
+        if (provider === 'checkr') {
+            const { type, data } = payload;
+
+            if (type === 'report.completed' || type === 'report.updated') {
+                const reportId = data.object.id;
+                
+                // Find the BGV check by external ID
+                const check = await this.prisma.bGVCheck.findFirst({
+                    where: { externalId: reportId },
+                });
+
+                if (check) {
+                    const newStatus = this.checkr.mapStatus(data.object.status, data.object.result) as BGVStatus;
+
+                    await this.prisma.bGVCheck.update({
+                        where: { id: check.id },
+                        data: {
+                            status: newStatus,
+                            result: data.object,
+                            completedAt: data.object.completed_at ? new Date(data.object.completed_at) : null,
+                        },
+                    });
+                }
+            }
+        }
+
+        return { received: true };
+    }
+
+    /**
+     * Cancel a BGV check
+     */
+    async cancel(tenantId: string, checkId: string) {
+        const check = await this.getCheck(tenantId, checkId);
+
+        if (!['PENDING', 'INITIATED'].includes(check.status)) {
+            throw new BadRequestException('Cannot cancel a check that is already in progress or completed');
+        }
+
+        await this.prisma.bGVCheck.update({
+            where: { id: checkId },
+            data: { status: 'CANCELLED' },
+        });
+
+        return { success: true };
+    }
+
+    /**
+     * Get available BGV packages
+     */
+    async getPackages(tenantId: string) {
+        const settings = await this.prisma.bGVSettings.findUnique({ where: { tenantId } });
+        
+        if (!settings?.apiKey) {
+            // Return default packages
+            return [
+                { id: 'basic', name: 'Basic', description: 'Identity + National Criminal', checks: ['IDENTITY', 'CRIMINAL'] },
+                { id: 'standard', name: 'Standard', description: 'Basic + Employment Verification', checks: ['IDENTITY', 'CRIMINAL', 'EMPLOYMENT'] },
+                { id: 'comprehensive', name: 'Comprehensive', description: 'Standard + Education + Reference', checks: ['IDENTITY', 'CRIMINAL', 'EMPLOYMENT', 'EDUCATION', 'REFERENCE'] },
+            ];
+        }
+
+        if (settings.provider === 'CHECKR') {
+            const config = { apiKey: settings.apiKey, sandboxMode: settings.sandboxMode };
+            return this.checkr.getPackages(config);
+        }
+
+        return [];
+    }
+
+    /**
+     * Get BGV dashboard stats
+     */
+    async getDashboard(tenantId: string) {
+        const [total, pending, inProgress, clear, consider] = await Promise.all([
+            this.prisma.bGVCheck.count({ where: { candidate: { tenantId } } }),
+            this.prisma.bGVCheck.count({ where: { candidate: { tenantId }, status: 'PENDING' } }),
+            this.prisma.bGVCheck.count({ where: { candidate: { tenantId }, status: 'IN_PROGRESS' } }),
+            this.prisma.bGVCheck.count({ where: { candidate: { tenantId }, status: 'CLEAR' } }),
+            this.prisma.bGVCheck.count({ where: { candidate: { tenantId }, status: 'CONSIDER' } }),
+        ]);
+
+        return {
+            total,
+            pending,
+            inProgress,
+            clear,
+            consider,
+            clearRate: total > 0 ? Math.round((clear / total) * 100) : 0,
+        };
+    }
+}

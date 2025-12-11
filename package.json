@@ -1,0 +1,32 @@
+{
+  "name": "ayphen-talentx",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI-first Applicant Tracking System",
+  "scripts": {
+    "dev": "pnpm -r --parallel run dev",
+    "dev:api": "pnpm --filter @talentx/api run dev",
+    "dev:web": "pnpm --filter @talentx/web run dev",
+    "dev:ai": "pnpm --filter @talentx/ai-service run dev",
+    "build": "pnpm -r run build",
+    "build:api": "pnpm --filter @talentx/api run build",
+    "build:web": "pnpm --filter @talentx/web run build",
+    "lint": "pnpm -r run lint",
+    "test": "pnpm -r run test",
+    "db:generate": "pnpm --filter @talentx/api run db:generate",
+    "db:migrate": "pnpm --filter @talentx/api run db:migrate",
+    "db:push": "pnpm --filter @talentx/api run db:push",
+    "db:studio": "pnpm --filter @talentx/api run db:studio",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "clean": "pnpm -r exec rm -rf node_modules dist .turbo"
+  },
+  "keywords": ["ats", "recruiting", "hiring", "ai"],
+  "author": "Ayphen",
+  "license": "UNLICENSED",
+  "packageManager": "pnpm@8.15.0",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=8.0.0"
+  }
+}

@@ -28,14 +28,14 @@ export class CalendarService {
         const setting = await this.prisma.setting.findUnique({
             where: { tenantId_key: { tenantId, key: GOOGLE_CALENDAR_CONFIG_KEY } },
         });
-        return setting?.value as GoogleCalendarConfig | null;
+        return setting?.value as unknown as GoogleCalendarConfig | null;
     }
 
     private async getOutlookConfig(tenantId: string): Promise<OutlookCalendarConfig | null> {
         const setting = await this.prisma.setting.findUnique({
             where: { tenantId_key: { tenantId, key: OUTLOOK_CALENDAR_CONFIG_KEY } },
         });
-        return setting?.value as OutlookCalendarConfig | null;
+        return setting?.value as unknown as OutlookCalendarConfig | null;
     }
 
     /**

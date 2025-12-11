@@ -38,7 +38,7 @@ export class SmsService {
         const setting = await this.prisma.setting.findUnique({
             where: { tenantId_key: { tenantId, key: SMS_CONFIG_KEY } },
         });
-        return setting?.value as SmsConfig | null;
+        return setting?.value as unknown as SmsConfig | null;
     }
 
     /**

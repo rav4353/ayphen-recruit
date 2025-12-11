@@ -5,8 +5,8 @@
   "description": "TalentX API Server",
   "scripts": {
     "dev": "nest start --watch",
-    "build": "prisma generate && nest build",
-    "start": "prisma db push --skip-generate && node dist/main",
+    "build": "prisma generate --schema=./prisma/schema.prisma && nest build",
+    "start": "prisma db push --schema=./prisma/schema.prisma --skip-generate && node dist/main",
     "start:prod": "node dist/main",
     "lint": "eslint \"{src,test}/**/*.ts\" --fix",
     "test": "jest",

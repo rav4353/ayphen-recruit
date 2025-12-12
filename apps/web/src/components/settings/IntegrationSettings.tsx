@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Card, Button, Input } from '../ui';
-import { Plug, CheckCircle2, AlertCircle, Calendar, FileSignature, Loader2, ExternalLink, Trash2, Shield, Briefcase, Settings as SettingsIcon } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Calendar, FileSignature, Loader2, ExternalLink, Trash2, Shield, Briefcase, Settings as SettingsIcon } from 'lucide-react';
 import { calendarApi, esignatureApi, jobBoardsApi, bgvApi } from '../../lib/api';
 import toast from 'react-hot-toast';
 
-type TabType = 'calendar' | 'esignature' | 'jobBoards' | 'bgv' | 'hris' | 'assessments';
+type TabType = 'calendar' | 'esignature' | 'jobBoards' | 'bgv';
 
 interface CalendarConnection {
     id: string;
@@ -380,8 +380,6 @@ export function IntegrationSettings() {
         { id: 'esignature' as TabType, label: 'E-Signature', icon: FileSignature },
         { id: 'jobBoards' as TabType, label: 'Job Boards', icon: Briefcase },
         { id: 'bgv' as TabType, label: 'Background Checks', icon: Shield },
-        { id: 'hris' as TabType, label: 'HRIS', icon: Plug },
-        { id: 'assessments' as TabType, label: 'Assessments', icon: Plug },
     ];
 
     return (
@@ -934,17 +932,6 @@ export function IntegrationSettings() {
                 </div>
             )}
 
-            {(activeTab === 'hris' || activeTab === 'assessments') && (
-                <Card>
-                    <div className="p-12 text-center">
-                        <div className="w-16 h-16 bg-neutral-100 dark:bg-neutral-800 rounded-full flex items-center justify-center mx-auto mb-4 text-neutral-400">
-                            <Plug size={32} />
-                        </div>
-                        <h3 className="text-lg font-medium text-neutral-900 dark:text-white">Coming Soon</h3>
-                        <p className="text-neutral-500 max-w-md mx-auto mt-2">We are working on adding more integrations. Check back later!</p>
-                    </div>
-                </Card>
-            )}
         </div>
     );
 }

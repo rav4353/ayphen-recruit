@@ -1,8 +1,54 @@
 import { useState, useEffect } from 'react';
-import { Modal, Button, Input, ConfirmationModal, SkillSelector } from '../ui';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+    Button,
+    Input,
+    Label,
+    Textarea,
+    AlertDialog,
+    AlertDialogContent,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogCancel,
+    AlertDialogAction,
+} from '../ui';
+import { SkillSelector } from '../ui/SkillSelector';
 import { PhoneInput } from '../ui/PhoneInput';
 import { candidatesApi, storageApi } from '../../lib/api';
 import toast from 'react-hot-toast';
+import { Upload, CheckCircle } from 'lucide-react';
+
+const referralSchema = z.object({
+    firstName: z.string().min(1, 'First name is required'),
+    lastName: z.string().min(1, 'Last name is required'),
+    email: z.string().min(1, 'Email is required').email('Invalid email address'),
+    phone: z.string(),
+    linkedinUrl: z.string().refine(
+        (val) => !val || val.startsWith('http://') || val.startsWith('https://'),
+        'Invalid URL (must start with http:// or https://)'
+    ),
+    portfolioUrl: z.string().refine(
+        (val) => !val || val.startsWith('http://') || val.startsWith('https://'),
+        'Invalid URL (must start with http:// or https://)'
+    ),
+    location: z.string(),
+    currentCompany: z.string(),
+    currentTitle: z.string(),
+    skills: z.array(z.string()),
+    resumeUrl: z.string(),
+    notes: z.string(),
+});
+
+type ReferralFormData = z.infer<typeof referralSchema>;
 
 interface ReferralModalProps {
     isOpen: boolean;
@@ -10,7 +56,7 @@ interface ReferralModalProps {
     onSuccess?: () => void;
 }
 
-const INITIAL_DATA = {
+const DEFAULT_VALUES: ReferralFormData = {
     firstName: '',
     lastName: '',
     email: '',
@@ -20,37 +66,40 @@ const INITIAL_DATA = {
     location: '',
     currentCompany: '',
     currentTitle: '',
-    skills: [] as string[],
+    skills: [],
     resumeUrl: '',
     notes: ''
 };
 
 export function ReferralModal({ isOpen, onClose, onSuccess }: ReferralModalProps) {
-    const [formData, setFormData] = useState(INITIAL_DATA);
     const [isLoading, setIsLoading] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
-    const [isDirty, setIsDirty] = useState(false);
     const [showConfirmClose, setShowConfirmClose] = useState(false);
-    const [errors, setErrors] = useState<Record<string, string>>({});
+
+    const {
+        register,
+        handleSubmit,
+        control,
+        setValue,
+        watch,
+        reset,
+        setError,
+        formState: { errors, isDirty }
+    } = useForm<ReferralFormData>({
+        resolver: zodResolver(referralSchema),
+        defaultValues: DEFAULT_VALUES,
+        mode: 'onBlur'
+    });
+
+    const resumeUrl = watch('resumeUrl');
 
     // Reset form when modal opens
     useEffect(() => {
         if (isOpen) {
-            setFormData(INITIAL_DATA);
-            setIsDirty(false);
+            reset(DEFAULT_VALUES);
             setShowConfirmClose(false);
-            setErrors({});
         }
-    }, [isOpen]);
-
-    const handleChange = (field: keyof typeof INITIAL_DATA, value: any) => {
-        setFormData(prev => ({ ...prev, [field]: value }));
-        setIsDirty(true);
-        // Clear error when user types
-        if (errors[field as string]) {
-            setErrors(prev => ({ ...prev, [field]: '' }));
-        }
-    };
+    }, [isOpen, reset]);
 
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -65,16 +114,10 @@ export function ReferralModal({ isOpen, onClose, onSuccess }: ReferralModalProps
         setIsUploading(true);
         try {
             const response = await storageApi.upload(file);
-            // Assuming response.data.url or similar. Let's check storageApi return type or assume standard
-            // storageApi.upload returns axios response. 
-            // Based on api.ts: return api.post('/storage/upload', ...)
-            // The backend usually returns { url: '...' } or similar.
-            // Let's assume response.data.url based on common patterns, or response.data.data.url
-
             const url = response.data.url || response.data.data?.url || response.data.path;
 
             if (url) {
-                handleChange('resumeUrl', url);
+                setValue('resumeUrl', url, { shouldDirty: true });
                 toast.success('Resume uploaded');
             } else {
                 throw new Error('No URL returned');
@@ -97,68 +140,28 @@ export function ReferralModal({ isOpen, onClose, onSuccess }: ReferralModalProps
 
     const confirmClose = () => {
         setShowConfirmClose(false);
-        setIsDirty(false);
+        reset(DEFAULT_VALUES);
         onClose();
     };
 
-    const validate = () => {
-        const newErrors: Record<string, string> = {};
-
-        if (!formData.firstName.trim()) {
-            newErrors.firstName = 'First name is required';
-        }
-
-        if (!formData.lastName.trim()) {
-            newErrors.lastName = 'Last name is required';
-        }
-
-        if (!formData.email.trim()) {
-            newErrors.email = 'Email is required';
-        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-            newErrors.email = 'Invalid email address';
-        }
-
-        if (formData.linkedinUrl && !/^https?:\/\//.test(formData.linkedinUrl)) {
-            newErrors.linkedinUrl = 'Invalid URL (must start with http:// or https://)';
-        }
-
-        if (formData.portfolioUrl && !/^https?:\/\//.test(formData.portfolioUrl)) {
-            newErrors.portfolioUrl = 'Invalid URL (must start with http:// or https://)';
-        }
-
-        setErrors(newErrors);
-        return Object.keys(newErrors).length === 0;
-    };
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-
-        if (!validate()) {
-            return;
-        }
-
+    const onSubmit = async (data: ReferralFormData) => {
         setIsLoading(true);
 
         try {
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const { notes, ...candidateData } = formData;
+            const { notes, ...candidateData } = data;
             await candidatesApi.createReferral({
                 ...candidateData,
                 summary: notes
             });
             toast.success('Referral submitted successfully');
             onSuccess?.();
-            setIsDirty(false);
+            reset(DEFAULT_VALUES);
             onClose();
-            setFormData(INITIAL_DATA);
         } catch (error: any) {
             console.error('Failed to submit referral', error);
 
             if (error.response?.status === 409) {
-                setErrors(prev => ({
-                    ...prev,
-                    email: 'This candidate is already in the system'
-                }));
+                setError('email', { message: 'This candidate is already in the system' });
                 toast.error('Candidate already exists');
             } else {
                 toast.error('Failed to submit referral');
@@ -170,184 +173,185 @@ export function ReferralModal({ isOpen, onClose, onSuccess }: ReferralModalProps
 
     return (
         <>
-            <Modal isOpen={isOpen} onClose={handleClose} title="Refer a Candidate" className="sm:max-w-[600px]">
-                <form onSubmit={handleSubmit} className="space-y-8" noValidate>
-                    {/* Section 1: Candidate Details */}
-                    <div className="space-y-4">
-                        <h3 className="text-lg font-semibold text-neutral-900 dark:text-white border-b border-neutral-200 dark:border-neutral-700 pb-2">
-                            Candidate Details
-                        </h3>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
+            <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
+                <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto p-0">
+                    <DialogHeader className="px-6 py-4 border-b border-neutral-200 dark:border-neutral-800 sticky top-0 bg-white dark:bg-neutral-950 z-10">
+                        <DialogTitle className="text-xl font-semibold">Refer a Candidate</DialogTitle>
+                    </DialogHeader>
+                    <form onSubmit={handleSubmit(onSubmit)} className="px-6 py-5 space-y-6" noValidate>
+                        {/* Section 1: Candidate Details */}
+                        <section className="space-y-4">
+                            <h3 className="text-sm font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
+                                Candidate Details
+                            </h3>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <Input
                                     label="First Name *"
-                                    required
-                                    value={formData.firstName}
-                                    onChange={(e) => handleChange('firstName', e.target.value)}
-                                    error={errors.firstName}
+                                    {...register('firstName')}
+                                    error={errors.firstName?.message}
                                 />
-                            </div>
-                            <div className="space-y-2">
                                 <Input
                                     label="Last Name *"
-                                    required
-                                    value={formData.lastName}
-                                    onChange={(e) => handleChange('lastName', e.target.value)}
-                                    error={errors.lastName}
+                                    {...register('lastName')}
+                                    error={errors.lastName?.message}
                                 />
                             </div>
-                        </div>
 
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <Input
                                     label="Email *"
                                     type="email"
-                                    required
-                                    value={formData.email}
-                                    onChange={(e) => handleChange('email', e.target.value)}
-                                    error={errors.email}
+                                    {...register('email')}
+                                    error={errors.email?.message}
+                                    placeholder="email@example.com"
                                 />
+                                <div className="space-y-2">
+                                    <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Phone</Label>
+                                    <Controller
+                                        name="phone"
+                                        control={control}
+                                        render={({ field }) => (
+                                            <PhoneInput
+                                                value={field.value}
+                                                onChange={field.onChange}
+                                                error={errors.phone?.message}
+                                            />
+                                        )}
+                                    />
+                                </div>
                             </div>
-                            <div className="space-y-2">
-                                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-200 mb-1">
-                                    Phone
-                                </label>
-                                <PhoneInput
-                                    value={formData.phone}
-                                    onChange={(value: string) => handleChange('phone', value)}
-                                    error={errors.phone}
-                                />
-                            </div>
-                        </div>
 
-                        <div className="space-y-2">
                             <Input
                                 label="Location"
-                                value={formData.location}
-                                onChange={(e) => handleChange('location', e.target.value)}
+                                {...register('location')}
                                 placeholder="e.g. San Francisco, CA"
                             />
-                        </div>
-                    </div>
+                        </section>
 
-                    {/* Section 2: Professional Profile */}
-                    <div className="space-y-4">
-                        <h3 className="text-lg font-semibold text-neutral-900 dark:text-white border-b border-neutral-200 dark:border-neutral-700 pb-2">
-                            Professional Profile
-                        </h3>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
+                        {/* Section 2: Professional Profile */}
+                        <section className="space-y-4">
+                            <h3 className="text-sm font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
+                                Professional Profile
+                            </h3>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <Input
                                     label="Current Company"
-                                    value={formData.currentCompany}
-                                    onChange={(e) => handleChange('currentCompany', e.target.value)}
+                                    {...register('currentCompany')}
                                 />
-                            </div>
-                            <div className="space-y-2">
                                 <Input
                                     label="Current Title"
-                                    value={formData.currentTitle}
-                                    onChange={(e) => handleChange('currentTitle', e.target.value)}
+                                    {...register('currentTitle')}
                                 />
                             </div>
-                        </div>
 
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <Input
                                     label="LinkedIn URL"
                                     type="url"
-                                    value={formData.linkedinUrl}
-                                    onChange={(e) => handleChange('linkedinUrl', e.target.value)}
-                                    error={errors.linkedinUrl}
-                                    placeholder="https://linkedin.com/in/..."
+                                    {...register('linkedinUrl')}
+                                    error={errors.linkedinUrl?.message}
+                                    placeholder="https://linkedin.com/in/username"
                                 />
-                            </div>
-                            <div className="space-y-2">
                                 <Input
                                     label="Portfolio URL"
                                     type="url"
-                                    value={formData.portfolioUrl}
-                                    onChange={(e) => handleChange('portfolioUrl', e.target.value)}
-                                    error={errors.portfolioUrl}
-                                    placeholder="https://..."
+                                    {...register('portfolioUrl')}
+                                    error={errors.portfolioUrl?.message}
+                                    placeholder="https://portfolio.com"
                                 />
                             </div>
-                        </div>
 
-                        <div className="space-y-2">
-                            <SkillSelector
-                                label="Skills"
-                                value={formData.skills}
-                                onChange={(skills) => setFormData(prev => ({ ...prev, skills }))}
+                            <Controller
+                                name="skills"
+                                control={control}
+                                render={({ field }) => (
+                                    <SkillSelector
+                                        label="Skills"
+                                        value={field.value}
+                                        onChange={field.onChange}
+                                    />
+                                )}
                             />
-                        </div>
 
-                        <div className="space-y-2">
-                            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1.5">Resume</label>
-                            <div className="border-2 border-dashed border-neutral-200 dark:border-neutral-700 rounded-lg p-6 hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-colors text-center relative">
-                                <input
-                                    type="file"
-                                    accept=".pdf,.doc,.docx"
-                                    onChange={handleFileChange}
-                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                />
-                                <div className="flex flex-col items-center gap-2">
-                                    <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-full text-blue-600 dark:text-blue-400">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" x2="12" y1="3" y2="15" /></svg>
-                                    </div>
-                                    <div className="text-sm font-medium text-neutral-900 dark:text-white">
-                                        {isUploading ? 'Uploading...' : 'Click to upload or drag and drop'}
-                                    </div>
-                                    <div className="text-xs text-neutral-500">
-                                        PDF, DOC, DOCX up to 5MB
+                            <div className="space-y-2">
+                                <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Resume</Label>
+                                <div className="relative group">
+                                    <input
+                                        type="file"
+                                        accept=".pdf,.doc,.docx"
+                                        onChange={handleFileChange}
+                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                    />
+                                    <div className="border-2 border-dashed border-neutral-300 dark:border-neutral-700 rounded-lg p-6 text-center transition-all duration-200 group-hover:border-primary-400 group-hover:bg-primary-50/50 dark:group-hover:bg-primary-900/10">
+                                        <div className="flex flex-col items-center gap-3">
+                                            <div className="w-12 h-12 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center text-primary-600 dark:text-primary-400">
+                                                <Upload size={20} />
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-medium text-neutral-900 dark:text-white">
+                                                    {isUploading ? 'Uploading...' : 'Click to upload or drag and drop'}
+                                                </p>
+                                                <p className="text-xs text-neutral-500 mt-1">
+                                                    PDF, DOC, DOCX (max 5MB)
+                                                </p>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
+                                {resumeUrl && (
+                                    <div className="flex items-center gap-2 text-sm text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/20 px-3 py-2 rounded-lg border border-green-200 dark:border-green-800">
+                                        <CheckCircle size={16} />
+                                        <span>Resume uploaded successfully</span>
+                                    </div>
+                                )}
                             </div>
-                            {formData.resumeUrl && (
-                                <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 dark:bg-green-900/20 p-2 rounded-md border border-green-100 dark:border-green-800">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>
-                                    Resume uploaded successfully
-                                </div>
-                            )}
-                        </div>
-                    </div>
+                        </section>
 
-                    {/* Section 3: Referral Context */}
-                    <div className="space-y-4">
-                        <h3 className="text-lg font-semibold text-neutral-900 dark:text-white border-b border-neutral-200 dark:border-neutral-700 pb-2">
-                            Referral Context
-                        </h3>
-                        <div className="space-y-2">
-                            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1.5">Why are you referring this person?</label>
-                            <textarea
-                                className="w-full min-h-[120px] p-3 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-                                value={formData.notes}
-                                onChange={(e) => handleChange('notes', e.target.value)}
-                                placeholder="Tell us why they would be a good fit, how you know them, etc..."
-                            />
-                        </div>
-                    </div>
+                        {/* Section 3: Referral Context */}
+                        <section className="space-y-4">
+                            <h3 className="text-sm font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
+                                Referral Context
+                            </h3>
+                            <div className="space-y-2">
+                                <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                                    Why are you referring this person?
+                                </Label>
+                                <Textarea
+                                    className="min-h-[120px] resize-none"
+                                    {...register('notes')}
+                                    placeholder="Share how you know them, why they'd be a great fit, their strengths..."
+                                />
+                            </div>
+                        </section>
 
-                    <div className="flex justify-end gap-3 pt-4 border-t border-neutral-200 dark:border-neutral-700">
-                        <Button type="button" variant="ghost" onClick={handleClose}>Cancel</Button>
-                        <Button type="submit" isLoading={isLoading || isUploading}>Submit Referral</Button>
-                    </div>
-                </form>
-            </Modal>
+                        <DialogFooter className="flex flex-col-reverse sm:flex-row gap-3 pt-6 mt-2 border-t border-neutral-200 dark:border-neutral-800">
+                            <Button type="button" variant="outline" onClick={handleClose} className="w-full sm:w-auto">
+                                Cancel
+                            </Button>
+                            <Button type="submit" isLoading={isLoading || isUploading} className="w-full sm:w-auto">
+                                Submit Referral
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
 
-            <ConfirmationModal
-                isOpen={showConfirmClose}
-                onCancel={() => setShowConfirmClose(false)}
-                onConfirm={confirmClose}
-                title="Discard Changes?"
-                message="You have unsaved changes. Are you sure you want to discard them?"
-                confirmLabel="Discard"
-                cancelLabel="Keep Editing"
-                variant="warning"
-            />
+            <AlertDialog open={showConfirmClose} onOpenChange={setShowConfirmClose}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Discard Changes?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            You have unsaved changes. Are you sure you want to discard them?
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Keep Editing</AlertDialogCancel>
+                        <AlertDialogAction onClick={confirmClose} className="bg-amber-600 hover:bg-amber-700">
+                            Discard
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </>
     );
 }

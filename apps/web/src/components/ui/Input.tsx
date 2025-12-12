@@ -48,6 +48,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             ref={ref}
             id={inputId}
             type={isPassword && showPassword ? 'text' : type}
+            formNoValidate
             className={cn(
               'w-full px-4 py-2.5 rounded-lg font-sans',
               'bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700',

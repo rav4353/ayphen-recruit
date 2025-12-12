@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { Plus, Trash2, Mail, Tag, CheckSquare, MessageSquare, Clock, X } from 'lucide-react';
-import { Button, Input, Select, Card } from '../ui';
+import { Button, Input, Select, Card, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui';
 import { workflowsApi } from '../../lib/api';
 import { WorkflowAutomation } from '../../lib/types';
 import toast from 'react-hot-toast';
@@ -128,15 +128,22 @@ export function WorkflowBuilder({ stageId, workflow, onClose, onSuccess }: Workf
                                     control={control}
                                     rules={{ required: true }}
                                     render={({ field }) => (
-                                        <Select
-                                            value={field.value}
-                                            onChange={field.onChange}
-                                            options={[
-                                                { value: 'STAGE_ENTER', label: t('workflows.triggers.stageEnter', 'When candidate enters stage') },
-                                                { value: 'STAGE_EXIT', label: t('workflows.triggers.stageExit', 'When candidate leaves stage') },
-                                                { value: 'TIME_IN_STAGE', label: t('workflows.triggers.timeInStage', 'After time in stage') },
-                                            ]}
-                                        />
+                                        <Select value={field.value} onValueChange={field.onChange}>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder={t('workflows.trigger', 'Trigger')} />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="STAGE_ENTER">
+                                                    {t('workflows.triggers.stageEnter', 'When candidate enters stage')}
+                                                </SelectItem>
+                                                <SelectItem value="STAGE_EXIT">
+                                                    {t('workflows.triggers.stageExit', 'When candidate leaves stage')}
+                                                </SelectItem>
+                                                <SelectItem value="TIME_IN_STAGE">
+                                                    {t('workflows.triggers.timeInStage', 'After time in stage')}
+                                                </SelectItem>
+                                            </SelectContent>
+                                        </Select>
                                     )}
                                 />
                             </div>
@@ -202,11 +209,18 @@ export function WorkflowBuilder({ stageId, workflow, onClose, onSuccess }: Workf
                                             name={`actions.${index}.type`}
                                             control={control}
                                             render={({ field }) => (
-                                                <Select
-                                                    value={field.value}
-                                                    onChange={field.onChange}
-                                                    options={actionTypes}
-                                                />
+                                                <Select value={field.value} onValueChange={field.onChange}>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder={t('workflows.actions', 'Actions')} />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {actionTypes.map((a) => (
+                                                            <SelectItem key={a.value} value={a.value}>
+                                                                {a.label}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
                                             )}
                                         />
 

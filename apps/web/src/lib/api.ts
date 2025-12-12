@@ -355,6 +355,20 @@ export const settingsApi = {
 // Reference API
 export const referenceApi = {
   getCurrencies: () => api.get('/reference/currencies'),
+  // Locations
+  getLocations: () => api.get('/reference/locations'),
+  createLocation: (data: { name: string; address?: string; city?: string; state?: string; country: string; timezone?: string }) =>
+    api.post('/reference/locations', data),
+  updateLocation: (id: string, data: Partial<{ name: string; address?: string; city?: string; state?: string; country: string; timezone?: string }>) =>
+    api.patch(`/reference/locations/${id}`, data),
+  deleteLocation: (id: string) => api.delete(`/reference/locations/${id}`),
+  // Departments
+  getDepartments: () => api.get('/reference/departments'),
+  createDepartment: (data: { name: string; code?: string; parentId?: string }) =>
+    api.post('/reference/departments', data),
+  updateDepartment: (id: string, data: Partial<{ name: string; code?: string; parentId?: string }>) =>
+    api.patch(`/reference/departments/${id}`, data),
+  deleteDepartment: (id: string) => api.delete(`/reference/departments/${id}`),
 };
 
 // Storage API

@@ -235,13 +235,14 @@ export function JobsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="h-full min-h-0 flex flex-col gap-6">
+      {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-neutral-900 dark:text-white">{t('jobs.title')}</h1>
-          <p className="text-neutral-500 dark:text-neutral-400 mt-1">{t('jobs.manageJobs')}</p>
+          <h1 className="text-2xl font-semibold text-neutral-900 dark:text-white">{t('jobs.title')}</h1>
+          <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">{t('jobs.manageJobs')}</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <SavedViews
             entity="JOB"
             currentFilters={{
@@ -257,194 +258,189 @@ export function JobsPage() {
             onReset={handleResetView}
           />
 
-          <button
-            type="button"
-            className="btn-secondary flex items-center gap-2"
+          <Button
+            variant="outline"
+            className="gap-2"
             onClick={() => handleExport()}
           >
-            <Download size={18} />
-            {t('common.export', 'Export')}
-          </button>
+            <Download size={16} />
+            <span className="hidden sm:inline">{t('common.export', 'Export')}</span>
+          </Button>
           <Button
-            variant="primary"
-            className="flex items-center gap-2"
+            className="gap-2"
             onClick={() => navigate(`/${tenantId}/jobs/new`)}
           >
-            <Plus size={18} />
-            {t('jobs.createJob')}
+            <Plus size={16} />
+            <span className="hidden sm:inline">{t('jobs.createJob')}</span>
           </Button>
         </div>
       </div>
 
-      {/* Filters */}
-      <form className="flex flex-col sm:flex-row gap-4" onSubmit={(event) => event.preventDefault()}>
+      {/* Search & Filters */}
+      <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={18} />
           <input
             type="text"
             placeholder={t('jobs.searchPlaceholder')}
-            className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-500"
+            className="w-full h-10 pl-10 pr-4 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg text-sm text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-shadow"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <button
-          type="button"
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-200 rounded-lg font-medium hover:bg-neutral-200 dark:hover:bg-neutral-700 border border-neutral-200 dark:border-neutral-700 transition-colors"
+        <Button
+          variant="outline"
+          className="gap-2 shrink-0"
           onClick={() => setIsFilterOpen((open) => !open)}
         >
-          <Filter size={18} />
+          <Filter size={16} />
           {t('common.filter')}
-        </button>
-      </form>
+          {isFilterOpen && <span className="w-1.5 h-1.5 rounded-full bg-primary-500" />}
+        </Button>
+      </div>
 
       {isFilterOpen && (
-        <div className="flex flex-wrap items-center gap-3 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-lg px-4 py-3 text-sm">
-          <span className="text-neutral-600 dark:text-neutral-300">
-            {t('jobs.filters.statusLabel')}
-          </span>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              className={`px-3 py-1 rounded-full border text-xs font-medium transition-colors ${!statusFilter
-                ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 border-neutral-900 dark:border-white'
-                : 'bg-transparent text-neutral-700 dark:text-neutral-300 border-neutral-300 dark:border-neutral-700'
-                }`}
-              onClick={() => setStatusFilter('')}
-            >
-              {t('jobs.filters.allStatuses')}
-            </button>
-            {JOB_STATUSES.map((statusKey) => (
+        <div className="bg-neutral-50 dark:bg-neutral-900/50 border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 space-y-4">
+          {/* Status Filter */}
+          <div className="space-y-2">
+            <span className="text-xs font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
+              {t('jobs.filters.statusLabel')}
+            </span>
+            <div className="flex flex-wrap gap-2">
               <button
-                key={statusKey}
                 type="button"
-                className={`px-3 py-1 rounded-full border text-xs font-medium transition-colors ${statusFilter === statusKey
-                  ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 border-neutral-900 dark:border-white'
-                  : 'bg-transparent text-neutral-700 dark:text-neutral-300 border-neutral-300 dark:border-neutral-700'
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${!statusFilter
+                  ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 shadow-sm'
+                  : 'bg-white dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600'
                   }`}
-                onClick={() => setStatusFilter(statusKey)}
+                onClick={() => setStatusFilter('')}
               >
-                {statusKey.replace(/_/g, ' ')}
+                {t('jobs.filters.allStatuses')}
               </button>
-            ))}
+              {JOB_STATUSES.map((statusKey) => (
+                <button
+                  key={statusKey}
+                  type="button"
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${statusFilter === statusKey
+                    ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 shadow-sm'
+                    : 'bg-white dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600'
+                    }`}
+                  onClick={() => setStatusFilter(statusKey)}
+                >
+                  {statusKey.replace(/_/g, ' ')}
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* Department filter */}
-          {departmentOptions.length > 0 && (
-            <div className="flex items-center gap-2">
-              <span className="text-neutral-600 dark:text-neutral-300">
-                {t('jobs.filters.departmentLabel')}
-              </span>
-              <select
-                className="mt-1 px-3 py-1.5 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg text-xs text-neutral-900 dark:text-white"
-                value={departmentFilter}
-                onChange={(event) => setDepartmentFilter(event.target.value)}
-              >
-                <option value="">
-                  {t('jobs.filters.allDepartments')}
-                </option>
-                {departmentOptions.map((name) => (
-                  <option key={name} value={name}>
-                    {name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+          {/* Other Filters */}
+          <div className="flex flex-wrap gap-4">
+            {/* Department filter */}
+            {departmentOptions.length > 0 && (
+              <div className="space-y-1.5">
+                <span className="text-xs font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
+                  {t('jobs.filters.departmentLabel')}
+                </span>
+                <select
+                  className="block h-9 px-3 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg text-sm text-neutral-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  value={departmentFilter}
+                  onChange={(event) => setDepartmentFilter(event.target.value)}
+                >
+                  <option value="">{t('jobs.filters.allDepartments')}</option>
+                  {departmentOptions.map((name) => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
-          {/* Location filter */}
-          {locationOptions.length > 0 && (
-            <div className="flex items-center gap-2">
-              <span className="text-neutral-600 dark:text-neutral-300">
-                {t('jobs.filters.locationLabel')}
-              </span>
-              <select
-                className="mt-1 px-3 py-1.5 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg text-xs text-neutral-900 dark:text-white"
-                value={locationFilter}
-                onChange={(event) => setLocationFilter(event.target.value)}
-              >
-                <option value="">
-                  {t('jobs.filters.allLocations')}
-                </option>
-                {locationOptions.map((name) => (
-                  <option key={name} value={name}>
-                    {name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+            {/* Location filter */}
+            {locationOptions.length > 0 && (
+              <div className="space-y-1.5">
+                <span className="text-xs font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
+                  {t('jobs.filters.locationLabel')}
+                </span>
+                <select
+                  className="block h-9 px-3 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg text-sm text-neutral-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  value={locationFilter}
+                  onChange={(event) => setLocationFilter(event.target.value)}
+                >
+                  <option value="">{t('jobs.filters.allLocations')}</option>
+                  {locationOptions.map((name) => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
-          {/* Employment type filter */}
-          {employmentTypeOptions.length > 0 && (
-            <div className="flex items-center gap-2">
-              <span className="text-neutral-600 dark:text-neutral-300">
-                {t('jobs.filters.employmentTypeLabel')}
-              </span>
-              <select
-                className="mt-1 px-3 py-1.5 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg text-xs text-neutral-900 dark:text-white"
-                value={employmentTypeFilter}
-                onChange={(event) => setEmploymentTypeFilter(event.target.value)}
-              >
-                <option value="">
-                  {t('jobs.filters.allEmploymentTypes')}
-                </option>
-                {employmentTypeOptions.map((value) => (
-                  <option key={value} value={value}>
-                    {value.replace(/_/g, ' ')}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+            {/* Employment type filter */}
+            {employmentTypeOptions.length > 0 && (
+              <div className="space-y-1.5">
+                <span className="text-xs font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
+                  {t('jobs.filters.employmentTypeLabel')}
+                </span>
+                <select
+                  className="block h-9 px-3 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg text-sm text-neutral-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  value={employmentTypeFilter}
+                  onChange={(event) => setEmploymentTypeFilter(event.target.value)}
+                >
+                  <option value="">{t('jobs.filters.allEmploymentTypes')}</option>
+                  {employmentTypeOptions.map((value) => (
+                    <option key={value} value={value}>{value.replace(/_/g, ' ')}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
       {error && (
-        <div className="text-sm text-red-500 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-lg px-4 py-3">
+        <div className="flex items-center gap-3 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl px-4 py-3">
+          <div className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
           {error}
         </div>
       )}
 
       {/* Jobs table */}
-      <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden">
+      <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden shadow-sm flex-1 min-h-0 flex flex-col">
         {selectedJobIds.length > 0 && (
-          <div className="flex items-center justify-between px-6 py-3 border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800/60 text-sm text-neutral-700 dark:text-neutral-200">
-            <span>
-              {t('jobs.bulk.selectedCount', {
-                count: selectedJobIds.length,
-              })}
+          <div className="flex flex-wrap items-center justify-between gap-3 px-4 sm:px-6 py-3 border-b border-neutral-200 dark:border-neutral-800 bg-primary-50 dark:bg-primary-900/20">
+            <span className="text-sm font-medium text-primary-700 dark:text-primary-300">
+              {t('jobs.bulk.selectedCount', { count: selectedJobIds.length })}
             </span>
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                className="text-xs font-medium text-neutral-600 dark:text-neutral-300 hover:underline"
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => setSelectedJobIds([])}
               >
                 {t('jobs.bulk.clearSelection')}
-              </button>
-              <button
-                type="button"
-                className="px-3 py-1.5 rounded-md bg-white dark:bg-neutral-700 border border-neutral-200 dark:border-neutral-600 text-neutral-700 dark:text-neutral-200 text-xs font-medium hover:bg-neutral-50 dark:hover:bg-neutral-600"
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
                 onClick={() => handleExport(selectedJobIds)}
               >
+                <Download size={14} />
                 {t('jobs.bulk.exportSelected')}
-              </button>
-              <button
-                type="button"
-                className="px-3 py-1.5 rounded-md bg-red-600 text-white text-xs font-medium hover:bg-red-700"
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
                 onClick={handleBulkClose}
               >
                 {t('jobs.bulk.closeSelected')}
-              </button>
+              </Button>
             </div>
           </div>
         )}
-        <div className="overflow-x-auto">
-          <table className="w-full">
+        <div className="flex-1 min-h-0 overflow-auto">
+          <table className="w-full min-w-[900px]">
             <thead>
-              <tr className="border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800/50">
-                <th className="px-4 py-4 w-10">
+              <tr className="border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50/80 dark:bg-neutral-800/30">
+                <th className="px-4 py-3 w-10">
                   <input
                     type="checkbox"
                     className="h-4 w-4 rounded border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-900"
@@ -454,31 +450,31 @@ export function JobsPage() {
                   />
                 </th>
                 <th
-                  className="text-left text-neutral-600 dark:text-neutral-400 text-sm font-medium px-6 py-4 cursor-pointer select-none"
+                  className="text-left text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400 px-4 py-3 cursor-pointer select-none hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors"
                   onClick={() => toggleSort('title')}
                 >
-                  {t('jobs.table.jobTitle')}
-                  {sortBy === 'title' && (
-                    <span className="ml-1 text-xs">{sortOrder === 'asc' ? '↑' : '↓'}</span>
-                  )}
+                  <span className="flex items-center gap-1">
+                    {t('jobs.table.jobTitle')}
+                    {sortBy === 'title' && <span className="text-primary-500">{sortOrder === 'asc' ? '↑' : '↓'}</span>}
+                  </span>
                 </th>
-                <th className="text-left text-neutral-600 dark:text-neutral-400 text-sm font-medium px-6 py-4">Job ID</th>
-                <th className="text-left text-neutral-600 dark:text-neutral-400 text-sm font-medium px-6 py-4">{t('jobs.table.department')}</th>
-                <th className="text-left text-neutral-600 dark:text-neutral-400 text-sm font-medium px-6 py-4">{t('jobs.table.location')}</th>
-                <th className="text-left text-neutral-600 dark:text-neutral-400 text-sm font-medium px-6 py-4">{t('jobs.table.status')}</th>
-                <th className="text-left text-neutral-600 dark:text-neutral-400 text-sm font-medium px-6 py-4">{t('jobs.table.applicants')}</th>
-                <th className="text-left text-neutral-600 dark:text-neutral-400 text-sm font-medium px-6 py-4">Hiring Manager</th>
-                <th className="text-left text-neutral-600 dark:text-neutral-400 text-sm font-medium px-6 py-4">Recruiter</th>
+                <th className="text-left text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400 px-4 py-3">Job ID</th>
+                <th className="text-left text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400 px-4 py-3">{t('jobs.table.department')}</th>
+                <th className="text-left text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400 px-4 py-3">{t('jobs.table.location')}</th>
+                <th className="text-left text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400 px-4 py-3">{t('jobs.table.status')}</th>
+                <th className="text-left text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400 px-4 py-3">{t('jobs.table.applicants')}</th>
+                <th className="text-left text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400 px-4 py-3">Hiring Manager</th>
+                <th className="text-left text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400 px-4 py-3">Recruiter</th>
                 <th
-                  className="text-left text-neutral-600 dark:text-neutral-400 text-sm font-medium px-6 py-4 cursor-pointer select-none"
+                  className="text-left text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400 px-4 py-3 cursor-pointer select-none hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors"
                   onClick={() => toggleSort('createdAt')}
                 >
-                  {t('jobs.table.created')}
-                  {sortBy === 'createdAt' && (
-                    <span className="ml-1 text-xs">{sortOrder === 'asc' ? '↑' : '↓'}</span>
-                  )}
+                  <span className="flex items-center gap-1">
+                    {t('jobs.table.created')}
+                    {sortBy === 'createdAt' && <span className="text-primary-500">{sortOrder === 'asc' ? '↑' : '↓'}</span>}
+                  </span>
                 </th>
-                <th className="px-6 py-4" />
+                <th className="px-4 py-3 w-12" />
               </tr>
             </thead>
             <tbody>
@@ -496,87 +492,90 @@ export function JobsPage() {
                       aria-label={t('jobs.bulk.selectJob')}
                     />
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-4 py-3">
                     <button
                       onClick={() => navigate(`/${tenantId}/jobs/${job.id}`)}
-                      className="text-neutral-900 dark:text-white font-medium hover:text-blue-600 dark:hover:text-blue-400 transition-colors text-left"
+                      className="text-sm font-medium text-neutral-900 dark:text-white hover:text-primary-600 dark:hover:text-primary-400 transition-colors text-left"
                     >
                       {job.title}
                     </button>
                   </td>
-                  <td className="px-6 py-4 text-neutral-600 dark:text-neutral-400">
+                  <td className="px-4 py-3">
                     {job.jobCode && (
-                      <span className="text-xs font-medium bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 px-2 py-0.5 rounded text-neutral-600 dark:text-neutral-400">
+                      <span className="inline-flex text-xs font-mono bg-neutral-100 dark:bg-neutral-800 px-2 py-1 rounded-md text-neutral-600 dark:text-neutral-400">
                         {job.jobCode}
                       </span>
                     )}
                   </td>
-                  <td className="px-6 py-4 text-neutral-600 dark:text-neutral-400">
-                    {job.department?.name || ''}
+                  <td className="px-4 py-3 text-sm text-neutral-600 dark:text-neutral-400">
+                    {job.department?.name || '—'}
                   </td>
-                  <td className="px-6 py-4 text-neutral-600 dark:text-neutral-400">
-                    {job.location?.name || ''}
+                  <td className="px-4 py-3 text-sm text-neutral-600 dark:text-neutral-400">
+                    {job.location?.name || '—'}
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-4 py-3">
                     <StatusBadge statusInfo={job.statusInfo} />
                   </td>
-                  <td className="px-6 py-4 text-neutral-600 dark:text-neutral-400">
-                    {job._count?.applications ?? 0}
+                  <td className="px-4 py-3">
+                    <span className="inline-flex items-center justify-center min-w-[28px] h-7 px-2 text-sm font-medium bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 rounded-full">
+                      {job._count?.applications ?? 0}
+                    </span>
                   </td>
-                  <td className="px-6 py-4 text-neutral-600 dark:text-neutral-400">
-                    {job.hiringManager && (
-                      <div className="flex flex-col">
-                        <span>{job.hiringManager.firstName} {job.hiringManager.lastName}</span>
+                  <td className="px-4 py-3">
+                    {job.hiringManager ? (
+                      <div className="text-sm">
+                        <span className="text-neutral-900 dark:text-white">{job.hiringManager.firstName} {job.hiringManager.lastName}</span>
                         {job.hiringManager.employeeId && (
-                          <span className="text-xs text-neutral-500">{job.hiringManager.employeeId}</span>
+                          <span className="block text-xs text-neutral-500">{job.hiringManager.employeeId}</span>
                         )}
                       </div>
-                    )}
+                    ) : <span className="text-sm text-neutral-400">—</span>}
                   </td>
-                  <td className="px-6 py-4 text-neutral-600 dark:text-neutral-400">
-                    {job.recruiter && (
-                      <div className="flex flex-col">
-                        <span>{job.recruiter.firstName} {job.recruiter.lastName}</span>
+                  <td className="px-4 py-3">
+                    {job.recruiter ? (
+                      <div className="text-sm">
+                        <span className="text-neutral-900 dark:text-white">{job.recruiter.firstName} {job.recruiter.lastName}</span>
                         {job.recruiter.employeeId && (
-                          <span className="text-xs text-neutral-500">{job.recruiter.employeeId}</span>
+                          <span className="block text-xs text-neutral-500">{job.recruiter.employeeId}</span>
                         )}
                       </div>
-                    )}
+                    ) : <span className="text-sm text-neutral-400">—</span>}
                   </td>
-                  <td className="px-6 py-4 text-neutral-600 dark:text-neutral-400">
-                    {job.createdAt ? new Date(job.createdAt).toLocaleDateString() : ''}
+                  <td className="px-4 py-3 text-sm text-neutral-500 dark:text-neutral-400">
+                    {job.createdAt ? new Date(job.createdAt).toLocaleDateString() : '—'}
                   </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex items-center justify-end gap-3">
+                  <td className="px-4 py-3">
+                    <div className="flex items-center justify-end gap-2">
                       {job.status === 'DRAFT' && (
-                        <button
-                          type="button"
-                          className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline"
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-xs h-7"
                           onClick={() => handleSubmitApproval(job.id)}
                         >
                           {t('jobs.actions.sendForApproval')}
-                        </button>
+                        </Button>
                       )}
                       <div className="relative group">
                         <button
                           type="button"
                           className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
                         >
-                          <MoreVertical size={16} className="text-neutral-500 dark:text-neutral-400" />
+                          <MoreVertical size={16} className="text-neutral-400" />
                         </button>
-                        <div className="absolute right-0 mt-1 w-40 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
+                        <div className="absolute right-0 mt-1 w-44 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 py-1">
                           <button
                             type="button"
-                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors first:rounded-t-lg"
+                            className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-700/50 transition-colors"
                             onClick={() => handleClone(job.id)}
                           >
-                            <Copy size={14} />
+                            <Copy size={14} className="text-neutral-400" />
                             {t('jobs.actions.clone')}
                           </button>
                           {job.status === 'OPEN' && (
                             <button
                               type="button"
-                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors last:rounded-b-lg"
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                               onClick={() => handleUpdateStatus(job.id, 'CLOSED')}
                             >
                               <XCircle size={14} />
@@ -591,11 +590,14 @@ export function JobsPage() {
               ))}
               {jobs.length === 0 && !isLoading && (
                 <tr>
-                  <td
-                    className="px-6 py-8 text-center text-neutral-500 dark:text-neutral-400"
-                    colSpan={8}
-                  >
-                    {t('jobs.emptyState')}
+                  <td className="px-6 py-16 text-center" colSpan={11}>
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="w-12 h-12 rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center">
+                        <Search size={20} className="text-neutral-400" />
+                      </div>
+                      <p className="text-neutral-600 dark:text-neutral-400 font-medium">{t('jobs.emptyState')}</p>
+                      <p className="text-sm text-neutral-500">Try adjusting your search or filters</p>
+                    </div>
                   </td>
                 </tr>
               )}
@@ -603,30 +605,27 @@ export function JobsPage() {
           </table>
         </div>
         {meta && meta.totalPages > 1 && (
-          <div className="flex items-center justify-between px-6 py-4 border-t border-neutral-200 dark:border-neutral-800 text-sm text-neutral-600 dark:text-neutral-400">
-            <span>
-              {t('common.pagination.summary', {
-                page: meta.page,
-                totalPages: meta.totalPages,
-              })}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 sm:px-6 py-4 border-t border-neutral-200 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-800/20">
+            <span className="text-sm text-neutral-500 dark:text-neutral-400">
+              Page {meta.page} of {meta.totalPages}
             </span>
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                className="px-3 py-1 rounded border border-neutral-200 dark:border-neutral-700 disabled:opacity-50"
+              <Button
+                variant="outline"
+                size="sm"
                 disabled={!meta.hasPrevPage}
                 onClick={() => meta?.hasPrevPage && fetchJobs(meta.page - 1)}
               >
                 {t('common.pagination.prev')}
-              </button>
-              <button
-                type="button"
-                className="px-3 py-1 rounded border border-neutral-200 dark:border-neutral-700 disabled:opacity-50"
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 disabled={!meta.hasNextPage}
                 onClick={() => meta?.hasNextPage && fetchJobs(meta.page + 1)}
               >
                 {t('common.pagination.next')}
-              </button>
+              </Button>
             </div>
           </div>
         )}

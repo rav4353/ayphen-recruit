@@ -6,6 +6,7 @@ import {
   IsBoolean,
   IsArray,
   IsDateString,
+  IsObject,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -128,4 +129,19 @@ export class CreateJobDto {
   @IsOptional()
   @IsString()
   recruiterId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  duration?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  durationUnit?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsObject()
+  customFields?: Record<string, any>;
 }

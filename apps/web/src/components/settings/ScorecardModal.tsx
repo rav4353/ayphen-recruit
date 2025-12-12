@@ -1,6 +1,31 @@
-import React, { useState, useEffect } from 'react';
-import { Button, Modal } from '../ui';
+import React, { useEffect } from 'react';
+import { useForm, useFieldArray } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+    Button,
+    Input,
+    Label,
+} from '../ui';
 import { Plus, X } from 'lucide-react';
+
+const criteriaItemSchema = z.object({
+    key: z.string(),
+    label: z.string().min(1, 'Label is required'),
+    description: z.string(),
+});
+
+const scorecardSchema = z.object({
+    name: z.string().min(1, 'Template name is required'),
+    sections: z.array(criteriaItemSchema),
+});
+
+type ScorecardFormData = z.infer<typeof scorecardSchema>;
 
 interface ScorecardModalProps {
     isOpen: boolean;
@@ -12,99 +37,119 @@ interface ScorecardModalProps {
 }
 
 export const ScorecardModal = ({ isOpen, onClose, initialData, onSubmit, isLoading, title }: ScorecardModalProps) => {
-    const [name, setName] = useState('');
-    const [sections, setSections] = useState<any[]>([]);
+    const {
+        register,
+        control,
+        handleSubmit,
+        reset,
+        formState: { errors }
+    } = useForm<ScorecardFormData>({
+        resolver: zodResolver(scorecardSchema),
+        defaultValues: {
+            name: '',
+            sections: []
+        }
+    });
+
+    const { fields, append, remove } = useFieldArray({
+        control,
+        name: 'sections'
+    });
 
     useEffect(() => {
         if (isOpen) {
-            setName(initialData?.name || '');
-            setSections(initialData?.sections || []);
+            reset({
+                name: initialData?.name || '',
+                sections: initialData?.sections || []
+            });
         }
-    }, [isOpen, initialData]);
+    }, [isOpen, initialData, reset]);
 
     const handleAddCriteria = () => {
-        setSections([...sections, { key: `criteria_${Date.now()}`, label: '', description: '' }]);
+        append({ key: `criteria_${Date.now()}`, label: '', description: '' });
     };
 
-    const handleRemoveCriteria = (index: number) => {
-        const newSections = [...sections];
-        newSections.splice(index, 1);
-        setSections(newSections);
-    };
-
-    const handleCriteriaChange = (index: number, field: string, value: string) => {
-        const newSections = [...sections];
-        newSections[index] = { ...newSections[index], [field]: value };
-        setSections(newSections);
+    const handleFormSubmit = (data: ScorecardFormData) => {
+        const syntheticEvent = { preventDefault: () => {} } as React.FormEvent;
+        onSubmit(syntheticEvent, data);
     };
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title={title || (initialData ? 'Edit Scorecard' : 'Create Scorecard')} className="max-w-3xl">
-            <form onSubmit={(e) => onSubmit(e, { name, sections })} className="space-y-6">
-                <div>
-                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300">Template Name</label>
-                    <input
-                        type="text"
-                        required
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        className="mt-1 block w-full rounded-md border-neutral-300 dark:border-neutral-600 shadow-sm p-2 border dark:bg-neutral-800 dark:text-white"
-                        placeholder="e.g. Sales Interview Scorecard"
-                    />
-                </div>
+        <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+            <DialogContent className="sm:max-w-2xl p-0 max-h-[85vh] overflow-hidden flex flex-col">
+                <DialogHeader className="px-6 py-4 border-b border-neutral-200 dark:border-neutral-800 shrink-0">
+                    <DialogTitle className="text-lg font-semibold">
+                        {title || (initialData ? 'Edit Scorecard' : 'Create Scorecard')}
+                    </DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleSubmit(handleFormSubmit)} className="flex flex-col flex-1 overflow-hidden">
+                    <div className="px-6 py-5 space-y-6 overflow-y-auto flex-1">
+                        <div className="space-y-2">
+                            <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                                Template Name
+                            </Label>
+                            <Input
+                                {...register('name')}
+                                placeholder="e.g. Sales Interview Scorecard"
+                                error={errors.name?.message}
+                            />
+                        </div>
 
-                <div>
-                    <div className="flex justify-between items-center mb-2">
-                        <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                            Evaluation Criteria
-                        </label>
-                        <Button type="button" size="sm" variant="secondary" onClick={handleAddCriteria} className="gap-1">
-                            <Plus size={14} /> Add Criteria
-                        </Button>
-                    </div>
-
-                    <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
-                        {sections.length === 0 && (
-                            <p className="text-sm text-neutral-500 italic text-center py-4 bg-neutral-50 rounded dark:bg-neutral-800">
-                                No criteria added. Click "Add Criteria" to define scorecard items.
-                            </p>
-                        )}
-                        {sections.map((section, index) => (
-                            <div key={index} className="flex gap-2 items-start p-3 bg-neutral-50 dark:bg-neutral-800 rounded border border-neutral-200 dark:border-neutral-700">
-                                <div className="flex-1 space-y-2">
-                                    <input
-                                        type="text"
-                                        required
-                                        value={section.label}
-                                        onChange={(e) => handleCriteriaChange(index, 'label', e.target.value)}
-                                        placeholder="Criteria Name (e.g. Technical Skills)"
-                                        className="block w-full text-sm rounded border-neutral-300 dark:border-neutral-600 p-1.5 border dark:bg-neutral-700 dark:text-white"
-                                    />
-                                    <input
-                                        type="text"
-                                        value={section.description}
-                                        onChange={(e) => handleCriteriaChange(index, 'description', e.target.value)}
-                                        placeholder="Description (optional)"
-                                        className="block w-full text-xs rounded border-neutral-300 dark:border-neutral-600 p-1.5 border dark:bg-neutral-700 dark:text-white text-neutral-500"
-                                    />
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={() => handleRemoveCriteria(index)}
-                                    className="p-1.5 text-neutral-400 hover:text-red-500 rounded hover:bg-red-50 dark:hover:bg-red-900/20 mt-1"
-                                >
-                                    <X size={16} />
-                                </button>
+                        <div className="space-y-3">
+                            <div className="flex justify-between items-center">
+                                <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                                    Evaluation Criteria
+                                </Label>
+                                <Button type="button" size="sm" variant="outline" onClick={handleAddCriteria} className="gap-1.5">
+                                    <Plus size={14} /> Add Criteria
+                                </Button>
                             </div>
-                        ))}
-                    </div>
-                </div>
 
-                <div className="flex justify-end gap-3 pt-4 border-t border-neutral-200 dark:border-neutral-700">
-                    <Button variant="ghost" onClick={onClose} type="button">Cancel</Button>
-                    <Button type="submit" disabled={isLoading}>{isLoading ? 'Saving...' : 'Save Template'}</Button>
-                </div>
-            </form>
-        </Modal>
+                            <div className="space-y-3 max-h-[300px] overflow-y-auto">
+                                {fields.length === 0 && (
+                                    <div className="text-sm text-neutral-500 text-center py-8 bg-neutral-50 dark:bg-neutral-900/50 rounded-xl border-2 border-dashed border-neutral-200 dark:border-neutral-800">
+                                        <p className="font-medium text-neutral-600 dark:text-neutral-400">No criteria added</p>
+                                        <p className="text-xs mt-1">Click "Add Criteria" to define scorecard items</p>
+                                    </div>
+                                )}
+                                {fields.map((field, index) => (
+                                    <div key={field.id} className="flex gap-3 items-start p-4 bg-neutral-50 dark:bg-neutral-900/50 rounded-xl border border-neutral-200 dark:border-neutral-800">
+                                        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-sm font-medium text-neutral-500 shrink-0">
+                                            {index + 1}
+                                        </div>
+                                        <div className="flex-1 space-y-3">
+                                            <Input
+                                                {...register(`sections.${index}.label` as const)}
+                                                placeholder="Criteria Name (e.g. Technical Skills)"
+                                            />
+                                            <Input
+                                                {...register(`sections.${index}.description` as const)}
+                                                placeholder="Description (optional)"
+                                            />
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => remove(index)}
+                                            className="p-2 text-neutral-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors shrink-0"
+                                        >
+                                            <X size={16} />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    <DialogFooter className="flex flex-col-reverse sm:flex-row gap-3 px-6 py-4 border-t border-neutral-200 dark:border-neutral-800 shrink-0">
+                        <Button variant="outline" onClick={onClose} type="button" className="w-full sm:w-auto">
+                            Cancel
+                        </Button>
+                        <Button type="submit" disabled={isLoading} className="w-full sm:w-auto">
+                            {isLoading ? 'Saving...' : 'Save Template'}
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
     );
 };

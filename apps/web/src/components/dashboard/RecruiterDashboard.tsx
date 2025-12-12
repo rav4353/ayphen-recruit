@@ -27,15 +27,15 @@ export function RecruiterDashboard() {
             <StatsCards />
 
             {/* Main Grid Layout */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Left Column - Priority & Schedule */}
-                <div className="space-y-6 lg:col-span-2">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-4 sm:gap-6">
+                {/* Priority & Schedule */}
+                <div className="space-y-4 sm:space-y-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                         <MyTasksWidget />
                         <UpcomingInterviewsWidget />
                     </div>
 
-                    {/* Pipeline Health - Full Width in Left Column */}
+                    {/* Pipeline Health - Full Width */}
                     <PipelineHealthWidget />
                 </div>
 

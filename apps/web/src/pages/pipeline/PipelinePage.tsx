@@ -99,9 +99,9 @@ export function PipelinePage() {
   };
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex flex-col">
+    <div className="min-h-[calc(100vh-4rem)] flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6 pb-4 border-b border-neutral-200 dark:border-neutral-800">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 pb-4 border-b border-neutral-200 dark:border-neutral-800">
         <div>
           <h1 className="text-2xl font-semibold text-neutral-900 dark:text-white">
             {t('pipeline.title')}
@@ -112,9 +112,9 @@ export function PipelinePage() {
         </div>
 
         {/* Job selector */}
-        <div className="relative">
+        <div className="relative w-full sm:w-auto">
           <select
-            className="appearance-none min-w-[240px] pl-3 pr-10 py-2 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 rounded-lg border border-neutral-300 dark:border-neutral-700 text-sm font-medium hover:border-neutral-400 dark:hover:border-neutral-600 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="appearance-none w-full sm:min-w-[280px] h-10 pl-4 pr-10 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 rounded-lg border border-neutral-200 dark:border-neutral-700 text-sm font-medium hover:border-neutral-300 dark:hover:border-neutral-600 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             value={selectedJobId}
             onChange={(e) => setSelectedJobId(e.target.value)}
           >
@@ -130,12 +130,16 @@ export function PipelinePage() {
       <div className="flex-1 overflow-hidden">
         {isLoading ? (
           <div className="flex flex-col items-center justify-center h-full">
-            <div className="animate-spin rounded-full h-8 w-8 border-2 border-neutral-300 border-t-blue-600 dark:border-neutral-700 dark:border-t-blue-400"></div>
+            <div className="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
             <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-3">{t('common.loading')}</p>
           </div>
         ) : stages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-neutral-500 dark:text-neutral-400">
-            <p className="text-sm">{t('pipeline.noStages')}</p>
+          <div className="flex flex-col items-center justify-center h-full">
+            <div className="w-14 h-14 rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center mb-4">
+              <ChevronDown size={24} className="text-neutral-400" />
+            </div>
+            <p className="font-medium text-neutral-900 dark:text-white mb-1">No pipeline stages</p>
+            <p className="text-sm text-neutral-500">{t('pipeline.noStages')}</p>
           </div>
         ) : (
           <KanbanBoard

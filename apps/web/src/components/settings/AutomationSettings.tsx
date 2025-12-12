@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { GitCommit, ChevronRight, Zap } from 'lucide-react';
-import { Card, Select } from '../ui';
+import { Card, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui';
 import { pipelinesApi } from '../../lib/api';
 import { Pipeline, PipelineStage } from '../../lib/types';
 import { WorkflowList } from './WorkflowList';
@@ -65,17 +65,27 @@ export function AutomationSettings() {
                             </label>
                             <Select
                                 value={selectedPipelineId}
-                                onChange={(e) => {
-                                    setSelectedPipelineId(e.target.value);
-                                    const pipeline = pipelines.find(p => p.id === e.target.value);
+                                onValueChange={(value) => {
+                                    setSelectedPipelineId(value);
+                                    const pipeline = pipelines.find((p) => p.id === value);
                                     if (pipeline && pipeline.stages?.length > 0) {
                                         setSelectedStage(pipeline.stages[0]);
                                     } else {
                                         setSelectedStage(null);
                                     }
                                 }}
-                                options={pipelines.map(p => ({ value: p.id, label: p.name }))}
-                            />
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder={t('common.pipeline', 'Select Pipeline')} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {pipelines.map((p) => (
+                                        <SelectItem key={p.id} value={p.id}>
+                                            {p.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </Card>
 
                         {selectedPipeline && (

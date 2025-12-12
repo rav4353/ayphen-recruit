@@ -1,7 +1,10 @@
 import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class ReferenceService {
+    constructor(private readonly prisma: PrismaService) {}
+
     private readonly currencies = [
         { code: 'USD', name: 'US Dollar', symbol: '$' },
         { code: 'EUR', name: 'Euro', symbol: '€' },
@@ -168,5 +171,69 @@ export class ReferenceService {
 
     getCurrencies() {
         return this.currencies;
+    }
+
+    // Locations CRUD
+    async getLocations(tenantId: string) {
+        return this.prisma.location.findMany({
+            where: { tenantId },
+            orderBy: { name: 'asc' },
+        });
+    }
+
+    async createLocation(tenantId: string, data: { name: string; address?: string; city?: string; state?: string; country: string; timezone?: string }) {
+        return this.prisma.location.create({
+            data: {
+                ...data,
+                tenantId,
+            },
+        });
+    }
+
+    async updateLocation(id: string, data: Partial<{ name: string; address?: string; city?: string; state?: string; country: string; timezone?: string }>) {
+        return this.prisma.location.update({
+            where: { id },
+            data,
+        });
+    }
+
+    async deleteLocation(id: string) {
+        return this.prisma.location.delete({
+            where: { id },
+        });
+    }
+
+    // Departments CRUD
+    async getDepartments(tenantId: string) {
+        return this.prisma.department.findMany({
+            where: { tenantId },
+            orderBy: { name: 'asc' },
+            include: {
+                parent: true,
+                children: true,
+            },
+        });
+    }
+
+    async createDepartment(tenantId: string, data: { name: string; code?: string; parentId?: string }) {
+        return this.prisma.department.create({
+            data: {
+                ...data,
+                tenantId,
+            },
+        });
+    }
+
+    async updateDepartment(id: string, data: Partial<{ name: string; code?: string; parentId?: string }>) {
+        return this.prisma.department.update({
+            where: { id },
+            data,
+        });
+    }
+
+    async deleteDepartment(id: string) {
+        return this.prisma.department.delete({
+            where: { id },
+        });
     }
 }

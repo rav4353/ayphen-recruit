@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Mail, KeyRound } from 'lucide-react';
 import { useAuthStore } from '../../stores/auth';
 import { authApi } from '../../lib/api';
-import { Button, Input, Card, CardHeader, Alert, Divider } from '../../components/ui';
+import { Button, Input, Card, CardHeader, CardContent, Alert, Divider } from '../../components/ui';
 
 interface LoginForm {
   email: string;
@@ -134,30 +134,37 @@ export function LoginPage() {
   };
 
   return (
-    <Card className="w-full max-w-md">
+    <Card className="w-full max-w-md mx-4 sm:mx-0 shadow-xl border-neutral-200/50 dark:border-neutral-800">
       <CardHeader
         title={t('auth.login.title')}
         description={t('auth.login.description')}
+        align="center"
+        className="pb-2"
       />
-
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+      <CardContent>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         {error && <Alert variant="error">{error}</Alert>}
 
-        <Input
-          label={t('auth.login.email')}
-          type="email"
-          placeholder={t('auth.login.emailPlaceholder')}
-          leftIcon={<Mail size={18} />}
-          error={errors.email?.message}
-          autoComplete="username"
-          {...register('email', {
-            required: t('auth.validation.emailRequired'),
-            pattern: {
-              value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-              message: t('auth.validation.emailInvalid'),
-            },
-          })}
-        />
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">{t('auth.login.email')}</label>
+          <div className="relative">
+            <Mail size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+            <Input
+              type="email"
+              placeholder={t('auth.login.emailPlaceholder')}
+              error={errors.email?.message}
+              autoComplete="username"
+              className="pl-10"
+              {...register('email', {
+                required: t('auth.validation.emailRequired'),
+                pattern: {
+                  value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                  message: t('auth.validation.emailInvalid'),
+                },
+              })}
+            />
+          </div>
+        </div>
 
         <div>
           <div className="flex items-center justify-between mb-1.5">
@@ -181,54 +188,56 @@ export function LoginPage() {
         </div>
 
         <div className="flex items-center justify-between">
-          <label className="flex items-center gap-2 cursor-pointer">
+          <label className="flex items-center gap-2 cursor-pointer group">
             <input
               type="checkbox"
-              className="w-4 h-4 rounded border-neutral-300 text-blue-600 focus:ring-blue-500"
+              className="w-4 h-4 rounded border-neutral-300 dark:border-neutral-600 text-primary-600 focus:ring-primary-500 focus:ring-offset-0 transition-colors"
               checked={rememberMe}
               onChange={(e) => setRememberMe(e.target.checked)}
             />
-            <span className="text-sm text-neutral-600 dark:text-neutral-400">
+            <span className="text-sm text-neutral-600 dark:text-neutral-400 group-hover:text-neutral-900 dark:group-hover:text-neutral-200 transition-colors">
               {t('auth.login.rememberMe', 'Remember me')}
             </span>
           </label>
 
-          <Link to="/forgot-password" className="text-sm text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white">
+          <Link to="/forgot-password" className="text-sm text-neutral-500 dark:text-neutral-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
             {t('auth.login.forgotPassword')}
           </Link>
         </div>
 
-        <Button type="submit" isLoading={isLoading} className="w-full">
+        <Button type="submit" isLoading={isLoading} className="w-full h-11">
           {isLoading ? t('auth.login.signingIn') : t('auth.login.signIn')}
         </Button>
 
         <Divider text={t('auth.login.orContinueWith')} />
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Button
             type="button"
-            variant="secondary"
-            className="w-full"
+            variant="outline"
+            className="w-full h-10"
             onClick={() => {
               window.location.href = '/api/v1/auth/google';
             }}
           >
             {t('auth.login.signInWithGoogle')}
           </Button>
-          <Link to="/auth/otp">
-            <Button variant="secondary" className="w-full" leftIcon={<KeyRound size={16} />}>
+          <Link to="/auth/otp" className="w-full">
+            <Button variant="outline" className="w-full h-10 gap-2">
+              <KeyRound size={16} />
               {t('auth.login.otp')}
             </Button>
           </Link>
         </div>
 
-        <p className="text-center text-neutral-500 dark:text-neutral-400 text-sm">
+        <p className="text-center text-neutral-500 dark:text-neutral-400 text-sm pt-2">
           {t('auth.login.noAccount')}{' '}
-          <Link to="/register" className="text-neutral-900 dark:text-white hover:underline">
+          <Link to="/register" className="font-medium text-primary-600 dark:text-primary-400 hover:underline">
             {t('auth.login.signUp')}
           </Link>
         </p>
-      </form>
+        </form>
+      </CardContent>
     </Card>
   );
 }

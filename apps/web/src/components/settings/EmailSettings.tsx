@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { Mail, Save, AlertCircle } from 'lucide-react';
 import { settingsApi } from '../../lib/api';
 import { Button, Input, Card, CardHeader } from '../ui';
+import { EmailTemplatesSettings } from './EmailTemplatesSettings';
 
 interface SmtpConfig {
     host: string;
@@ -27,6 +28,7 @@ const DEFAULT_CONFIG: SmtpConfig = {
 
 export function EmailSettings() {
     const { t } = useTranslation();
+    const [activeTab, setActiveTab] = useState<'smtp' | 'templates'>('smtp');
     const [config, setConfig] = useState<SmtpConfig>(DEFAULT_CONFIG);
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -82,10 +84,35 @@ export function EmailSettings() {
                     {t('settings.email.title', 'Email Settings')}
                 </h2>
                 <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">
-                    {t('settings.email.description', 'Configure your SMTP settings for sending emails.')}
+                    {t('settings.email.description', 'Configure your SMTP settings and email templates.')}
                 </p>
             </div>
 
+            {/* Sub-tabs for Email Settings */}
+            <div className="flex gap-2 border-b border-neutral-200 dark:border-neutral-800 pb-1">
+                <button
+                    className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${activeTab === 'smtp'
+                        ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50 dark:bg-blue-900/10'
+                        : 'text-neutral-500 hover:text-neutral-700 dark:text-neutral-400'
+                    }`}
+                    onClick={() => setActiveTab('smtp')}
+                >
+                    SMTP Configuration
+                </button>
+                <button
+                    className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${activeTab === 'templates'
+                        ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50 dark:bg-blue-900/10'
+                        : 'text-neutral-500 hover:text-neutral-700 dark:text-neutral-400'
+                    }`}
+                    onClick={() => setActiveTab('templates')}
+                >
+                    Email Templates
+                </button>
+            </div>
+
+            {activeTab === 'templates' && <EmailTemplatesSettings />}
+
+            {activeTab === 'smtp' && (
             <Card>
                 <CardHeader
                     title="SMTP Configuration"
@@ -194,6 +221,7 @@ export function EmailSettings() {
                     </div>
                 </div>
             </Card>
+            )}
         </div>
     );
 }

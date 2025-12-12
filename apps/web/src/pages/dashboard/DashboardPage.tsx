@@ -31,14 +31,14 @@ export const DashboardPage = () => {
     };
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
             <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-bold text-neutral-900 dark:text-white">
+                <h1 className="text-xl sm:text-2xl font-bold text-neutral-900 dark:text-white">
                     {t('dashboard.title')}
                 </h1>
             </div>
 
-            <div className="min-h-[600px]">
+            <div className="min-h-[400px] sm:min-h-[600px]">
                 {renderDashboard()}
             </div>
         </div>

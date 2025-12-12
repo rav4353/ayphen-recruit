@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
-import { Settings, Users, GitBranch, FileText, Plug, Shield, CreditCard, Palette, Mail, Zap, Layout, ClipboardCheck } from 'lucide-react';
+import { Settings, Users, GitBranch, FileText, Plug, Shield, CreditCard, Palette, Mail, Zap, Layout } from 'lucide-react';
 import { GeneralSettings } from './GeneralSettings';
 import { UserManagementSettings } from './UserManagementSettings';
 import { HiringProcessSettings } from './HiringProcessSettings';
@@ -17,8 +17,6 @@ import { SecuritySettings } from './SecuritySettings';
 import { AutomationSettings } from './AutomationSettings';
 
 
-import { EmailTemplatesSettings } from './EmailTemplatesSettings';
-import { ScorecardTemplatesSettings } from './ScorecardTemplatesSettings';
 
 import { JobFormSettings } from './JobFormSettings';
 
@@ -37,9 +35,7 @@ export function SettingsPage() {
         { id: 'jobForm', label: t('settings.tabs.jobForm', 'Job Form'), icon: <Layout size={18} /> },
         { id: 'automations', label: t('settings.tabs.automations'), icon: <Zap size={18} /> },
         { id: 'skills', label: t('settings.tabs.skills'), icon: <FileText size={18} /> },
-        { id: 'templates', label: t('settings.tabs.offerTemplates', 'Offer Templates'), icon: <FileText size={18} /> },
-        { id: 'scorecards', label: t('settings.tabs.scorecards', 'Scorecard Templates'), icon: <ClipboardCheck size={18} /> },
-        { id: 'emailTemplates', label: t('settings.tabs.emailTemplates', 'Email Templates'), icon: <Mail size={18} /> },
+        { id: 'templates', label: t('settings.tabs.templates', 'Templates'), icon: <FileText size={18} /> },
         { id: 'integrations', label: t('settings.tabs.integrations'), icon: <Plug size={18} /> },
         { id: 'email', label: t('settings.tabs.email'), icon: <Mail size={18} /> },
         { id: 'compliance', label: t('settings.tabs.compliance'), icon: <Shield size={18} /> },
@@ -51,36 +47,37 @@ export function SettingsPage() {
     };
 
     return (
-        <div className="space-y-6">
+        <div className="h-full min-h-0 flex flex-col gap-4 sm:gap-6">
             <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-bold text-neutral-900 dark:text-white">
+                <h1 className="text-xl sm:text-2xl font-bold text-neutral-900 dark:text-white">
                     {t('settings.title')}
                 </h1>
             </div>
 
-            <div className="flex flex-col md:flex-row gap-6">
-                {/* Sidebar Navigation */}
-                <div className="w-full md:w-64 space-y-1 md:sticky md:top-6 md:self-start">
-                    {tabs.map((tab) => (
-                        <button
-                            key={tab.id}
-                            onClick={() => handleTabChange(tab.id)}
-                            className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${activeTab === tab.id
-                                ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'
-                                : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800'
-                                }`}
-                        >
-                            {tab.icon}
-                            {tab.label}
-                        </button>
-                    ))}
+            <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-4 sm:gap-6">
+                {/* Sidebar Navigation - Horizontal scroll on mobile */}
+                <div className="w-full lg:w-64 lg:sticky lg:top-6 lg:self-start overflow-x-auto pb-2 lg:pb-0">
+                    <div className="flex lg:flex-col gap-1 min-w-max lg:min-w-0">
+                        {tabs.map((tab) => (
+                            <button
+                                key={tab.id}
+                                onClick={() => handleTabChange(tab.id)}
+                                className={`flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${activeTab === tab.id
+                                    ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'
+                                    : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800'
+                                    }`}
+                            >
+                                {tab.icon}
+                                <span className="hidden sm:inline lg:inline">{tab.label}</span>
+                            </button>
+                        ))}
+                    </div>
                 </div>
 
                 {/* Content Area */}
-                <div className="flex-1">
+                <div className="flex-1 min-w-0 min-h-0 overflow-auto overscroll-contain">
                     {activeTab === 'general' && <GeneralSettings />}
                     {activeTab === 'security' && <SecuritySettings />}
-
                     {activeTab === 'appearance' && <StatusSettings />}
                     {activeTab === 'users' && <UserManagementSettings />}
                     {activeTab === 'hiring' && <HiringProcessSettings />}
@@ -88,8 +85,6 @@ export function SettingsPage() {
                     {activeTab === 'automations' && <AutomationSettings />}
                     {activeTab === 'skills' && <SkillsSettings />}
                     {activeTab === 'templates' && <TemplateSettings />}
-                    {activeTab === 'scorecards' && <ScorecardTemplatesSettings />}
-                    {activeTab === 'emailTemplates' && <EmailTemplatesSettings />}
                     {activeTab === 'integrations' && <IntegrationSettings />}
                     {activeTab === 'email' && <EmailSettings />}
                     {activeTab === 'compliance' && <ComplianceSettings />}
@@ -100,4 +95,3 @@ export function SettingsPage() {
         </div>
     );
 }
-

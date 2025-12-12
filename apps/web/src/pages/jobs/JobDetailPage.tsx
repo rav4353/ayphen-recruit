@@ -240,11 +240,11 @@ export function JobDetailPage() {
 
                 <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                     <div>
-                        <h1 className="text-2xl font-bold text-neutral-900 dark:text-white flex items-center gap-2">
+                        <h1 className="text-lg sm:text-2xl font-bold text-neutral-900 dark:text-white flex flex-wrap items-center gap-2">
                             {job.title}
                             <StatusBadge status={job.status} type="job" />
                         </h1>
-                        <div className="flex items-center gap-4 mt-2 text-sm text-neutral-500 dark:text-neutral-400">
+                        <div className="flex flex-wrap items-center gap-2 sm:gap-4 mt-2 text-xs sm:text-sm text-neutral-500 dark:text-neutral-400">
                             {job.jobCode && (
                                 <span className="flex items-center gap-1 bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 rounded border border-neutral-200 dark:border-neutral-700 font-mono text-xs">
                                     {job.jobCode}
@@ -271,28 +271,28 @@ export function JobDetailPage() {
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                         {pendingApproval && (
                             <>
                                 <Button
                                     variant="secondary"
                                     onClick={handleRejectClick}
                                     isLoading={isRejecting}
-                                    className="gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                    className="gap-1 sm:gap-2 text-xs sm:text-sm text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
                                 >
-                                    <XCircle size={16} />
-                                    {t('jobs.detail.reject')}
+                                    <XCircle size={14} />
+                                    <span className="hidden sm:inline">{t('jobs.detail.reject')}</span>
                                 </Button>
-                                <Button variant="primary" onClick={handleApprove} isLoading={isApproving} className="gap-2 bg-green-600 hover:bg-green-700">
-                                    <CheckCircle size={16} />
-                                    {t('jobs.detail.approve')}
+                                <Button variant="primary" onClick={handleApprove} isLoading={isApproving} className="gap-1 sm:gap-2 text-xs sm:text-sm bg-green-600 hover:bg-green-700">
+                                    <CheckCircle size={14} />
+                                    <span className="hidden sm:inline">{t('jobs.detail.approve')}</span>
                                 </Button>
                             </>
                         )}
                         {job.status === 'APPROVED' && (
-                            <Button variant="primary" onClick={handlePublishClick} className="gap-2">
-                                <Globe size={16} />
-                                {t('jobs.detail.publish')}
+                            <Button variant="primary" onClick={handlePublishClick} className="gap-1 sm:gap-2 text-xs sm:text-sm">
+                                <Globe size={14} />
+                                <span className="hidden sm:inline">{t('jobs.detail.publish')}</span>
                             </Button>
                         )}
 
@@ -300,26 +300,27 @@ export function JobDetailPage() {
                             <Button
                                 variant="secondary"
                                 onClick={() => window.open(`/${tenantId}/jobs/${job.id}/public`, '_blank')}
-                                className="gap-2"
+                                className="gap-1 sm:gap-2 text-xs sm:text-sm"
                             >
-                                <Globe size={16} />
-                                {t('jobs.detail.viewPublicPage')}
+                                <Globe size={14} />
+                                <span className="hidden sm:inline">{t('jobs.detail.viewPublicPage')}</span>
                             </Button>
                         )}
-                        <Button variant="secondary" className="gap-2" onClick={() => navigate(`/${tenantId}/jobs/${job.id}/edit`)}>
-                            <Edit size={16} />
-                            {t('jobs.detail.editJob')}
+                        <Button variant="secondary" className="gap-1 sm:gap-2 text-xs sm:text-sm" onClick={() => navigate(`/${tenantId}/jobs/${job.id}/edit`)}>
+                            <Edit size={14} />
+                            <span className="hidden sm:inline">{t('jobs.detail.editJob')}</span>
                         </Button>
-                        <Button variant="primary" onClick={() => navigate(`/${tenantId}/pipeline/${job.id}`)}>
-                            {t('jobs.detail.viewPipeline')}
+                        <Button variant="primary" className="text-xs sm:text-sm" onClick={() => navigate(`/${tenantId}/pipeline/${job.id}`)}>
+                            <span className="hidden sm:inline">{t('jobs.detail.viewPipeline')}</span>
+                            <span className="sm:hidden">Pipeline</span>
                         </Button>
                     </div>
                 </div>
             </div>
 
             {/* Tabs */}
-            <div className="border-b border-neutral-200 dark:border-neutral-800">
-                <div className="flex gap-6">
+            <div className="border-b border-neutral-200 dark:border-neutral-800 overflow-x-auto">
+                <div className="flex gap-4 sm:gap-6 min-w-max">
                     <button
                         className={`pb-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'details'
                             ? 'border-blue-600 text-blue-600 dark:text-blue-400'
@@ -353,8 +354,8 @@ export function JobDetailPage() {
             {/* Content */}
             {
                 activeTab === 'details' && (
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        <div className="lg:col-span-2 space-y-6">
+                    <div className="grid grid-cols-1 gap-4 sm:gap-6">
+                        <div className="space-y-4 sm:space-y-6">
                             <Card className="p-6 space-y-6">
                                 <div>
                                     <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-3">{t('jobs.detail.description')}</h3>

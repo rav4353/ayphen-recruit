@@ -127,34 +127,35 @@ export function CandidateDetailPage() {
             )}
 
             {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-                <div className="flex items-start gap-4">
-                    <Button variant="ghost" onClick={() => navigate(`/${tenantId}/candidates`)} className="mt-1">
-                        <ArrowLeft size={20} />
-                    </Button>
-                    <div>
-                        <div className="flex items-center gap-3">
-                            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-2xl font-semibold">
-                                {(candidate.firstName?.[0] || '')}{(candidate.lastName?.[0] || '')}
-                            </div>
-                            <div>
-                                <div className="flex items-center gap-3">
-                                    <h1 className="text-2xl font-bold text-neutral-900 dark:text-white">
-                                        {candidate.firstName} {candidate.lastName}
-                                    </h1>
-                                    {candidate.candidateId && (
-                                        <span className="text-sm font-normal text-neutral-500 bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 rounded border border-neutral-200 dark:border-neutral-700">
-                                            {candidate.candidateId}
-                                        </span>
-                                    )}
+            <div className="flex flex-col gap-4">
+                <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-2 sm:gap-4">
+                        <Button variant="ghost" onClick={() => navigate(`/${tenantId}/candidates`)} className="mt-1">
+                            <ArrowLeft size={20} />
+                        </Button>
+                        <div>
+                            <div className="flex items-center gap-2 sm:gap-3">
+                                <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-lg sm:text-2xl font-semibold flex-shrink-0">
+                                    {(candidate.firstName?.[0] || '')}{(candidate.lastName?.[0] || '')}
                                 </div>
+                                <div>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <h1 className="text-lg sm:text-2xl font-bold text-neutral-900 dark:text-white">
+                                            {candidate.firstName} {candidate.lastName}
+                                        </h1>
+                                        {candidate.candidateId && (
+                                            <span className="text-sm font-normal text-neutral-500 bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 rounded border border-neutral-200 dark:border-neutral-700">
+                                                {candidate.candidateId}
+                                            </span>
+                                        )}
+                                    </div>
                                 <p className="text-neutral-500 dark:text-neutral-400">
                                     {candidate.currentTitle} {candidate.currentCompany && `${t('candidates.at', 'at')} ${candidate.currentCompany}`}
                                 </p>
                             </div>
-                        </div>
+                            </div>
 
-                        <div className="flex flex-wrap gap-4 mt-4 ml-20">
+                        <div className="flex flex-wrap gap-3 sm:gap-4 mt-3 sm:mt-4">
                             <div className="flex items-center gap-2 text-neutral-600 dark:text-neutral-300 text-sm">
                                 <Mail size={16} />
                                 <a href={`mailto:${candidate.email}`} className="hover:text-blue-600">{candidate.email}</a>
@@ -184,40 +185,42 @@ export function CandidateDetailPage() {
                                 </div>
                             )}
                         </div>
+                        </div>
                     </div>
-                </div>
 
-                <div className="flex gap-2 ml-20 md:ml-0">
-                    <Button
-                        variant="secondary"
-                        className="gap-2"
-                        onClick={handleMerge}
-                    >
-                        <GitMerge size={16} />
-                        {t('candidates.merge')}
-                    </Button>
-                    {candidate.resumeUrl && (
-                        <Button variant="secondary" className="gap-2">
-                            <Download size={16} />
-                            {t('candidates.downloadResume')}
+                    {/* Action buttons - top right */}
+                    <div className="flex flex-wrap gap-2 shrink-0">
+                        <Button
+                            variant="outline"
+                            className="gap-2"
+                            onClick={handleMerge}
+                        >
+                            <GitMerge size={14} />
+                            <span className="hidden sm:inline">{t('candidates.merge')}</span>
                         </Button>
-                    )}
-                    <Button
-                        variant="secondary"
-                        className="gap-2"
-                        onClick={() => navigate(`/${tenantId}/candidates/${id}/edit`)}
-                    >
-                        <Edit size={16} />
-                        {t('common.edit')}
-                    </Button>
-                    <Button
-                        variant="secondary"
-                        className="gap-2 text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 border-red-200 dark:border-red-900 hover:bg-red-50 dark:hover:bg-red-900/20"
-                        onClick={handleDeleteClick}
-                    >
-                        <Trash2 size={16} />
-                        {t('common.delete')}
-                    </Button>
+                        {candidate.resumeUrl && (
+                            <Button variant="outline" className="gap-2">
+                                <Download size={14} />
+                                <span className="hidden sm:inline">{t('candidates.downloadResume')}</span>
+                            </Button>
+                        )}
+                        <Button
+                            variant="outline"
+                            className="gap-2"
+                            onClick={() => navigate(`/${tenantId}/candidates/${id}/edit`)}
+                        >
+                            <Edit size={14} />
+                            <span className="hidden sm:inline">{t('common.edit')}</span>
+                        </Button>
+                        <Button
+                            variant="outline"
+                            className="gap-2 text-red-600 hover:text-red-700 dark:text-red-400 border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-900/20"
+                            onClick={handleDeleteClick}
+                        >
+                            <Trash2 size={14} />
+                            <span className="hidden sm:inline">{t('common.delete')}</span>
+                        </Button>
+                    </div>
                 </div>
             </div>
 

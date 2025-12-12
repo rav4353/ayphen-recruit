@@ -38,62 +38,64 @@ export function ReferralsPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
+            {/* Page Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-neutral-900 dark:text-white">{t('referrals.title')}</h1>
-                    <p className="text-neutral-500 dark:text-neutral-400">{t('referrals.trackReferrals')}</p>
+                    <h1 className="text-2xl font-semibold text-neutral-900 dark:text-white">{t('referrals.title')}</h1>
+                    <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">{t('referrals.trackReferrals')}</p>
                 </div>
-                <Button onClick={() => setIsModalOpen(true)} leftIcon={<Plus size={16} />}>
+                <Button onClick={() => setIsModalOpen(true)} className="gap-2">
+                    <Plus size={16} />
                     {t('referrals.submitReferral')}
                 </Button>
             </div>
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Card className="p-6 border-l-4 border-l-blue-500 hover:shadow-md transition-shadow">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <Card className="p-5 border-l-4 border-l-primary-500 hover:shadow-md transition-all">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-sm font-medium text-neutral-500 dark:text-neutral-400">{t('referrals.myReferrals')}</p>
-                            <h3 className="text-3xl font-bold text-neutral-900 dark:text-white mt-2">{referrals.length}</h3>
+                            <p className="text-xs font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-400">{t('referrals.myReferrals')}</p>
+                            <h3 className="text-2xl font-bold text-neutral-900 dark:text-white mt-1">{referrals.length}</h3>
                         </div>
-                        <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-full text-blue-600 dark:text-blue-400">
-                            <Users size={24} />
+                        <div className="w-12 h-12 bg-primary-50 dark:bg-primary-900/20 rounded-xl flex items-center justify-center text-primary-600 dark:text-primary-400">
+                            <Users size={22} />
                         </div>
                     </div>
                 </Card>
-                <Card className="p-6 border-l-4 border-l-green-500 hover:shadow-md transition-shadow">
+                <Card className="p-5 border-l-4 border-l-green-500 hover:shadow-md transition-all">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Successful Hires</p>
-                            <h3 className="text-3xl font-bold text-neutral-900 dark:text-white mt-2">0</h3>
+                            <p className="text-xs font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-400">Successful Hires</p>
+                            <h3 className="text-2xl font-bold text-neutral-900 dark:text-white mt-1">0</h3>
                         </div>
-                        <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-full text-green-600 dark:text-green-400">
-                            <TrendingUp size={24} />
+                        <div className="w-12 h-12 bg-green-50 dark:bg-green-900/20 rounded-xl flex items-center justify-center text-green-600 dark:text-green-400">
+                            <TrendingUp size={22} />
                         </div>
                     </div>
                 </Card>
-                <Card className="p-6 border-l-4 border-l-purple-500 hover:shadow-md transition-shadow">
+                <Card className="p-5 border-l-4 border-l-purple-500 hover:shadow-md transition-all sm:col-span-2 lg:col-span-1">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-sm font-medium text-neutral-500 dark:text-neutral-400">{t('referrals.bonus')}</p>
-                            <h3 className="text-3xl font-bold text-neutral-900 dark:text-white mt-2">$0</h3>
+                            <p className="text-xs font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-400">{t('referrals.bonus')}</p>
+                            <h3 className="text-2xl font-bold text-neutral-900 dark:text-white mt-1">$0</h3>
                         </div>
-                        <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-full text-purple-600 dark:text-purple-400">
-                            <Gift size={24} />
+                        <div className="w-12 h-12 bg-purple-50 dark:bg-purple-900/20 rounded-xl flex items-center justify-center text-purple-600 dark:text-purple-400">
+                            <Gift size={22} />
                         </div>
                     </div>
                 </Card>
             </div>
 
-            <Card className="overflow-hidden">
-                <div className="p-6 border-b border-neutral-200 dark:border-neutral-700 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">{t('referrals.myReferrals')}</h2>
-                    <div className="relative max-w-sm w-full">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={18} />
+            <Card className="overflow-hidden shadow-sm">
+                <div className="px-5 py-4 border-b border-neutral-200 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <h2 className="text-base font-semibold text-neutral-900 dark:text-white">{t('referrals.myReferrals')}</h2>
+                    <div className="relative w-full sm:w-64">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={16} />
                         <input
                             type="text"
                             placeholder="Search referrals..."
-                            className="w-full pl-10 pr-4 py-2 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                            className="w-full h-9 pl-9 pr-4 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-shadow"
                             onChange={(e) => {
                                 const term = e.target.value.toLowerCase();
                                 if (!term) {
@@ -111,61 +113,58 @@ export function ReferralsPage() {
                 </div>
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm text-left">
-                        <thead className="bg-neutral-50 dark:bg-neutral-800/50 text-neutral-500 dark:text-neutral-400 font-medium">
+                        <thead className="bg-neutral-50/80 dark:bg-neutral-800/30">
                             <tr>
-                                <th className="px-6 py-4">{t('referrals.candidateName')}</th>
-                                <th className="px-6 py-4">{t('referrals.dateReferred')}</th>
-                                <th className="px-6 py-4">{t('referrals.status')}</th>
-                                <th className="px-6 py-4">Reward Status</th>
+                                <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">{t('referrals.candidateName')}</th>
+                                <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">{t('referrals.dateReferred')}</th>
+                                <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">{t('referrals.status')}</th>
+                                <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">Reward Status</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-neutral-200 dark:divide-neutral-700">
+                        <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
                             {referrals.length === 0 ? (
                                 <tr>
-                                    <td colSpan={4} className="px-6 py-12 text-center">
-                                        <div className="flex flex-col items-center justify-center text-neutral-500">
-                                            <Users size={48} className="mb-4 text-neutral-300 dark:text-neutral-600" />
-                                            <p className="text-lg font-medium text-neutral-900 dark:text-white mb-1">No referrals yet</p>
-                                            <p className="text-sm">{t('referrals.noReferrals')}</p>
+                                    <td colSpan={4} className="px-5 py-16 text-center">
+                                        <div className="flex flex-col items-center justify-center">
+                                            <div className="w-14 h-14 rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center mb-4">
+                                                <Users size={24} className="text-neutral-400" />
+                                            </div>
+                                            <p className="font-medium text-neutral-900 dark:text-white mb-1">No referrals yet</p>
+                                            <p className="text-sm text-neutral-500">{t('referrals.noReferrals')}</p>
                                         </div>
                                     </td>
                                 </tr>
                             ) : (
                                 referrals.map((referral) => (
-                                    <tr key={referral.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-colors">
-                                        <td className="px-6 py-4">
+                                    <tr key={referral.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors">
+                                        <td className="px-5 py-3">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 font-semibold">
+                                                <div className="w-9 h-9 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center text-primary-600 dark:text-primary-400 text-sm font-semibold">
                                                     {referral.firstName[0]}{referral.lastName[0]}
                                                 </div>
                                                 <div>
-                                                    <div className="font-medium text-neutral-900 dark:text-white flex items-center gap-2">
+                                                    <div className="font-medium text-sm text-neutral-900 dark:text-white">
                                                         {referral.firstName} {referral.lastName}
-                                                        {referral.candidateId && (
-                                                            <span className="text-xs font-normal text-neutral-500 bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 rounded border border-neutral-200 dark:border-neutral-700">
-                                                                {referral.candidateId}
-                                                            </span>
-                                                        )}
                                                     </div>
                                                     <div className="text-xs text-neutral-500">{referral.email}</div>
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4 text-neutral-500">
+                                        <td className="px-5 py-3 text-sm text-neutral-500">
                                             {new Date(referral.createdAt).toLocaleDateString(undefined, {
                                                 year: 'numeric',
                                                 month: 'short',
                                                 day: 'numeric'
                                             })}
                                         </td>
-                                        <td className="px-6 py-4">
-                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                                        <td className="px-5 py-3">
+                                            <span className="inline-flex items-center px-2 py-1 rounded-lg text-xs font-medium bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300">
                                                 Active
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4">
-                                            <span className="inline-flex items-center gap-1.5 text-neutral-500">
-                                                <div className="w-2 h-2 rounded-full bg-yellow-400"></div>
+                                        <td className="px-5 py-3">
+                                            <span className="inline-flex items-center gap-1.5 text-sm text-neutral-500">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-yellow-500"></div>
                                                 Pending
                                             </span>
                                         </td>

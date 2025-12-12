@@ -1,7 +1,23 @@
-import { useState } from 'react';
-import { Modal } from './Modal';
-import { Button } from './Button';
+import { useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+    DialogFooter,
+} from './shadcn/dialog';
+import { Button } from './shadcn/button';
+import { Textarea } from './shadcn/textarea';
 
+const rejectionSchema = z.object({
+    reason: z.string().min(1, 'Rejection reason is required'),
+});
+
+type RejectionFormData = z.infer<typeof rejectionSchema>;
 
 interface RejectionModalProps {
     isOpen: boolean;
@@ -20,71 +36,70 @@ export function RejectionModal({
     description = 'Please provide a reason for rejection.',
     isRejecting = false,
 }: RejectionModalProps) {
-    const [reason, setReason] = useState('');
-    const [error, setError] = useState('');
+    const {
+        register,
+        handleSubmit,
+        reset,
+        formState: { errors }
+    } = useForm<RejectionFormData>({
+        resolver: zodResolver(rejectionSchema),
+        defaultValues: { reason: '' }
+    });
 
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!reason.trim()) {
-            setError('Rejection reason is required');
-            return;
+    useEffect(() => {
+        if (isOpen) {
+            reset({ reason: '' });
         }
-        onConfirm(reason);
-        setReason('');
-        setError('');
+    }, [isOpen, reset]);
+
+    const onSubmit = (data: RejectionFormData) => {
+        onConfirm(data.reason);
+        reset();
     };
 
     const handleClose = () => {
-        setReason('');
-        setError('');
+        reset();
         onClose();
     };
 
     return (
-        <Modal isOpen={isOpen} onClose={handleClose} title={title}>
-            <form onSubmit={handleSubmit} className="space-y-4">
-                <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                    {description}
-                </p>
-
-                <div className="space-y-1">
-                    <textarea
-                        className={`w-full px-3 py-2 bg-white dark:bg-neutral-900 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all min-h-[100px] resize-none ${error
-                            ? 'border-red-500 focus:border-red-500'
-                            : 'border-neutral-200 dark:border-neutral-700 focus:border-blue-500'
-                            } text-neutral-900 dark:text-white placeholder-neutral-400`}
+        <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
+            <DialogContent className="sm:max-w-md p-0">
+                <DialogHeader className="px-6 py-4 border-b border-neutral-200 dark:border-neutral-800">
+                    <DialogTitle className="text-lg font-semibold">{title}</DialogTitle>
+                    <DialogDescription className="text-sm text-neutral-500 mt-1">
+                        {description}
+                    </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleSubmit(onSubmit)} className="px-6 py-5 space-y-5">
+                    <Textarea
+                        className="min-h-[120px] resize-none"
                         placeholder="Enter reason..."
-                        value={reason}
-                        onChange={(e) => {
-                            setReason(e.target.value);
-                            if (e.target.value.trim()) setError('');
-                        }}
+                        {...register('reason')}
+                        error={errors.reason?.message}
                         autoFocus
                     />
-                    {error && (
-                        <p className="text-xs text-red-500">{error}</p>
-                    )}
-                </div>
-
-                <div className="flex justify-end gap-3">
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        onClick={handleClose}
-                        disabled={isRejecting}
-                    >
-                        Cancel
-                    </Button>
-                    <Button
-                        type="submit"
-                        variant="primary"
-                        className="bg-red-600 hover:bg-red-700 text-white"
-                        isLoading={isRejecting}
-                    >
-                        Reject
-                    </Button>
-                </div>
-            </form>
-        </Modal>
+                    <DialogFooter className="flex flex-col-reverse sm:flex-row gap-3 pt-4 border-t border-neutral-200 dark:border-neutral-800">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={handleClose}
+                            disabled={isRejecting}
+                            className="w-full sm:w-auto"
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="submit"
+                            variant="destructive"
+                            isLoading={isRejecting}
+                            className="w-full sm:w-auto"
+                        >
+                            Reject
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
     );
 }

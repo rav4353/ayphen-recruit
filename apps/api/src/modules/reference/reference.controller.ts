@@ -1,6 +1,9 @@
-import { Controller, Get } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { Controller, Get, Post, Patch, Delete, Body, Param, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { ReferenceService } from './reference.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { JwtPayload } from '../auth/auth.service';
 
 @ApiTags('reference')
 @Controller('reference')
@@ -12,5 +15,83 @@ export class ReferenceController {
     @ApiResponse({ status: 200, description: 'Return all currencies.' })
     getCurrencies() {
         return this.referenceService.getCurrencies();
+    }
+
+    // Locations CRUD
+    @Get('locations')
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
+    @ApiOperation({ summary: 'Get all locations for tenant' })
+    async getLocations(@CurrentUser() user: JwtPayload) {
+        return this.referenceService.getLocations(user.tenantId);
+    }
+
+    @Post('locations')
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
+    @ApiOperation({ summary: 'Create a new location' })
+    async createLocation(
+        @CurrentUser() user: JwtPayload,
+        @Body() data: { name: string; address?: string; city?: string; state?: string; country: string; timezone?: string },
+    ) {
+        return this.referenceService.createLocation(user.tenantId, data);
+    }
+
+    @Patch('locations/:id')
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
+    @ApiOperation({ summary: 'Update a location' })
+    async updateLocation(
+        @Param('id') id: string,
+        @Body() data: Partial<{ name: string; address?: string; city?: string; state?: string; country: string; timezone?: string }>,
+    ) {
+        return this.referenceService.updateLocation(id, data);
+    }
+
+    @Delete('locations/:id')
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
+    @ApiOperation({ summary: 'Delete a location' })
+    async deleteLocation(@Param('id') id: string) {
+        return this.referenceService.deleteLocation(id);
+    }
+
+    // Departments CRUD
+    @Get('departments')
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
+    @ApiOperation({ summary: 'Get all departments for tenant' })
+    async getDepartments(@CurrentUser() user: JwtPayload) {
+        return this.referenceService.getDepartments(user.tenantId);
+    }
+
+    @Post('departments')
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
+    @ApiOperation({ summary: 'Create a new department' })
+    async createDepartment(
+        @CurrentUser() user: JwtPayload,
+        @Body() data: { name: string; code?: string; parentId?: string },
+    ) {
+        return this.referenceService.createDepartment(user.tenantId, data);
+    }
+
+    @Patch('departments/:id')
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
+    @ApiOperation({ summary: 'Update a department' })
+    async updateDepartment(
+        @Param('id') id: string,
+        @Body() data: Partial<{ name: string; code?: string; parentId?: string }>,
+    ) {
+        return this.referenceService.updateDepartment(id, data);
+    }
+
+    @Delete('departments/:id')
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
+    @ApiOperation({ summary: 'Delete a department' })
+    async deleteDepartment(@Param('id') id: string) {
+        return this.referenceService.deleteDepartment(id);
     }
 }

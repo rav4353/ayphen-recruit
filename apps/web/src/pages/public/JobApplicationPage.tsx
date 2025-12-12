@@ -1,10 +1,34 @@
 import { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { useParams, useNavigate } from 'react-router-dom';
 import { jobsApi, applicationsApi } from '../../lib/api';
 import { Job } from '../../lib/types';
 import { Button, Input } from '../../components/ui';
 import { MapPin, Briefcase, Clock, ArrowLeft, Upload, CheckCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
+
+const applicationSchema = z.object({
+    firstName: z.string().min(1, 'First name is required'),
+    lastName: z.string().min(1, 'Last name is required'),
+    email: z.string().min(1, 'Email is required').email('Please enter a valid email'),
+    phone: z.string(),
+    linkedinUrl: z.string().refine(
+        (val) => !val || val.startsWith('http://') || val.startsWith('https://'),
+        'Please enter a valid URL'
+    ),
+    portfolioUrl: z.string().refine(
+        (val) => !val || val.startsWith('http://') || val.startsWith('https://'),
+        'Please enter a valid URL'
+    ),
+    resume: z.any().refine(
+        (files) => files && files.length > 0,
+        'Resume is required'
+    ),
+});
+
+type ApplicationFormData = z.infer<typeof applicationSchema>;
 
 export function JobApplicationPage() {
     const { tenantId, jobId } = useParams<{ tenantId: string; jobId: string }>();
@@ -14,16 +38,25 @@ export function JobApplicationPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
 
-    // Form State
-    const [formData, setFormData] = useState({
-        firstName: '',
-        lastName: '',
-        email: '',
-        phone: '',
-        linkedinUrl: '',
-        portfolioUrl: '',
-        resume: null as File | null,
+    const {
+        register,
+        handleSubmit,
+        watch,
+        formState: { errors }
+    } = useForm<ApplicationFormData>({
+        resolver: zodResolver(applicationSchema),
+        defaultValues: {
+            firstName: '',
+            lastName: '',
+            email: '',
+            phone: '',
+            linkedinUrl: '',
+            portfolioUrl: '',
+            resume: null,
+        }
     });
+
+    const resumeFile = watch('resume');
 
     useEffect(() => {
         const fetchJob = async () => {
@@ -42,45 +75,24 @@ export function JobApplicationPage() {
         fetchJob();
     }, [jobId, tenantId]);
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!formData.resume) {
+    const onSubmit = async (data: ApplicationFormData) => {
+        if (!data.resume || data.resume.length === 0) {
             toast.error('Please upload your resume');
             return;
         }
 
         setIsSubmitting(true);
         try {
-            // 1. Upload Resume (Need a public upload endpoint or handle in createPublic)
-            // For now, let's assume createPublic handles the file upload if we send FormData
-            // But our api.ts createPublic takes Record<string, unknown> and sends JSON.
-            // We need to upload file first using storageApi (if public allowed) or use a specific endpoint.
-
-            // Let's assume we have a public upload endpoint or we can use the existing one if we are clever.
-            // Actually, storageApi.upload requires auth usually. 
-            // For public application, we might need a specific handling.
-            // Let's assume for this MVP we skip actual file upload to S3 and just send metadata or mock it.
-            // OR better: The createPublic endpoint should handle multipart/form-data.
-
-            // Let's try to send as JSON for now, assuming resume is just a URL or text.
-            // Wait, the user wants a real app.
-            // I should update createPublic to accept file.
-
-            // For now, let's just simulate success for the UI flow if upload is complex without auth.
-            // But wait, I can use storageApi.upload if I make it public or use a signed URL.
-            // Let's stick to the form data submission.
-
             await applicationsApi.createPublic({
                 jobId,
                 tenantId,
-                firstName: formData.firstName,
-                lastName: formData.lastName,
-                email: formData.email,
-                phone: formData.phone,
-                linkedinUrl: formData.linkedinUrl,
-                portfolioUrl: formData.portfolioUrl,
+                firstName: data.firstName,
+                lastName: data.lastName,
+                email: data.email,
+                phone: data.phone,
+                linkedinUrl: data.linkedinUrl,
+                portfolioUrl: data.portfolioUrl,
                 source: 'CAREER_PAGE',
-                // resume: formData.resume // We need to handle file upload properly
             });
 
             setIsSuccess(true);
@@ -190,22 +202,20 @@ export function JobApplicationPage() {
                         {/* Application Form */}
                         <section>
                             <h3 className="text-xl font-bold text-neutral-900 dark:text-white mb-6">Apply for this Job</h3>
-                            <form onSubmit={handleSubmit} className="space-y-6">
+                            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6" noValidate>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="space-y-2">
                                         <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">First Name *</label>
                                         <Input
-                                            required
-                                            value={formData.firstName}
-                                            onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                                            {...register('firstName')}
+                                            error={errors.firstName?.message}
                                         />
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Last Name *</label>
                                         <Input
-                                            required
-                                            value={formData.lastName}
-                                            onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                                            {...register('lastName')}
+                                            error={errors.lastName?.message}
                                         />
                                     </div>
                                 </div>
@@ -214,9 +224,8 @@ export function JobApplicationPage() {
                                     <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Email *</label>
                                     <Input
                                         type="email"
-                                        required
-                                        value={formData.email}
-                                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                        {...register('email')}
+                                        error={errors.email?.message}
                                     />
                                 </div>
 
@@ -224,8 +233,7 @@ export function JobApplicationPage() {
                                     <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Phone</label>
                                     <Input
                                         type="tel"
-                                        value={formData.phone}
-                                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                                        {...register('phone')}
                                     />
                                 </div>
 
@@ -233,8 +241,8 @@ export function JobApplicationPage() {
                                     <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">LinkedIn URL</label>
                                     <Input
                                         type="url"
-                                        value={formData.linkedinUrl}
-                                        onChange={(e) => setFormData({ ...formData, linkedinUrl: e.target.value })}
+                                        {...register('linkedinUrl')}
+                                        error={errors.linkedinUrl?.message}
                                     />
                                 </div>
 
@@ -242,8 +250,8 @@ export function JobApplicationPage() {
                                     <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Portfolio URL</label>
                                     <Input
                                         type="url"
-                                        value={formData.portfolioUrl}
-                                        onChange={(e) => setFormData({ ...formData, portfolioUrl: e.target.value })}
+                                        {...register('portfolioUrl')}
+                                        error={errors.portfolioUrl?.message}
                                     />
                                 </div>
 
@@ -255,16 +263,19 @@ export function JobApplicationPage() {
                                             id="resume"
                                             className="hidden"
                                             accept=".pdf,.doc,.docx"
-                                            onChange={(e) => setFormData({ ...formData, resume: e.target.files?.[0] || null })}
+                                            {...register('resume')}
                                         />
                                         <label htmlFor="resume" className="cursor-pointer flex flex-col items-center gap-2">
                                             <Upload className="h-8 w-8 text-neutral-400" />
                                             <span className="text-sm font-medium text-neutral-600 dark:text-neutral-300">
-                                                {formData.resume ? formData.resume.name : 'Click to upload or drag and drop'}
+                                                {resumeFile && resumeFile.length > 0 ? resumeFile[0].name : 'Click to upload or drag and drop'}
                                             </span>
                                             <span className="text-xs text-neutral-500">PDF, DOC, DOCX up to 10MB</span>
                                         </label>
                                     </div>
+                                    {errors.resume && (
+                                        <p className="text-sm text-red-500">{errors.resume.message as string}</p>
+                                    )}
                                 </div>
 
                                 <div className="pt-4">

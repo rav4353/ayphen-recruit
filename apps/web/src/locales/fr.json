@@ -56,6 +56,45 @@
       "thu": "Jeu",
       "fri": "Ven",
       "sat": "Sam"
+    },
+    "add": "Ajouter",
+    "label": "Étiquette",
+    "type": "Type",
+    "key": "Clé",
+    "status": "Statut",
+    "options": "Options",
+    "confirmDelete": "Êtes-vous sûr de vouloir supprimer cet élément ?"
+  },
+  "permissions": {
+    "candidate": {
+      "view": "Voir les candidats",
+      "create": "Créer des candidats",
+      "edit": "Modifier les candidats",
+      "delete": "Supprimer les candidats"
+    },
+    "job": {
+      "view": "Voir les emplois",
+      "create": "Créer des emplois",
+      "edit": "Modifier les emplois",
+      "delete": "Supprimer les emplois",
+      "publish": "Publier des emplois"
+    },
+    "offer": {
+      "view": "Voir les offres",
+      "create": "Créer des offres",
+      "edit": "Modifier les offres",
+      "delete": "Supprimer les offres",
+      "approve": "Approuver les offres"
+    },
+    "settings": {
+      "view": "Voir les paramètres",
+      "edit": "Modifier les paramètres"
+    },
+    "user": {
+      "manage": "Gérer les utilisateurs"
+    },
+    "report": {
+      "view": "Voir les rapports"
     }
   },
   "auth": {
@@ -647,7 +686,37 @@
       "integrations": "Intégrations",
       "email": "E-mail",
       "compliance": "Conformité",
-      "billing": "Facturation"
+      "billing": "Facturation",
+      "userList": "Utilisateurs",
+      "roles": "Rôles et permissions",
+      "auth": "Authentification",
+      "jobForm": "Personnalisation du formulaire d'emploi",
+      "offerTemplates": "Modèles d'offre",
+      "scorecards": "Cartes de pointage",
+      "emailTemplates": "Modèles d'e-mail"
+    },
+    "jobForm": {
+      "title": "Personnalisation du formulaire d'emploi",
+      "description": "Ajoutez des champs personnalisés au formulaire de création d'emploi pour capturer des exigences spécifiques.",
+      "customFields": "Champs personnalisés",
+      "addField": "Ajouter un champ",
+      "editField": "Modifier le champ",
+      "noFields": "Aucun champ personnalisé configuré.",
+      "step": "Page du formulaire",
+      "steps": {
+        "basics": "Informations de base",
+        "details": "Détails de l'emploi",
+        "compensation": "Rémunération"
+      },
+      "validation": {
+        "regex": "Regex de validation",
+        "regexPlaceholder": "ex: ^[A-Z]{3}-\\d{3}$",
+        "message": "Message d'erreur",
+        "messagePlaceholder": "Message d'erreur personnalisé en cas d'échec de validation",
+        "min": "Longueur/Valeur min",
+        "max": "Longueur/Valeur max",
+        "uniqueKey": "La clé doit être unique"
+      }
     },
     "general": {
       "profile": "Profil",
@@ -808,7 +877,21 @@
       "sendConfirmMessage": "Êtes-vous sûr de vouloir envoyer cette offre au candidat ? Il recevra un e-mail avec un lien pour voir et signer l'offre.",
       "sendOffer": "Envoyer l'offre",
       "deleteConfirmTitle": "Supprimer l'offre",
-      "deleteConfirmMessage": "Êtes-vous sûr de vouloir supprimer cette offre ? Cette action est irréversible."
+      "deleteConfirmMessage": "Êtes-vous sûr de vouloir supprimer cette offre ? Cette action est irréversible.",
+      "approveSuccess": "Offre approuvée avec succès",
+      "approveError": "Échec de l'approbation de l'offre",
+      "rejectSuccess": "Offre rejetée",
+      "rejectError": "Échec du rejet de l'offre",
+      "approveConfirmTitle": "Approuver l'offre",
+      "approveConfirmMessage": "Êtes-vous sûr de vouloir approuver cette offre ?",
+      "rejectConfirmTitle": "Rejeter l'offre",
+      "rejectConfirmMessage": "Veuillez fournir une raison pour le rejet de cette offre.",
+      "approvalHistory": "Historique d'approbation",
+      "pendingApproval": "En attente d'approbation",
+      "approved": "Approuvé",
+      "rejected": "Rejeté",
+      "approve": "Approuver",
+      "reject": "Rejeter"
     },
     "candidate": {
       "loadError": "Échec du chargement de l'offre. Elle peut être invalide ou expirée.",
@@ -880,6 +963,16 @@
         }
       }
     }
+  },
+  "onboarding": {
+    "title": "Intégration",
+    "dashboard": "Tableau de bord",
+    "active": "Intégrations actives",
+    "completed": "Terminé",
+    "pending": "En attente",
+    "checklist": "Liste de contrôle",
+    "task": "Tâche",
+    "assignee": "Assigné"
   },
   "careers": {
     "title": "Carrières",

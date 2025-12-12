@@ -22,6 +22,7 @@ export class JobsService {
       locationId,
       hiringManagerId,
       pipelineId,
+      scorecardTemplateId,
       employmentType,
       workLocation,
       status,
@@ -83,6 +84,7 @@ export class JobsService {
           ...(locationId && { locationId }),
           ...(hiringManagerId && { hiringManagerId }),
           ...(pipelineId && { pipelineId }),
+          ...(scorecardTemplateId && { scorecardTemplateId }),
         },
         include: {
           department: true,

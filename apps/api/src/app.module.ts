@@ -95,7 +95,7 @@ import { BGVModule } from './modules/bgv/bgv.module';
 
     // Serve static files (uploads)
     ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', '..', 'uploads'),
+      rootPath: join(__dirname, '..', 'uploads'),
       serveRoot: '/uploads',
     }),
 

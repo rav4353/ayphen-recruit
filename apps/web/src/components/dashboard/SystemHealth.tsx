@@ -280,17 +280,17 @@ export function SystemHealth() {
                     }
                 />
 
-                <div className="p-6 space-y-6">
+                <div className="p-3 sm:p-6 space-y-4 sm:space-y-6">
                     {/* Overall Status Banner */}
-                    <div className={`relative overflow-hidden rounded-2xl border-2 ${statusConfig.border} ${statusConfig.bg} p-6`}>
-                        <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-white/20 to-transparent rounded-full -mr-32 -mt-32"></div>
-                        <div className="relative flex items-center justify-between">
+                    <div className={`relative overflow-hidden rounded-xl sm:rounded-2xl border-2 ${statusConfig.border} ${statusConfig.bg} p-4 sm:p-6`}>
+                        <div className="absolute top-0 right-0 w-32 sm:w-64 h-32 sm:h-64 bg-gradient-to-br from-white/20 to-transparent rounded-full -mr-16 sm:-mr-32 -mt-16 sm:-mt-32"></div>
+                        <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0">
                             <div className="flex items-center gap-4">
                                 <div className={`${statusConfig.color} ${statusConfig.pulse}`}>
                                     {statusConfig.icon}
                                 </div>
                                 <div>
-                                    <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
+                                    <h3 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white">
                                         System {statusConfig.label}
                                     </h3>
                                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
@@ -307,16 +307,16 @@ export function SystemHealth() {
 
                     {/* Live Charts */}
                     {historicalData.length > 1 && (
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 gap-4 sm:gap-6">
                             {/* Response Time Chart */}
-                            <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5">
+                            <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 sm:p-5">
                                 <div className="flex items-center gap-2 mb-4">
                                     <BarChart3 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                                     <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
                                         Response Times (ms)
                                     </h4>
                                 </div>
-                                <ResponsiveContainer width="100%" height={200}>
+                                <ResponsiveContainer width="100%" height={180}>
                                     <LineChart data={historicalData}>
                                         <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.1} />
                                         <XAxis
@@ -371,14 +371,14 @@ export function SystemHealth() {
                             </div>
 
                             {/* Memory Usage Chart */}
-                            <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5">
+                            <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 sm:p-5">
                                 <div className="flex items-center gap-2 mb-4">
                                     <HardDrive className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                                     <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
                                         Memory Usage (%)
                                     </h4>
                                 </div>
-                                <ResponsiveContainer width="100%" height={200}>
+                                <ResponsiveContainer width="100%" height={180}>
                                     <AreaChart data={historicalData}>
                                         <defs>
                                             <linearGradient id="memoryGradient" x1="0" y1="0" x2="0" y2="1">
@@ -420,7 +420,7 @@ export function SystemHealth() {
                     )}
 
                     {/* Services Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                         {health?.services.map((service) => {
                             const serviceConfig = getServiceConfig(service.service);
                             const serviceStatus = getStatusConfig(service.status);
@@ -428,7 +428,7 @@ export function SystemHealth() {
                             return (
                                 <div
                                     key={service.service}
-                                    className="group relative overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 transition-all duration-300 hover:shadow-lg hover:scale-105"
+                                    className="group relative overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-5 transition-all duration-300 hover:shadow-lg hover:scale-[1.02] sm:hover:scale-105"
                                 >
                                     {/* Gradient Background */}
                                     <div className={`absolute inset-0 bg-gradient-to-br ${serviceConfig.gradient} opacity-0 group-hover:opacity-5 transition-opacity duration-300`}></div>
@@ -481,8 +481,8 @@ export function SystemHealth() {
 
                     {/* System Resources */}
                     {health?.environment && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                            <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-5">
                                 <div className="flex items-center justify-between mb-3">
                                     <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Memory Usage</h4>
                                     <span className="text-xs font-mono text-gray-500">

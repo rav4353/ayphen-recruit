@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Card, Select, Button, Input } from '../ui';
+import { Card, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Button, Input } from '../ui';
 import { jobsApi } from '../../lib/api';
 import { Search, Download, Printer } from 'lucide-react';
 
@@ -82,23 +82,29 @@ export function ReportFilters({ onFilterChange, onExport, isLoading }: ReportFil
                             </span>
                         </div>
                         <Select
-                            value={filters.jobId}
-                            onChange={(e) => handleChange('jobId', e.target.value)}
-                            options={[
-                                { value: '', label: t('reports.filters.allJobs') },
-                                ...jobs.map(j => ({ value: j.id, label: j.title }))
-                            ]}
-                            className="bg-white dark:bg-neutral-950 focus:ring-blue-500/10 transition-all font-medium"
-                        />
+                            value={filters.jobId || 'all'}
+                            onValueChange={(value) => handleChange('jobId', value === 'all' ? '' : value)}
+                        >
+                            <SelectTrigger className="bg-white dark:bg-neutral-950 focus:ring-blue-500/10 transition-all font-medium">
+                                <SelectValue placeholder={t('reports.filters.allJobs')} />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">{t('reports.filters.allJobs')}</SelectItem>
+                                {jobs.map((j) => (
+                                    <SelectItem key={j.id} value={j.id}>
+                                        {j.title}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
                     <div className="w-full flex gap-3">
                         <Button
-                            variant="primary"
-                            className="flex-1 shadow-lg shadow-blue-500/20"
+                            className="flex-1 gap-2"
                             onClick={handleApply}
                             isLoading={isLoading}
                         >
-                            <Search size={16} className="mr-2" strokeWidth={2.5} />
+                            <Search size={16} strokeWidth={2.5} />
                             {t('reports.filters.generate')}
                         </Button>
                         <Button

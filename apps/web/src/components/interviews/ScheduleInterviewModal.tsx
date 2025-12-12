@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { X, Calendar, Clock, MapPin, Link as LinkIcon } from 'lucide-react';
-import { Button, Input, Select } from '../ui';
+import { Button, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui';
 import { interviewsApi, usersApi } from '../../lib/api';
 import { User, InterviewType } from '../../lib/types';
 import toast from 'react-hot-toast';
@@ -123,19 +123,19 @@ export function ScheduleInterviewModal({
                                 control={control}
                                 rules={{ required: t('common.required', 'Required') }}
                                 render={({ field }) => (
-                                    <Select
-                                        value={field.value}
-                                        onChange={field.onChange}
-                                        options={[
-                                            { value: 'PHONE_SCREEN', label: 'Phone Screen' },
-                                            { value: 'VIDEO', label: 'Video Interview' },
-                                            { value: 'ONSITE', label: 'On-site Interview' },
-                                            { value: 'TECHNICAL', label: 'Technical Interview' },
-                                            { value: 'BEHAVIORAL', label: 'Behavioral Interview' },
-                                            { value: 'PANEL', label: 'Panel Interview' },
-                                        ]}
-                                        error={errors.type?.message}
-                                    />
+                                    <Select value={field.value} onValueChange={field.onChange}>
+                                        <SelectTrigger error={errors.type?.message}>
+                                            <SelectValue placeholder={t('interviews.type', 'Interview Type')} />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="PHONE_SCREEN">Phone Screen</SelectItem>
+                                            <SelectItem value="VIDEO">Video Interview</SelectItem>
+                                            <SelectItem value="ONSITE">On-site Interview</SelectItem>
+                                            <SelectItem value="TECHNICAL">Technical Interview</SelectItem>
+                                            <SelectItem value="BEHAVIORAL">Behavioral Interview</SelectItem>
+                                            <SelectItem value="PANEL">Panel Interview</SelectItem>
+                                        </SelectContent>
+                                    </Select>
                                 )}
                             />
                         </div>
@@ -170,16 +170,18 @@ export function ScheduleInterviewModal({
                             control={control}
                             rules={{ required: t('common.required', 'Required') }}
                             render={({ field }) => (
-                                <Select
-                                    value={field.value}
-                                    onChange={field.onChange}
-                                    options={interviewers.map((u) => ({
-                                        value: u.id,
-                                        label: `${u.firstName} ${u.lastName}`,
-                                    }))}
-                                    placeholder={t('interviews.selectInterviewer', 'Select interviewer')}
-                                    error={errors.interviewerId?.message}
-                                />
+                                <Select value={field.value} onValueChange={field.onChange}>
+                                    <SelectTrigger error={errors.interviewerId?.message}>
+                                        <SelectValue placeholder={t('interviews.selectInterviewer', 'Select interviewer')} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {interviewers.map((u) => (
+                                            <SelectItem key={u.id} value={u.id}>
+                                                {u.firstName} {u.lastName}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             )}
                         />
                     </div>

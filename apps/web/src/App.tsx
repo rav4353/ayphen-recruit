@@ -40,12 +40,16 @@ import { CalendarPage } from './pages/interviews/CalendarPage';
 import { ReportsPage } from './pages/reports/ReportsPage';
 import { OfferTemplatesPage } from './pages/offers/templates/OfferTemplatesPage';
 import { OfferTemplateEditor } from './pages/offers/templates/OfferTemplateEditor';
+import { JobDescriptionTemplateEditor } from './pages/templates/JobDescriptionTemplateEditor';
+import { EmailTemplateEditor } from './pages/templates/EmailTemplateEditor';
+import { OnboardingTemplateEditor } from './pages/templates/OnboardingTemplateEditor';
 import { OffersPage } from './pages/offers/OffersPage';
 import { CreateOfferPage } from './pages/offers/CreateOfferPage';
 import { OfferDetailPage } from './pages/offers/OfferDetailPage';
 import { CandidateOfferPage } from './pages/offers/CandidateOfferPage';
 import { OnboardingDashboardPage } from './pages/onboarding/OnboardingDashboardPage';
 import { OnboardingDetailPage } from './pages/onboarding/OnboardingDetailPage';
+import { SourcingPage } from './pages/sourcing/SourcingPage';
 
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -119,9 +123,16 @@ function App() {
                 <Route path="offers/templates" element={<OfferTemplatesPage />} />
                 <Route path="offers/templates/new" element={<OfferTemplateEditor />} />
                 <Route path="offers/templates/:templateId/edit" element={<OfferTemplateEditor />} />
+                <Route path="templates/job-descriptions/new" element={<JobDescriptionTemplateEditor />} />
+                <Route path="templates/job-descriptions/:templateId/edit" element={<JobDescriptionTemplateEditor />} />
+                <Route path="templates/emails/new" element={<EmailTemplateEditor />} />
+                <Route path="templates/emails/:templateId/edit" element={<EmailTemplateEditor />} />
+                <Route path="templates/onboarding/new" element={<OnboardingTemplateEditor />} />
+                <Route path="templates/onboarding/:templateId/edit" element={<OnboardingTemplateEditor />} />
                 <Route path="settings" element={<SettingsPage />} />
                 <Route path="onboarding" element={<OnboardingDashboardPage />} />
                 <Route path="onboarding/:id" element={<OnboardingDetailPage />} />
+                <Route path="sourcing" element={<SourcingPage />} />
               </Route>
             </Route>
 

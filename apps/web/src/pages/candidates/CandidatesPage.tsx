@@ -184,20 +184,20 @@ export function CandidatesPage() {
     <div className="space-y-6 relative">
       {/* Bulk Actions Toolbar */}
       {selectedIds.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 shadow-xl rounded-full px-6 py-3 flex items-center gap-4 animate-in slide-in-from-bottom-4">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 shadow-2xl rounded-2xl px-5 py-3 flex items-center gap-4 animate-in slide-in-from-bottom-4">
           <span className="text-sm font-medium text-neutral-900 dark:text-white">
             {selectedIds.length} {t('common.selected')}
           </span>
-          <div className="h-4 w-px bg-neutral-200 dark:bg-neutral-700" />
-          <Button variant="ghost" size="sm" onClick={() => setSelectedIds([])} className="h-8 w-8 p-0 rounded-full">
+          <div className="h-5 w-px bg-neutral-200 dark:bg-neutral-700" />
+          <Button variant="ghost" size="sm" onClick={() => setSelectedIds([])} className="h-8 w-8 p-0 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800">
             <X size={16} />
           </Button>
-          <Button variant="secondary" size="sm" className="gap-2 text-red-600 hover:text-red-700" onClick={handleBulkDeleteClick}>
-            <Trash2 size={16} />
+          <Button variant="outline" size="sm" className="gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 border-red-200 dark:border-red-800" onClick={handleBulkDeleteClick}>
+            <Trash2 size={14} />
             {t('common.delete')}
           </Button>
-          <Button variant="primary" size="sm" className="gap-2" onClick={() => setIsEmailModalOpen(true)}>
-            <Mail size={16} />
+          <Button size="sm" className="gap-2" onClick={() => setIsEmailModalOpen(true)}>
+            <Mail size={14} />
             {t('common.email')}
           </Button>
         </div>
@@ -210,85 +210,85 @@ export function CandidatesPage() {
         recipientCount={selectedIds.length}
       />
 
+      {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-neutral-900 dark:text-white">{t('candidates.title')}</h1>
-          <p className="text-neutral-500 dark:text-neutral-400 mt-1">{t('candidates.manageTalentPool')}</p>
+          <h1 className="text-2xl font-semibold text-neutral-900 dark:text-white">{t('candidates.title')}</h1>
+          <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">{t('candidates.manageTalentPool')}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-3">
           <Button
-            variant="secondary"
-            className="flex items-center gap-2"
+            variant="outline"
+            className="gap-2"
             onClick={handleExport}
           >
-            <Download size={18} />
-            {t('common.export')}
+            <Download size={16} />
+            <span className="hidden sm:inline">{t('common.export')}</span>
           </Button>
           <Button
-            variant="primary"
-            className="flex items-center gap-2"
+            className="gap-2"
             onClick={() => navigate(`/${tenantId}/candidates/new`)}
           >
-            <Plus size={18} />
-            {t('candidates.addCandidate')}
+            <Plus size={16} />
+            <span className="hidden sm:inline">{t('candidates.addCandidate')}</span>
           </Button>
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={18} />
-          <input
-            type="text"
-            placeholder={t('candidates.searchPlaceholder')}
-            className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-500"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-        <div className="flex gap-2">
-          <SavedViews
-            entity="CANDIDATE"
-            currentFilters={{
-              search: searchQuery,
-              sortBy,
-              sortOrder,
-              ...filters
-            }}
-            onApplyView={handleApplyView}
-            onReset={handleResetView}
-          />
-          <div className="relative">
-            <select
-              className="appearance-none pl-4 pr-10 py-2.5 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg text-neutral-900 dark:text-white focus:outline-none cursor-pointer"
-              onChange={(e) => {
-                const [newSortBy, newSortOrder] = e.target.value.split('-');
-                setSortBy(newSortBy);
-                setSortOrder(newSortOrder as 'asc' | 'desc');
-              }}
-              value={`${sortBy}-${sortOrder}`}
-            >
-              <option value="createdAt-desc">{t('common.newest')}</option>
-              <option value="createdAt-asc">{t('common.oldest')}</option>
-              <option value="firstName-asc">{t('common.nameAsc')}</option>
-              <option value="firstName-desc">{t('common.nameDesc')}</option>
-            </select>
-            <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none" />
+      {/* Search & Filters */}
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={18} />
+            <input
+              type="text"
+              placeholder={t('candidates.searchPlaceholder')}
+              className="w-full h-10 pl-10 pr-4 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg text-sm text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-shadow"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </div>
-          <button
-            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium border transition-colors ${Object.keys(filters).length > 0
-              ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800'
-              : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-700 border-neutral-200 dark:border-neutral-700'
-              }`}
-            onClick={() => setIsFilterOpen(true)}
-          >
-            <Filter size={18} />
-            {t('common.filter')}
-            {Object.keys(filters).length > 0 && (
-              <span className="ml-1 w-2 h-2 rounded-full bg-blue-600 dark:bg-blue-400" />
-            )}
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <SavedViews
+              entity="CANDIDATE"
+              currentFilters={{
+                search: searchQuery,
+                sortBy,
+                sortOrder,
+                ...filters
+              }}
+              onApplyView={handleApplyView}
+              onReset={handleResetView}
+            />
+            <div className="relative">
+              <select
+                className="appearance-none h-10 pl-4 pr-10 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg text-sm text-neutral-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 cursor-pointer"
+                onChange={(e) => {
+                  const [newSortBy, newSortOrder] = e.target.value.split('-');
+                  setSortBy(newSortBy);
+                  setSortOrder(newSortOrder as 'asc' | 'desc');
+                }}
+                value={`${sortBy}-${sortOrder}`}
+              >
+                <option value="createdAt-desc">{t('common.newest')}</option>
+                <option value="createdAt-asc">{t('common.oldest')}</option>
+                <option value="firstName-asc">{t('common.nameAsc')}</option>
+                <option value="firstName-desc">{t('common.nameDesc')}</option>
+              </select>
+              <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+            </div>
+            <Button
+              variant={Object.keys(filters).length > 0 ? 'default' : 'outline'}
+              className={`gap-2 ${Object.keys(filters).length > 0 ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 border-primary-200 dark:border-primary-800 hover:bg-primary-100' : ''}`}
+              onClick={() => setIsFilterOpen(true)}
+            >
+              <Filter size={16} />
+              {t('common.filter')}
+              {Object.keys(filters).length > 0 && (
+                <span className="w-1.5 h-1.5 rounded-full bg-primary-500" />
+              )}
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -304,33 +304,43 @@ export function CandidatesPage() {
 
       {/* Candidates grid */}
       {isLoading ? (
-        <div className="text-center py-12 text-neutral-500">{t('common.loading')}</div>
+        <div className="flex items-center justify-center py-16">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+            <span className="text-sm text-neutral-500">{t('common.loading')}</span>
+          </div>
+        </div>
       ) : candidates.length === 0 ? (
-        <div className="text-center py-12 text-neutral-500">{t('candidates.noCandidatesFound')}</div>
+        <div className="flex flex-col items-center justify-center py-16 gap-3">
+          <div className="w-14 h-14 rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center">
+            <Search size={24} className="text-neutral-400" />
+          </div>
+          <p className="text-neutral-600 dark:text-neutral-400 font-medium">{t('candidates.noCandidatesFound')}</p>
+          <p className="text-sm text-neutral-500">Try adjusting your search or filters</p>
+        </div>
       ) : (
         <>
-          <div className="flex items-center gap-2 mb-4">
+          <div className="flex items-center gap-3 mb-4 p-3 bg-neutral-50 dark:bg-neutral-900/50 rounded-lg border border-neutral-200 dark:border-neutral-800">
             <input
               type="checkbox"
               checked={selectedIds.length === candidates.length && candidates.length > 0}
               onChange={toggleAll}
-              className="w-4 h-4 text-blue-600 border-neutral-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-neutral-800 dark:bg-neutral-700 dark:border-neutral-600"
+              className="w-4 h-4 text-primary-600 border-neutral-300 rounded focus:ring-primary-500 dark:focus:ring-primary-600 dark:ring-offset-neutral-800 dark:bg-neutral-700 dark:border-neutral-600"
             />
-            <span className="text-sm text-neutral-500 dark:text-neutral-400">
-              {t('common.selectAll')}
+            <span className="text-sm text-neutral-600 dark:text-neutral-400">
+              {t('common.selectAll')} ({candidates.length})
             </span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
             {candidates.map((candidate) => (
               <div
                 key={candidate.id}
-                className={`bg-white dark:bg-neutral-900 border rounded-xl p-6 hover:border-neutral-300 dark:hover:border-neutral-700 transition-colors cursor-pointer relative group ${selectedIds.includes(candidate.id)
-                  ? 'border-blue-500 dark:border-blue-500 ring-1 ring-blue-500'
-                  : 'border-neutral-200 dark:border-neutral-800'
+                className={`bg-white dark:bg-neutral-900 border rounded-xl p-5 hover:shadow-md transition-all cursor-pointer relative group ${selectedIds.includes(candidate.id)
+                  ? 'border-primary-500 dark:border-primary-500 ring-2 ring-primary-500/20'
+                  : 'border-neutral-200 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700'
                   }`}
                 onClick={(e) => {
-                  // Don't navigate if clicking checkbox
                   if ((e.target as HTMLElement).closest('input[type="checkbox"]')) return;
                   navigate(`/${tenantId}/candidates/${candidate.id}`);
                 }}
@@ -340,85 +350,90 @@ export function CandidatesPage() {
                     type="checkbox"
                     checked={selectedIds.includes(candidate.id)}
                     onChange={() => toggleSelection(candidate.id)}
-                    className="w-5 h-5 text-blue-600 border-neutral-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-neutral-800 dark:bg-neutral-700 dark:border-neutral-600"
+                    className="w-4 h-4 text-primary-600 border-neutral-300 rounded focus:ring-primary-500 dark:focus:ring-primary-600 dark:ring-offset-neutral-800 dark:bg-neutral-700 dark:border-neutral-600"
                   />
                 </div>
 
                 <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-semibold">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary-500 to-purple-500 flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
                     {(candidate.firstName?.[0] || '')}{(candidate.lastName?.[0] || '')}
                   </div>
-                  <div className="flex-1 min-w-0 pr-8">
-                    <h3 className="text-neutral-900 dark:text-white font-semibold truncate flex items-center gap-2">
+                  <div className="flex-1 min-w-0 pr-6">
+                    <h3 className="text-neutral-900 dark:text-white font-semibold truncate text-sm">
                       {candidate.firstName} {candidate.lastName}
-                      {candidate.candidateId && (
-                        <span className="text-xs font-normal text-neutral-500 bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 rounded">
-                          {candidate.candidateId}
-                        </span>
-                      )}
                     </h3>
-                    <p className="text-neutral-500 dark:text-neutral-400 text-sm">{candidate.currentTitle || t('candidates.noTitle')}</p>
-                    <p className="text-neutral-400 text-sm">{candidate.currentCompany || t('candidates.noCompany')}</p>
+                    {candidate.candidateId && (
+                      <span className="inline-flex text-[10px] font-mono text-neutral-500 bg-neutral-100 dark:bg-neutral-800 px-1.5 py-0.5 rounded mt-1">
+                        {candidate.candidateId}
+                      </span>
+                    )}
+                    <p className="text-neutral-600 dark:text-neutral-400 text-sm mt-1">{candidate.currentTitle || t('candidates.noTitle')}</p>
+                    <p className="text-neutral-400 text-xs">{candidate.currentCompany || t('candidates.noCompany')}</p>
                   </div>
                 </div>
 
-                <div className="mt-4 space-y-2">
-                  <div className="flex items-center gap-2 text-neutral-500 dark:text-neutral-400 text-sm">
-                    <Mail size={14} />
+                <div className="mt-4 space-y-1.5">
+                  <div className="flex items-center gap-2 text-neutral-500 dark:text-neutral-400 text-xs">
+                    <Mail size={12} />
                     <span className="truncate">{candidate.email}</span>
                   </div>
                   {candidate.phone && (
-                    <div className="flex items-center gap-2 text-neutral-500 dark:text-neutral-400 text-sm">
-                      <Phone size={14} />
+                    <div className="flex items-center gap-2 text-neutral-500 dark:text-neutral-400 text-xs">
+                      <Phone size={12} />
                       <span>{candidate.phone}</span>
                     </div>
                   )}
                 </div>
 
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {candidate.skills?.slice(0, 3).map((skill) => (
-                    <span
-                      key={skill}
-                      className="px-2 py-1 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 text-xs"
-                    >
-                      {skill}
-                    </span>
-                  ))}
-                  {candidate.skills && candidate.skills.length > 3 && (
-                    <span className="px-2 py-1 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 text-xs">
-                      +{candidate.skills.length - 3}
-                    </span>
-                  )}
-                </div>
+                {candidate.skills && candidate.skills.length > 0 && (
+                  <div className="mt-4 flex flex-wrap gap-1.5">
+                    {candidate.skills.slice(0, 3).map((skill) => (
+                      <span
+                        key={skill}
+                        className="px-2 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 text-[11px] font-medium"
+                      >
+                        {skill}
+                      </span>
+                    ))}
+                    {candidate.skills.length > 3 && (
+                      <span className="px-2 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400 text-[11px]">
+                        +{candidate.skills.length - 3}
+                      </span>
+                    )}
+                  </div>
+                )}
 
-                <div className="mt-4 pt-4 border-t border-neutral-100 dark:border-neutral-800 flex items-center justify-between">
-                  <span className="text-neutral-400 text-sm">
+                <div className="mt-4 pt-3 border-t border-neutral-100 dark:border-neutral-800 flex items-center justify-between">
+                  <span className="text-xs text-neutral-400">
                     {candidate._count?.applications || 0} {t('candidates.applicationsCount')}
                   </span>
-                  <button className="text-blue-600 dark:text-blue-400 text-sm font-medium hover:text-blue-700 dark:hover:text-blue-300">
-                    {t('candidates.viewProfile')}
-                  </button>
+                  <span className="text-xs font-medium text-primary-600 dark:text-primary-400 group-hover:underline">
+                    {t('candidates.viewProfile')} →
+                  </span>
                 </div>
               </div>
             ))}
           </div>
 
           {/* Pagination Controls */}
-          <div className="flex items-center justify-between border-t border-neutral-200 dark:border-neutral-700 pt-4">
-            <div className="text-sm text-neutral-500 dark:text-neutral-400">
-              {t('common.showing')} {((page - 1) * LIMIT) + 1} {t('common.to')} {Math.min(page * LIMIT, totalCount)} {t('common.of')} {totalCount} {t('common.results')}
-            </div>
-            <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-6 border-t border-neutral-200 dark:border-neutral-800">
+            <span className="text-sm text-neutral-500 dark:text-neutral-400">
+              Showing {((page - 1) * LIMIT) + 1} to {Math.min(page * LIMIT, totalCount)} of {totalCount} candidates
+            </span>
+            <div className="flex items-center gap-2">
               <Button
-                variant="secondary"
+                variant="outline"
                 size="sm"
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
               >
                 {t('common.previous')}
               </Button>
+              <span className="px-3 py-1 text-sm text-neutral-600 dark:text-neutral-400">
+                {page} / {totalPages}
+              </span>
               <Button
-                variant="secondary"
+                variant="outline"
                 size="sm"
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}

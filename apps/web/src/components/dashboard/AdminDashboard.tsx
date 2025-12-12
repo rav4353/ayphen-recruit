@@ -21,15 +21,15 @@ export function AdminDashboard() {
             <SystemHealthWidget />
 
             {/* Main Grid Layout */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Left Column - Activity & Alerts */}
-                <div className="space-y-6 lg:col-span-2">
+            <div className="grid grid-cols-1 gap-4 sm:gap-6">
+                {/* Activity & Alerts */}
+                <div className="space-y-4 sm:space-y-6 [&>*]:bg-white [&>*]:dark:bg-neutral-900">
                     <UserActivityWidget />
                     <ComplianceAlertsWidget />
                 </div>
 
-                {/* Right Column - Logs & Billing */}
-                <div className="space-y-6">
+                {/* Logs & Billing */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 [&>*]:bg-white [&>*]:dark:bg-neutral-900">
                     <RecentAuditLogsWidget />
                     <BillingUsageWidget />
                 </div>

@@ -18,11 +18,12 @@ import {
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../stores/auth';
+import { useOrganizationStore } from '../stores/organization';
 import { useTheme } from '../contexts/ThemeContext';
 import { ThemeToggle, LanguageSwitcher, NotificationDrawer } from '../components/ui';
 import { ForcedPasswordChangeModal } from '../components/auth/ForcedPasswordChangeModal';
 import { cn } from '../lib/utils';
-import { preferencesApi } from '../lib/api';
+import { preferencesApi, settingsApi } from '../lib/api';
 import logoLight from '../assets/branding/logo_light_theme.png';
 import logoDark from '../assets/branding/logo_dark_theme.png';
 import ayphenLogo from '../assets/branding/ayphenLogo.6c65cf0b138677af.png';
@@ -31,6 +32,7 @@ export function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
   const { user, logout, isAuthenticated, requirePasswordChange } = useAuthStore();
+  const { settings: orgSettings, setSettings: setOrgSettings, setLogoUrl } = useOrganizationStore();
   const { setThemeFromApi, resolvedTheme } = useTheme();
   const { i18n, t } = useTranslation();
   const navigate = useNavigate();
@@ -52,9 +54,10 @@ export function DashboardLayout() {
 
   const navigation = allNavigation.filter(item => user?.role && item.roles.includes(user.role));
 
-  // Load user preferences on mount
+  // Load user preferences and organization settings on mount
   useEffect(() => {
     if (isAuthenticated && !preferencesLoaded) {
+      // Load user preferences
       preferencesApi.get()
         .then((response) => {
           const prefs = response.data.data;
@@ -70,8 +73,24 @@ export function DashboardLayout() {
           console.error('Failed to load preferences:', error);
           setPreferencesLoaded(true);
         });
+
+      // Load organization settings (including logo)
+      settingsApi.getAll()
+        .then((response) => {
+          const settings = response.data || [];
+          const orgProfile = settings.find((s: any) => s.key === 'organization_profile');
+          if (orgProfile?.value) {
+            setOrgSettings(orgProfile.value);
+            if (orgProfile.value.logoUrl) {
+              setLogoUrl(orgProfile.value.logoUrl);
+            }
+          }
+        })
+        .catch((error) => {
+          console.error('Failed to load organization settings:', error);
+        });
     }
-  }, [isAuthenticated, preferencesLoaded, setThemeFromApi, i18n]);
+  }, [isAuthenticated, preferencesLoaded, setThemeFromApi, i18n, setOrgSettings, setLogoUrl]);
 
   const handleLogout = () => {
     logout();
@@ -96,20 +115,29 @@ export function DashboardLayout() {
       {/* Sidebar */}
       <aside
         className={cn(
-          'fixed lg:static inset-y-0 left-0 z-50 w-64 bg-white dark:bg-neutral-900 border-r border-neutral-200 dark:border-neutral-800',
+          'fixed lg:sticky lg:top-0 lg:h-screen inset-y-0 left-0 z-50 w-64 bg-white dark:bg-neutral-900 border-r border-neutral-200 dark:border-neutral-800 overflow-hidden',
           'transform transition-transform duration-200 ease-in-out',
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         )}
       >
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col h-full overflow-hidden">
           {/* Logo */}
           <div className="relative flex items-center h-16 px-6 border-b border-neutral-200 dark:border-neutral-800">
             <Link to={`/${tenantId}/dashboard`} className="mx-auto flex items-center gap-3">
-              <img
-                src={ayphenLogo}
-                alt="Ayphen"
-                className="h-12 w-auto"
-              />
+              {/* Organization Logo - show uploaded logo or default Ayphen logo */}
+              {orgSettings.logoUrl ? (
+                <img
+                  src={orgSettings.logoUrl}
+                  alt={orgSettings.name || 'Organization'}
+                  className="h-12 w-auto max-w-[120px] object-contain"
+                />
+              ) : (
+                <img
+                  src={ayphenLogo}
+                  alt="Ayphen"
+                  className="h-12 w-auto"
+                />
+              )}
               <div className="h-8 w-px bg-neutral-300 dark:bg-neutral-700" />
               <img
                 src={resolvedTheme === 'dark' ? logoDark : logoLight}
@@ -126,7 +154,7 @@ export function DashboardLayout() {
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 px-4 py-6 space-y-1.5">
+          <nav className="flex-1 px-4 py-6 space-y-1.5 overflow-hidden">
             {navigation.map((item) => (
               <NavLink
                 key={item.name}
@@ -177,9 +205,9 @@ export function DashboardLayout() {
       </aside>
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top bar */}
-        <header className="h-16 flex items-center justify-between px-6 border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-sm">
+        <header className="h-14 sm:h-16 flex items-center justify-between px-3 sm:px-6 border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-sm flex-shrink-0">
           <button
             className="lg:hidden p-2 text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
             onClick={() => setSidebarOpen(true)}
@@ -196,7 +224,7 @@ export function DashboardLayout() {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 p-6 overflow-auto bg-neutral-50 dark:bg-neutral-950">
+        <main className="flex-1 p-3 sm:p-4 lg:p-6 overflow-auto bg-neutral-50 dark:bg-neutral-950 scroll-smooth-mobile">
           <Outlet />
         </main>
       </div>

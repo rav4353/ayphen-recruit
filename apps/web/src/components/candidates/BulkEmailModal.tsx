@@ -1,10 +1,34 @@
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { useTranslation } from 'react-i18next';
-import { Button, Input, Modal } from '../ui';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+    Button,
+    Input,
+    Label,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '../ui';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { useQuery } from '@tanstack/react-query';
 import { communicationApi } from '../../lib/api';
+
+const bulkEmailSchema = z.object({
+    subject: z.string().min(1, 'Subject is required'),
+    message: z.string().min(1, 'Message is required'),
+});
+
+type BulkEmailFormData = z.infer<typeof bulkEmailSchema>;
 
 interface BulkEmailModalProps {
     isOpen: boolean;
@@ -15,9 +39,25 @@ interface BulkEmailModalProps {
 
 export function BulkEmailModal({ isOpen, onClose, onSend, recipientCount }: BulkEmailModalProps) {
     const { t } = useTranslation();
-    const [subject, setSubject] = useState('');
-    const [message, setMessage] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+
+    const {
+        register,
+        handleSubmit,
+        control,
+        setValue,
+        reset,
+        formState: { errors }
+    } = useForm<BulkEmailFormData>({
+        resolver: zodResolver(bulkEmailSchema),
+        defaultValues: { subject: '', message: '' }
+    });
+
+    useEffect(() => {
+        if (isOpen) {
+            reset({ subject: '', message: '' });
+        }
+    }, [isOpen, reset]);
 
     const { data: templatesResponse } = useQuery({
         queryKey: ['email-templates'],
@@ -27,25 +67,12 @@ export function BulkEmailModal({ isOpen, onClose, onSend, recipientCount }: Bulk
 
     const templates = templatesResponse?.data?.data || [];
 
-    const handleTemplateChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const templateId = e.target.value;
-        const template = templates.find((t: any) => t.id === templateId);
-        if (template) {
-            setSubject(template.subject);
-            setMessage(template.body);
-        }
-    };
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!subject.trim() || !message.trim()) return;
-
+    const onFormSubmit = async (data: BulkEmailFormData) => {
         setIsLoading(true);
         try {
-            await onSend(subject, message);
+            await onSend(data.subject, data.message);
             onClose();
-            setSubject('');
-            setMessage('');
+            reset();
         } catch (error) {
             console.error(error);
         } finally {
@@ -53,60 +80,84 @@ export function BulkEmailModal({ isOpen, onClose, onSend, recipientCount }: Bulk
         }
     };
 
+    const [selectedTemplateId, setSelectedTemplateId] = useState('');
+
+    const handleTemplateSelect = (templateId: string) => {
+        setSelectedTemplateId(templateId);
+        const template = templates.find((t: any) => t.id === templateId);
+        if (template) {
+            setValue('subject', template.subject);
+            setValue('message', template.body);
+        }
+    };
+
     return (
-        <Modal
-            isOpen={isOpen}
-            onClose={onClose}
-            title={t('candidates.bulkEmailTitle', 'Send Email to {{count}} Candidates', { count: recipientCount })}
-        >
-            <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                        Use Template
-                    </label>
-                    <select
-                        onChange={handleTemplateChange}
-                        className="w-full px-3 py-2 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        defaultValue=""
-                    >
-                        <option value="" disabled>Select a template...</option>
-                        {templates && Array.isArray(templates) && templates.map((t: any) => (
-                            <option key={t.id} value={t.id}>{t.name}</option>
-                        ))}
-                    </select>
-                </div>
+        <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+            <DialogContent className="sm:max-w-2xl p-0 max-h-[90vh] overflow-hidden flex flex-col">
+                <DialogHeader className="px-6 py-4 border-b border-neutral-200 dark:border-neutral-800 shrink-0">
+                    <DialogTitle className="text-lg font-semibold">
+                        {t('candidates.bulkEmailTitle', 'Send Email to {{count}} Candidates', { count: recipientCount })}
+                    </DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleSubmit(onFormSubmit)} className="flex flex-col flex-1 overflow-hidden">
+                    <div className="px-6 py-5 space-y-5 overflow-y-auto flex-1">
+                        <div className="space-y-2">
+                            <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                                Use Template
+                            </Label>
+                            <Select value={selectedTemplateId} onValueChange={handleTemplateSelect}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select a template..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {templates && Array.isArray(templates) && templates.map((t: any) => (
+                                        <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
 
-                <Input
-                    label={t('candidates.emailSubject', 'Subject')}
-                    value={subject}
-                    onChange={(e) => setSubject(e.target.value)}
-                    placeholder={t('candidates.emailSubjectPlaceholder', 'e.g. Interview Invitation')}
-                    required
-                />
-
-                <div>
-                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                        {t('candidates.emailMessage', 'Message')}
-                    </label>
-                    <div className="h-64 mb-12">
-                        <ReactQuill
-                            theme="snow"
-                            value={message}
-                            onChange={setMessage}
-                            className="h-full"
+                        <Input
+                            label={t('candidates.emailSubject', 'Subject')}
+                            {...register('subject')}
+                            placeholder={t('candidates.emailSubjectPlaceholder', 'e.g. Interview Invitation')}
+                            error={errors.subject?.message}
                         />
-                    </div>
-                </div>
 
-                <div className="flex justify-end gap-3 pt-4">
-                    <Button type="button" variant="ghost" onClick={onClose} disabled={isLoading}>
-                        {t('common.cancel', 'Cancel')}
-                    </Button>
-                    <Button type="submit" isLoading={isLoading}>
-                        {t('common.send', 'Send Email')}
-                    </Button>
-                </div>
-            </form>
-        </Modal>
+                        <div className="space-y-2">
+                            <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                                {t('candidates.emailMessage', 'Message')}
+                            </Label>
+                            <div className="min-h-[250px] [&_.ql-container]:rounded-b-lg [&_.ql-toolbar]:rounded-t-lg [&_.ql-toolbar]:border-neutral-200 dark:[&_.ql-toolbar]:border-neutral-700 [&_.ql-container]:border-neutral-200 dark:[&_.ql-container]:border-neutral-700 [&_.ql-editor]:min-h-[180px]">
+                                <Controller
+                                    name="message"
+                                    control={control}
+                                    render={({ field }) => (
+                                        <ReactQuill
+                                            theme="snow"
+                                            value={field.value}
+                                            onChange={field.onChange}
+                                            className="h-full"
+                                        />
+                                    )}
+                                />
+                            </div>
+                            {errors.message && (
+                                <p className="text-xs text-red-500">{errors.message.message}</p>
+                            )}
+                        </div>
+                    </div>
+
+                    <DialogFooter className="flex flex-col-reverse sm:flex-row gap-3 px-6 py-4 border-t border-neutral-200 dark:border-neutral-800 shrink-0">
+                        <Button type="button" variant="outline" onClick={onClose} disabled={isLoading} className="w-full sm:w-auto">
+                            {t('common.cancel', 'Cancel')}
+                        </Button>
+                        <Button type="submit" isLoading={isLoading} className="w-full sm:w-auto">
+                            {t('common.send', 'Send Email')}
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
     );
 }

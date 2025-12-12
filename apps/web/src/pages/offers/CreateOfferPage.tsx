@@ -1,4 +1,7 @@
 import { useState, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Save, Eye } from 'lucide-react';
@@ -7,6 +10,18 @@ import { Button, Card, Input } from '../../components/ui';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import toast from 'react-hot-toast';
+
+const offerSchema = z.object({
+    salary: z.string().min(1, 'Salary is required'),
+    currency: z.string(),
+    startDate: z.string().min(1, 'Start date is required'),
+    expiresAt: z.string(),
+    bonus: z.string(),
+    equity: z.string(),
+    notes: z.string(),
+});
+
+type OfferFormData = z.infer<typeof offerSchema>;
 
 export function CreateOfferPage() {
     const { t } = useTranslation();
@@ -18,19 +33,28 @@ export function CreateOfferPage() {
 
     const [selectedApplicationId, setSelectedApplicationId] = useState('');
     const [selectedTemplateId, setSelectedTemplateId] = useState('');
-
-    const [formData, setFormData] = useState({
-        salary: '',
-        currency: 'USD',
-        startDate: '',
-        expiresAt: '',
-        bonus: '',
-        equity: '',
-        notes: '',
-    });
-
     const [content, setContent] = useState('');
     const [loading, setLoading] = useState(false);
+
+    const {
+        register,
+        handleSubmit,
+        watch,
+        formState: { errors }
+    } = useForm<OfferFormData>({
+        resolver: zodResolver(offerSchema),
+        defaultValues: {
+            salary: '',
+            currency: 'USD',
+            startDate: '',
+            expiresAt: '',
+            bonus: '',
+            equity: '',
+            notes: '',
+        }
+    });
+
+    const formData = watch();
 
     useEffect(() => {
         fetchInitialData();
@@ -98,14 +122,13 @@ export function CreateOfferPage() {
         toast.success(t('offers.create.placeholdersReplaced'));
     };
 
-    const handleSubmit = async () => {
-        if (!selectedApplicationId || !selectedTemplateId || !formData.salary || !formData.startDate) {
+    const onSubmit = async (data: OfferFormData) => {
+        if (!selectedApplicationId || !selectedTemplateId) {
             toast.error(t('offers.create.fillRequired'));
             return;
         }
 
         setLoading(true);
-        // Ensure we save the processed version
         const finalContent = getProcessedContent();
 
         try {
@@ -113,13 +136,13 @@ export function CreateOfferPage() {
                 applicationId: selectedApplicationId,
                 templateId: selectedTemplateId,
                 content: finalContent,
-                salary: parseFloat(formData.salary),
-                currency: formData.currency,
-                startDate: formData.startDate,
-                expiresAt: formData.expiresAt || undefined,
-                bonus: formData.bonus ? parseFloat(formData.bonus) : undefined,
-                equity: formData.equity,
-                notes: formData.notes,
+                salary: parseFloat(data.salary),
+                currency: data.currency,
+                startDate: data.startDate,
+                expiresAt: data.expiresAt || undefined,
+                bonus: data.bonus ? parseFloat(data.bonus) : undefined,
+                equity: data.equity,
+                notes: data.notes,
             });
             toast.success(t('offers.create.success'));
             navigate(`/${tenantId}/offers`);
@@ -149,7 +172,7 @@ export function CreateOfferPage() {
                         <Eye size={16} className="mr-2 text-neutral-500" />
                         {t('offers.create.previewAndReplace')}
                     </Button>
-                    <Button onClick={handleSubmit} disabled={loading} className="shadow-lg shadow-blue-500/20">
+                    <Button onClick={handleSubmit(onSubmit)} disabled={loading} className="shadow-lg shadow-blue-500/20">
                         <Save size={16} className="mr-2" />
                         {loading ? t('offers.create.saving') : t('offers.create.saveDraft')}
                     </Button>
@@ -214,20 +237,19 @@ export function CreateOfferPage() {
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1.5">{t('offers.create.salary')}</label>
+                                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1.5">{t('offers.create.salary')} *</label>
                                     <Input
                                         type="number"
-                                        value={formData.salary}
-                                        onChange={(e) => setFormData({ ...formData, salary: e.target.value })}
+                                        {...register('salary')}
                                         placeholder="0.00"
                                         className="font-mono"
+                                        error={errors.salary?.message}
                                     />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1.5">{t('offers.create.currency')}</label>
                                     <Input
-                                        value={formData.currency}
-                                        onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
+                                        {...register('currency')}
                                         placeholder="USD"
                                         className="uppercase font-mono"
                                     />
@@ -236,19 +258,18 @@ export function CreateOfferPage() {
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1.5">{t('offers.create.startDate')}</label>
+                                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1.5">{t('offers.create.startDate')} *</label>
                                     <Input
                                         type="date"
-                                        value={formData.startDate}
-                                        onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                                        {...register('startDate')}
+                                        error={errors.startDate?.message}
                                     />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1.5">{t('offers.create.expiresOn')}</label>
                                     <Input
                                         type="date"
-                                        value={formData.expiresAt}
-                                        onChange={(e) => setFormData({ ...formData, expiresAt: e.target.value })}
+                                        {...register('expiresAt')}
                                     />
                                 </div>
                             </div>
@@ -258,8 +279,7 @@ export function CreateOfferPage() {
                                     <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1.5">{t('offers.create.bonus')}</label>
                                     <Input
                                         type="number"
-                                        value={formData.bonus}
-                                        onChange={(e) => setFormData({ ...formData, bonus: e.target.value })}
+                                        {...register('bonus')}
                                         placeholder="0.00"
                                         className="font-mono"
                                     />
@@ -267,8 +287,7 @@ export function CreateOfferPage() {
                                 <div>
                                     <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1.5">{t('offers.create.equity')}</label>
                                     <Input
-                                        value={formData.equity}
-                                        onChange={(e) => setFormData({ ...formData, equity: e.target.value })}
+                                        {...register('equity')}
                                         placeholder="e.g. 0.1%"
                                     />
                                 </div>
@@ -279,8 +298,7 @@ export function CreateOfferPage() {
                                 <textarea
                                     className="w-full p-3 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none"
                                     rows={3}
-                                    value={formData.notes}
-                                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                                    {...register('notes')}
                                     placeholder={t('offers.create.notesPlaceholder')}
                                 />
                             </div>

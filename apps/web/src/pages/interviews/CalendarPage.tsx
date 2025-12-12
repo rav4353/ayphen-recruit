@@ -113,11 +113,11 @@ export function CalendarPage() {
     };
 
     return (
-        <div className="space-y-6 h-[calc(100vh-100px)] flex flex-col">
+        <div className="space-y-4 sm:space-y-6 min-h-[calc(100vh-100px)] flex flex-col">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
-                    <h1 className="text-2xl font-bold text-neutral-900 dark:text-white flex items-center gap-2">
+            <div className="flex flex-col gap-3 sm:gap-4">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+                    <h1 className="text-lg sm:text-2xl font-bold text-neutral-900 dark:text-white flex items-center gap-2">
                         <CalendarIcon className="text-primary-600" />
                         {t('interviews.calendar')}
                     </h1>
@@ -141,17 +141,17 @@ export function CalendarPage() {
                             <ChevronRight size={20} />
                         </button>
                     </div>
-                    <h2 className="text-lg font-semibold min-w-[200px]">
+                    <h2 className="text-base sm:text-lg font-semibold min-w-[140px] sm:min-w-[200px]">
                         {format(currentDate, 'MMMM yyyy')}
                     </h2>
                 </div>
 
-                <div className="flex bg-neutral-100 dark:bg-neutral-800 p-1 rounded-lg">
+                <div className="flex bg-neutral-100 dark:bg-neutral-800 p-0.5 sm:p-1 rounded-lg">
                     {(['month', 'week', 'day'] as ViewMode[]).map((mode) => (
                         <button
                             key={mode}
                             onClick={() => setViewMode(mode)}
-                            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all capitalize ${viewMode === mode
+                            className={`px-2 sm:px-4 py-1 sm:py-1.5 text-xs sm:text-sm font-medium rounded-md transition-all capitalize ${viewMode === mode
                                 ? 'bg-white dark:bg-neutral-700 text-neutral-900 dark:text-white shadow-sm'
                                 : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200'
                                 }`}
@@ -170,16 +170,19 @@ export function CalendarPage() {
                     </div>
                 )}
 
-                <div className="grid grid-cols-7 border-b border-neutral-200 dark:border-neutral-700">
-                    {['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'].map((day) => (
-                        <div key={day} className="py-3 text-center text-sm font-medium text-neutral-500 dark:text-neutral-400 bg-neutral-50 dark:bg-neutral-800/50">
-                            {t(`common.days.${day}`)}
-                        </div>
-                    ))}
-                </div>
+                {/* Day headers - only show for week/month view */}
+                {viewMode !== 'day' && (
+                    <div className="grid grid-cols-7 border-b border-neutral-200 dark:border-neutral-700">
+                        {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, idx) => (
+                            <div key={idx} className="py-2 sm:py-3 text-center text-xs sm:text-sm font-medium text-neutral-500 dark:text-neutral-400 bg-neutral-50 dark:bg-neutral-800/50">
+                                {day}
+                            </div>
+                        ))}
+                    </div>
+                )}
 
                 {/* Days Grid */}
-                <div className={`flex-1 grid grid-cols-7 ${viewMode === 'month' ? 'grid-rows-5' : 'grid-rows-1'} overflow-y-auto`}>
+                <div className={`flex-1 ${viewMode === 'day' ? 'grid grid-cols-1' : 'grid grid-cols-7'} ${viewMode === 'month' ? 'grid-rows-5' : 'grid-rows-1'} overflow-y-auto`}>
                     {getDays().map((day) => {
                         const dayInterviews = getInterviewsForDay(day);
                         const isSelectedMonth = isSameMonth(day, currentDate);
@@ -188,7 +191,7 @@ export function CalendarPage() {
                         return (
                             <div
                                 key={day.toString()}
-                                className={`min-h-[120px] p-2 border-b border-r border-neutral-200 dark:border-neutral-700 transition-colors ${!isSelectedMonth && viewMode === 'month' ? 'bg-neutral-50/50 dark:bg-neutral-900/50' : 'bg-white dark:bg-neutral-800'
+                                className={`min-h-[80px] sm:min-h-[120px] p-1 sm:p-2 border-b border-r border-neutral-200 dark:border-neutral-700 transition-colors ${!isSelectedMonth && viewMode === 'month' ? 'bg-neutral-50/50 dark:bg-neutral-900/50' : 'bg-white dark:bg-neutral-800'
                                     } ${isTodayDate ? 'bg-blue-50/30 dark:bg-blue-900/10' : ''}`}
                             >
                                 <div className="flex justify-between items-start mb-2">

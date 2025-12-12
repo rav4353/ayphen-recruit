@@ -23,7 +23,8 @@ export function OfferTemplatesPage() {
     const fetchTemplates = async () => {
         try {
             const response = await offerTemplatesApi.getAll();
-            setTemplates(response.data.data || response.data);
+            const data = response.data?.data || response.data;
+            setTemplates(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error('Failed to fetch templates', error);
             toast.error(t('offers.templates.loadError'));

@@ -50,12 +50,12 @@ export function ReportsPage() {
     };
 
     return (
-        <div className="space-y-6 max-w-7xl mx-auto">
+        <div className="space-y-4 sm:space-y-6 max-w-7xl mx-auto">
             <div>
-                <h1 className="text-2xl font-bold text-neutral-900 dark:text-white">
+                <h1 className="text-xl sm:text-2xl font-bold text-neutral-900 dark:text-white">
                     {t('reports.title', 'Custom Reports')}
                 </h1>
-                <p className="text-neutral-500 dark:text-neutral-400 mt-1 no-print">
+                <p className="text-sm sm:text-base text-neutral-500 dark:text-neutral-400 mt-1 no-print">
                     {t('reports.subtitle', 'Generate insights from recruitment data.')}
                 </p>
 

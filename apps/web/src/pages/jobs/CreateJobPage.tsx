@@ -17,11 +17,18 @@ export function CreateJobPage() {
     setIsSubmitting(true);
     try {
       const skillsArray = data.skills || [];
+
+      // Filter out invalid scorecardTemplateId values (like "new" or empty string)
+      const scorecardTemplateId = data.scorecardTemplateId && data.scorecardTemplateId !== 'new'
+        ? data.scorecardTemplateId
+        : undefined;
+
       const res = await jobsApi.create(tenantId, {
         ...data,
         skills: skillsArray,
         salaryMin: data.salaryMin ? Number(data.salaryMin) : undefined,
         salaryMax: data.salaryMax ? Number(data.salaryMax) : undefined,
+        scorecardTemplateId,
       });
 
       if (requestApproval) {

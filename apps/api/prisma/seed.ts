@@ -260,8 +260,20 @@ async function main() {
 
   const createdCandidates = [];
   for (const c of candidatesData) {
-    const candidate = await prisma.candidate.create({
-      data: {
+    const candidate = await prisma.candidate.upsert({
+      where: {
+        email_tenantId: {
+          email: c.email,
+          tenantId: tenant.id,
+        },
+      },
+      update: {
+        firstName: c.first,
+        lastName: c.last,
+        currentTitle: c.title,
+        currentCompany: c.company,
+      },
+      create: {
         firstName: c.first,
         lastName: c.last,
         email: c.email,
@@ -338,10 +350,7 @@ async function main() {
   console.log('✅ Interviews scheduled');
 
   // 11. Create Offer Template
-  const offerTemplate = await prisma.offerTemplate.create({
-    data: {
-      name: 'Standard Full-Time Offer',
-      content: `
+  const offerTemplateContent = `
         <h2>Offer of Employment</h2>
         <p>Dear {{CandidateName}},</p>
         <p>We are pleased to offer you the position of <strong>{{JobTitle}}</strong> at Ayphen Recruit.</p>
@@ -351,30 +360,67 @@ async function main() {
         <p><strong>Bonus:</strong> {{Bonus}}</p>
         <p>We look forward to having you on the team!</p>
         <p>Sincerely,<br/>The Hiring Team</p>
-      `,
-      tenantId: tenant.id,
-    },
-  });
+      `;
+
+  const offerTemplate =
+    (await prisma.offerTemplate.findFirst({
+      where: { tenantId: tenant.id, name: 'Standard Full-Time Offer' },
+    })) ??
+    (await prisma.offerTemplate.create({
+      data: {
+        name: 'Standard Full-Time Offer',
+        content: offerTemplateContent,
+        tenantId: tenant.id,
+      },
+    }));
 
   // 12. Create Offers
   // David -> Frontend (Draft)
-  await prisma.offer.create({
-    data: {
-      applicationId: createdApps[3].id,
-      templateId: offerTemplate.id,
-      status: OfferStatus.DRAFT,
-      salary: 145000,
-      currency: 'USD',
-      startDate: new Date(new Date().setDate(new Date().getDate() + 14)),
-      equity: '0.05%',
-      bonus: 10000,
-      content: offerTemplate.content,
-    },
+  const davidDraftOfferData = {
+    templateId: offerTemplate.id,
+    status: OfferStatus.DRAFT,
+    salary: 145000,
+    currency: 'USD',
+    startDate: new Date(new Date().setDate(new Date().getDate() + 14)),
+    equity: '0.05%',
+    bonus: 10000,
+    content: offerTemplate.content,
+  };
+
+  const existingDavidOffer = await prisma.offer.findFirst({
+    where: { applicationId: createdApps[3].id },
   });
 
+  if (existingDavidOffer) {
+    await prisma.offer.update({
+      where: { id: existingDavidOffer.id },
+      data: davidDraftOfferData,
+    });
+  } else {
+    await prisma.offer.create({
+      data: {
+        applicationId: createdApps[3].id,
+        ...davidDraftOfferData,
+      },
+    });
+  }
+
   // Jack -> Sales (Sent)
-  await prisma.offer.create({
-    data: {
+  await prisma.offer.upsert({
+    where: { token: 'sample-token-123' },
+    update: {
+      applicationId: createdApps[8].id,
+      templateId: offerTemplate.id,
+      status: OfferStatus.SENT,
+      salary: 75000,
+      currency: 'GBP',
+      startDate: new Date(new Date().setDate(new Date().getDate() + 30)),
+      equity: '0.02%',
+      bonus: 25000,
+      content: offerTemplate.content,
+      sentAt: new Date(),
+    },
+    create: {
       applicationId: createdApps[8].id,
       templateId: offerTemplate.id,
       status: OfferStatus.SENT,

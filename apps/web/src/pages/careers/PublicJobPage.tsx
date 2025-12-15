@@ -141,7 +141,7 @@ export function PublicJobPage() {
                                 {t('careers.jobOverview')}
                             </h3>
                             <div className="space-y-4">
-                                {(job.salaryMin || job.salaryMax) && (
+                                {job.showSalary && (job.salaryMin || job.salaryMax) && (
                                     <div>
                                         <span className="text-sm text-neutral-500 dark:text-neutral-400 block mb-1">{t('careers.salaryRange')}</span>
                                         <div className="flex items-center gap-2 text-neutral-900 dark:text-white font-medium">

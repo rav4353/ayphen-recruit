@@ -1,0 +1,355 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - link "Ayphen TalentX" [ref=e7] [cursor=pointer]:
+        - /url: /e71612ab-f2ca-4798-b598-082e1266ec96/dashboard
+        - img "Ayphen" [ref=e8]
+        - img "TalentX" [ref=e10]
+      - navigation [ref=e11]:
+        - link "Dashboard" [ref=e12] [cursor=pointer]:
+          - /url: /e71612ab-f2ca-4798-b598-082e1266ec96/dashboard
+          - img [ref=e13]
+          - generic [ref=e18]: Dashboard
+        - link "Jobs" [ref=e19] [cursor=pointer]:
+          - /url: /e71612ab-f2ca-4798-b598-082e1266ec96/jobs
+          - img [ref=e20]
+          - generic [ref=e23]: Jobs
+        - link "Pipeline" [ref=e24] [cursor=pointer]:
+          - /url: /e71612ab-f2ca-4798-b598-082e1266ec96/pipeline
+          - img [ref=e25]
+          - generic [ref=e29]: Pipeline
+        - link "Candidates" [ref=e30] [cursor=pointer]:
+          - /url: /e71612ab-f2ca-4798-b598-082e1266ec96/candidates
+          - img [ref=e31]
+          - generic [ref=e36]: Candidates
+        - link "Referrals" [ref=e37] [cursor=pointer]:
+          - /url: /e71612ab-f2ca-4798-b598-082e1266ec96/referrals
+          - img [ref=e38]
+          - generic [ref=e44]: Referrals
+        - link "Sourcing" [ref=e45] [cursor=pointer]:
+          - /url: /e71612ab-f2ca-4798-b598-082e1266ec96/sourcing
+          - img [ref=e46]
+          - generic [ref=e49]: Sourcing
+        - link "Interviews" [ref=e50] [cursor=pointer]:
+          - /url: /e71612ab-f2ca-4798-b598-082e1266ec96/interviews
+          - img [ref=e51]
+          - generic [ref=e53]: Interviews
+        - link "Offers" [ref=e54] [cursor=pointer]:
+          - /url: /e71612ab-f2ca-4798-b598-082e1266ec96/offers
+          - img [ref=e55]
+          - generic [ref=e58]: Offers
+        - link "Onboarding" [ref=e59] [cursor=pointer]:
+          - /url: /e71612ab-f2ca-4798-b598-082e1266ec96/onboarding
+          - img [ref=e60]
+          - generic [ref=e65]: Onboarding
+        - link "Messages" [ref=e66] [cursor=pointer]:
+          - /url: /e71612ab-f2ca-4798-b598-082e1266ec96/inbox
+          - img [ref=e67]
+          - generic [ref=e70]: Messages
+        - link "Reports" [ref=e71] [cursor=pointer]:
+          - /url: /e71612ab-f2ca-4798-b598-082e1266ec96/reports
+          - img [ref=e72]
+          - generic [ref=e73]: Reports
+        - link "Settings" [ref=e74] [cursor=pointer]:
+          - /url: /e71612ab-f2ca-4798-b598-082e1266ec96/settings
+          - img [ref=e75]
+          - generic [ref=e78]: Settings
+      - generic [ref=e80]:
+        - generic [ref=e81]: RR
+        - generic [ref=e82]:
+          - paragraph [ref=e83]: Ravanth Raja
+          - paragraph [ref=e84]: ravanthsri20@gmail.com
+        - button "Logout" [ref=e85] [cursor=pointer]:
+          - img [ref=e86]
+  - generic [ref=e89]:
+    - banner [ref=e90]:
+      - generic [ref=e91]:
+        - generic [ref=e92]:
+          - button "Notifications" [ref=e93] [cursor=pointer]:
+            - img [ref=e94]
+          - generic [ref=e97]:
+            - generic [ref=e98]:
+              - generic [ref=e99]:
+                - img [ref=e100]
+                - heading "Notifications" [level=2] [ref=e103]
+              - button [ref=e104] [cursor=pointer]:
+                - img [ref=e105]
+            - combobox [ref=e109]:
+              - option "All" [selected]
+              - option "Applications"
+              - option "Interviews"
+              - option "Offers"
+              - option "Jobs"
+              - option "SLA Alerts"
+              - option "Approvals"
+              - option "Onboarding"
+              - option "System"
+            - generic [ref=e111]:
+              - img [ref=e112]
+              - paragraph [ref=e115]: No notifications
+        - button "Select language" [ref=e117] [cursor=pointer]:
+          - img [ref=e118]
+        - button "Select theme" [ref=e122] [cursor=pointer]:
+          - img [ref=e123]
+    - main [ref=e129]:
+      - generic [ref=e130]:
+        - generic [ref=e131]:
+          - heading "Settings" [level=1] [ref=e132]
+          - generic [ref=e133]:
+            - img [ref=e134]
+            - textbox "Search settings..." [ref=e137]
+        - generic [ref=e138]:
+          - generic [ref=e140]:
+            - button "General" [ref=e141] [cursor=pointer]:
+              - img [ref=e142]
+              - generic [ref=e145]: General
+            - button "Security" [ref=e146] [cursor=pointer]:
+              - img [ref=e147]
+              - generic [ref=e149]: Security
+            - button "Notifications" [ref=e150] [cursor=pointer]:
+              - img [ref=e151]
+              - generic [ref=e154]: Notifications
+            - button "Appearance" [ref=e155] [cursor=pointer]:
+              - img [ref=e156]
+              - generic [ref=e162]: Appearance
+            - button "Users & Roles" [ref=e163] [cursor=pointer]:
+              - img [ref=e164]
+              - generic [ref=e169]: Users & Roles
+            - button "Hiring Process" [ref=e170] [cursor=pointer]:
+              - img [ref=e171]
+              - generic [ref=e175]: Hiring Process
+            - button "Job Form Customization" [ref=e176] [cursor=pointer]:
+              - img [ref=e177]
+              - generic [ref=e179]: Job Form Customization
+            - button "Automations" [ref=e180] [cursor=pointer]:
+              - img [ref=e181]
+              - generic [ref=e183]: Automations
+            - button "Skills" [ref=e184] [cursor=pointer]:
+              - img [ref=e185]
+              - generic [ref=e188]: Skills
+            - button "Templates" [ref=e189] [cursor=pointer]:
+              - img [ref=e190]
+              - generic [ref=e193]: Templates
+            - button "Integrations" [ref=e194] [cursor=pointer]:
+              - img [ref=e195]
+              - generic [ref=e197]: Integrations
+            - button "Email" [ref=e198] [cursor=pointer]:
+              - img [ref=e199]
+              - generic [ref=e202]: Email
+            - button "Compliance" [ref=e203] [cursor=pointer]:
+              - img [ref=e204]
+              - generic [ref=e206]: Compliance
+            - button "Billing" [ref=e207] [cursor=pointer]:
+              - img [ref=e208]
+              - generic [ref=e210]: Billing
+            - button "Career Site" [ref=e211] [cursor=pointer]:
+              - img [ref=e212]
+              - generic [ref=e215]: Career Site
+            - button "Bulk Import" [ref=e216] [cursor=pointer]:
+              - img [ref=e217]
+              - generic [ref=e220]: Bulk Import
+            - button "Shortcuts" [ref=e221] [cursor=pointer]:
+              - img [ref=e222]
+              - generic [ref=e224]: Shortcuts
+            - button "Audit Logs" [ref=e225] [cursor=pointer]:
+              - img [ref=e226]
+              - generic [ref=e230]: Audit Logs
+            - button "Background Checks" [ref=e231] [cursor=pointer]:
+              - img [ref=e232]
+              - generic [ref=e234]: Background Checks
+          - generic [ref=e236]:
+            - generic [ref=e237]:
+              - generic [ref=e238]:
+                - heading "Keyboard Shortcuts" [level=2] [ref=e239]:
+                  - img [ref=e240]
+                  - text: Keyboard Shortcuts
+                - paragraph [ref=e242]: Boost your productivity with keyboard shortcuts
+              - generic [ref=e243]:
+                - button "macOS" [ref=e244] [cursor=pointer]:
+                  - img [ref=e245]
+                  - text: macOS
+                - button "Windows" [ref=e247] [cursor=pointer]:
+                  - img [ref=e248]
+                  - text: Windows
+            - generic [ref=e251]:
+              - img [ref=e253]
+              - generic [ref=e255]:
+                - heading "Pro Tip" [level=3] [ref=e256]
+                - paragraph [ref=e257]:
+                  - text: Press ? anywhere to show shortcuts. Use
+                  - generic [ref=e258]: ⌘+K
+                  - text: for the command palette.
+            - generic [ref=e260]:
+              - generic [ref=e261]:
+                - img [ref=e262]
+                - textbox "Search shortcuts..." [ref=e265]
+              - generic [ref=e266]:
+                - button "All" [ref=e267] [cursor=pointer]
+                - button "Navigation" [ref=e268] [cursor=pointer]
+                - button "Search" [ref=e269] [cursor=pointer]
+                - button "Actions" [ref=e270] [cursor=pointer]
+                - button "List Navigation" [ref=e271] [cursor=pointer]
+                - button "Candidate Actions" [ref=e272] [cursor=pointer]
+                - button "General" [ref=e273] [cursor=pointer]
+            - generic [ref=e274]:
+              - generic [ref=e275]:
+                - generic [ref=e276]:
+                  - img [ref=e278]
+                  - heading "Navigation" [level=3] [ref=e280]
+                  - generic [ref=e281]: "7"
+                - generic [ref=e282]:
+                  - generic [ref=e283]:
+                    - generic [ref=e284]: Go to Dashboard
+                    - generic [ref=e285]:
+                      - generic [ref=e286]:
+                        - generic [ref=e287]: ⌥
+                        - generic [ref=e288]: +
+                      - generic [ref=e290]: G
+                  - generic [ref=e291]:
+                    - generic [ref=e292]: Go to Jobs
+                    - generic [ref=e293]:
+                      - generic [ref=e294]:
+                        - generic [ref=e295]: ⌥
+                        - generic [ref=e296]: +
+                      - generic [ref=e298]: J
+                  - generic [ref=e299]:
+                    - generic [ref=e300]: Go to Candidates
+                    - generic [ref=e301]:
+                      - generic [ref=e302]:
+                        - generic [ref=e303]: ⌥
+                        - generic [ref=e304]: +
+                      - generic [ref=e306]: C
+                  - generic [ref=e307]:
+                    - generic [ref=e308]: Go to Pipeline
+                    - generic [ref=e309]:
+                      - generic [ref=e310]:
+                        - generic [ref=e311]: ⌥
+                        - generic [ref=e312]: +
+                      - generic [ref=e314]: P
+                  - generic [ref=e315]:
+                    - generic [ref=e316]: Go to Interviews
+                    - generic [ref=e317]:
+                      - generic [ref=e318]:
+                        - generic [ref=e319]: ⌥
+                        - generic [ref=e320]: +
+                      - generic [ref=e322]: I
+                  - generic [ref=e323]:
+                    - generic [ref=e324]: Go to Reports
+                    - generic [ref=e325]:
+                      - generic [ref=e326]:
+                        - generic [ref=e327]: ⌥
+                        - generic [ref=e328]: +
+                      - generic [ref=e330]: R
+                  - generic [ref=e331]:
+                    - generic [ref=e332]: Go to Settings
+                    - generic [ref=e333]:
+                      - generic [ref=e334]:
+                        - generic [ref=e335]: ⌥
+                        - generic [ref=e336]: +
+                      - generic [ref=e338]: S
+              - generic [ref=e339]:
+                - generic [ref=e340]:
+                  - img [ref=e342]
+                  - heading "Search" [level=3] [ref=e345]
+                  - generic [ref=e346]: "3"
+                - generic [ref=e347]:
+                  - generic [ref=e348]:
+                    - generic [ref=e349]: Open Command Palette
+                    - generic [ref=e350]:
+                      - generic [ref=e351]:
+                        - generic [ref=e352]: ⌘
+                        - generic [ref=e353]: +
+                      - generic [ref=e355]: K
+                  - generic [ref=e356]:
+                    - generic [ref=e357]: Focus Search
+                    - generic [ref=e360]: /
+                  - generic [ref=e361]:
+                    - generic [ref=e362]: Find in Page
+                    - generic [ref=e363]:
+                      - generic [ref=e364]:
+                        - generic [ref=e365]: ⌘
+                        - generic [ref=e366]: +
+                      - generic [ref=e368]: F
+              - generic [ref=e369]:
+                - generic [ref=e370]:
+                  - img [ref=e372]
+                  - heading "Actions" [level=3] [ref=e375]
+                  - generic [ref=e376]: "3"
+                - generic [ref=e377]:
+                  - generic [ref=e378]:
+                    - generic [ref=e379]: Create New
+                    - generic [ref=e380]:
+                      - generic [ref=e381]:
+                        - generic [ref=e382]: ⌘
+                        - generic [ref=e383]: +
+                      - generic [ref=e385]: "N"
+                  - generic [ref=e386]:
+                    - generic [ref=e387]: Save
+                    - generic [ref=e388]:
+                      - generic [ref=e389]:
+                        - generic [ref=e390]: ⌘
+                        - generic [ref=e391]: +
+                      - generic [ref=e393]: S
+                  - generic [ref=e394]:
+                    - generic [ref=e395]: Submit Form
+                    - generic [ref=e396]:
+                      - generic [ref=e397]:
+                        - generic [ref=e398]: ⌘
+                        - generic [ref=e399]: +
+                      - generic [ref=e401]: Enter
+              - generic [ref=e402]:
+                - generic [ref=e403]:
+                  - img [ref=e405]
+                  - heading "List Navigation" [level=3] [ref=e407]
+                  - generic [ref=e408]: "3"
+                - generic [ref=e409]:
+                  - generic [ref=e410]:
+                    - generic [ref=e411]: Select Previous Item
+                    - generic [ref=e414]: ↑
+                  - generic [ref=e415]:
+                    - generic [ref=e416]: Select Next Item
+                    - generic [ref=e419]: ↓
+                  - generic [ref=e420]:
+                    - generic [ref=e421]: Open Selected Item
+                    - generic [ref=e424]: Enter
+              - generic [ref=e425]:
+                - generic [ref=e426]:
+                  - img [ref=e428]
+                  - heading "Candidate Actions" [level=3] [ref=e431]
+                  - generic [ref=e432]: "4"
+                - generic [ref=e433]:
+                  - generic [ref=e434]:
+                    - generic [ref=e435]: Email Candidate
+                    - generic [ref=e438]: E
+                  - generic [ref=e439]:
+                    - generic [ref=e440]: Schedule Interview
+                    - generic [ref=e443]: S
+                  - generic [ref=e444]:
+                    - generic [ref=e445]: Move to Stage
+                    - generic [ref=e448]: M
+                  - generic [ref=e449]:
+                    - generic [ref=e450]: Add Note
+                    - generic [ref=e453]: "N"
+              - generic [ref=e454]:
+                - generic [ref=e455]:
+                  - img [ref=e457]
+                  - heading "General" [level=3] [ref=e460]
+                  - generic [ref=e461]: "3"
+                - generic [ref=e462]:
+                  - generic [ref=e463]:
+                    - generic [ref=e464]: Show Keyboard Shortcuts
+                    - generic [ref=e467]: "?"
+                  - generic [ref=e468]:
+                    - generic [ref=e469]: Close Modal / Cancel
+                    - generic [ref=e472]: Esc
+                  - generic [ref=e473]:
+                    - generic [ref=e474]: Undo
+                    - generic [ref=e475]:
+                      - generic [ref=e476]:
+                        - generic [ref=e477]: ⌘
+                        - generic [ref=e478]: +
+                      - generic [ref=e480]: Z
+```

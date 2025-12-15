@@ -115,4 +115,83 @@ export class UsersController {
     const actions = await this.usersService.getPendingActions(user.sub);
     return ApiResponse.success(actions, 'Pending actions retrieved successfully');
   }
+
+  @Get('me/availability')
+  @ApiOperation({ summary: 'Get current user availability for scheduling' })
+  async getAvailability(@CurrentUser() user: JwtPayload) {
+    const availability = await this.usersService.getAvailability(user.sub);
+    return ApiResponse.success(availability, 'Availability retrieved successfully');
+  }
+
+  @Put('me/availability')
+  @ApiOperation({ summary: 'Update current user availability' })
+  async updateAvailability(
+    @CurrentUser() user: JwtPayload,
+    @Body() data: {
+      timezone?: string;
+      slots?: { dayOfWeek: number; startTime: string; endTime: string }[];
+      bufferMinutes?: number;
+      maxMeetingsPerDay?: number;
+    },
+  ) {
+    const availability = await this.usersService.updateAvailability(user.sub, data);
+    return ApiResponse.updated(availability, 'Availability updated successfully');
+  }
+
+  @Get('me/availability/slots')
+  @ApiOperation({ summary: 'Get available time slots for a specific date' })
+  async getAvailableTimeslots(
+    @CurrentUser() user: JwtPayload,
+    @Query('date') date: string,
+    @Query('duration') duration?: string,
+  ) {
+    const slots = await this.usersService.getAvailableTimeslots(
+      user.sub,
+      date,
+      duration ? parseInt(duration, 10) : 60,
+    );
+    return ApiResponse.success(slots, 'Available slots retrieved successfully');
+  }
+
+  @Post('me/availability/block')
+  @ApiOperation({ summary: 'Block specific dates' })
+  async blockDates(
+    @CurrentUser() user: JwtPayload,
+    @Body('dates') dates: string[],
+  ) {
+    const availability = await this.usersService.blockDates(user.sub, dates);
+    return ApiResponse.updated(availability, 'Dates blocked successfully');
+  }
+
+  @Post('me/availability/unblock')
+  @ApiOperation({ summary: 'Unblock specific dates' })
+  async unblockDates(
+    @CurrentUser() user: JwtPayload,
+    @Body('dates') dates: string[],
+  ) {
+    const availability = await this.usersService.unblockDates(user.sub, dates);
+    return ApiResponse.updated(availability, 'Dates unblocked successfully');
+  }
+
+  @Get(':id/availability')
+  @ApiOperation({ summary: 'Get user availability by ID' })
+  async getUserAvailability(@Param('id') id: string) {
+    const availability = await this.usersService.getAvailability(id);
+    return ApiResponse.success(availability, 'Availability retrieved successfully');
+  }
+
+  @Get(':id/availability/slots')
+  @ApiOperation({ summary: 'Get available time slots for a user on a specific date' })
+  async getUserAvailableTimeslots(
+    @Param('id') id: string,
+    @Query('date') date: string,
+    @Query('duration') duration?: string,
+  ) {
+    const slots = await this.usersService.getAvailableTimeslots(
+      id,
+      date,
+      duration ? parseInt(duration, 10) : 60,
+    );
+    return ApiResponse.success(slots, 'Available slots retrieved successfully');
+  }
 }

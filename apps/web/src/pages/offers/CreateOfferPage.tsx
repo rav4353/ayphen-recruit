@@ -97,11 +97,17 @@ export function CreateOfferPage() {
         const app = applications.find(a => a.id === selectedApplicationId);
 
         if (app) {
-            processedContent = processedContent.replace(/{{CandidateName}}/g, `${app.candidate.firstName} ${app.candidate.lastName}`);
-            processedContent = processedContent.replace(/{{JobTitle}}/g, app.job.title);
-            processedContent = processedContent.replace(/{{ManagerName}}/g, app.job.hiringManager?.firstName ? `${app.job.hiringManager.firstName} ${app.job.hiringManager.lastName}` : 'Hiring Manager');
-            processedContent = processedContent.replace(/{{Department}}/g, app.job.department?.name || 'Department');
-            processedContent = processedContent.replace(/{{Location}}/g, app.job.location?.city || 'Remote');
+            const candidateName = app.candidate ? `${app.candidate.firstName || ''} ${app.candidate.lastName || ''}`.trim() : 'Candidate';
+            const jobTitle = app.job?.title || 'Position';
+            const managerName = app.job?.hiringManager?.firstName ? `${app.job.hiringManager.firstName} ${app.job.hiringManager.lastName || ''}`.trim() : 'Hiring Manager';
+            const department = app.job?.department?.name || 'Department';
+            const location = app.job?.location?.city || 'Remote';
+            
+            processedContent = processedContent.replace(/{{CandidateName}}/g, candidateName);
+            processedContent = processedContent.replace(/{{JobTitle}}/g, jobTitle);
+            processedContent = processedContent.replace(/{{ManagerName}}/g, managerName);
+            processedContent = processedContent.replace(/{{Department}}/g, department);
+            processedContent = processedContent.replace(/{{Location}}/g, location);
         }
 
         const formattedSalary = new Intl.NumberFormat('en-US', { style: 'currency', currency: formData.currency }).format(parseFloat(formData.salary || '0'));
@@ -199,7 +205,7 @@ export function CreateOfferPage() {
                                         <option value="">{t('offers.create.selectCandidate')}</option>
                                         {applications.map((app) => (
                                             <option key={app.id} value={app.id}>
-                                                {app.candidate.firstName} {app.candidate.lastName} — {app.job.title}
+                                                {app.candidate?.firstName || ''} {app.candidate?.lastName || ''} — {app.job?.title || 'Position'}
                                             </option>
                                         ))}
                                     </select>

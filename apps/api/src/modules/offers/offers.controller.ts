@@ -102,4 +102,63 @@ export class OffersController {
     declineOffer(@Param('token') token: string, @Body('reason') reason: string) {
         return this.offersService.declineOffer(token, reason);
     }
+
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
+    @Post(':id/counter-offer')
+    @ApiOperation({ summary: 'Submit a counter-offer (candidate negotiation)' })
+    submitCounterOffer(
+        @Request() req: any,
+        @Param('id') id: string,
+        @Body() body: {
+            requestedSalary?: number;
+            requestedBonus?: number;
+            requestedEquity?: string;
+            requestedStartDate?: string;
+            notes?: string;
+        },
+    ) {
+        return this.offersService.submitCounterOffer(id, req.user.tenantId, {
+            ...body,
+            requestedStartDate: body.requestedStartDate ? new Date(body.requestedStartDate) : undefined,
+        });
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
+    @Post(':id/respond-counter')
+    @ApiOperation({ summary: 'Respond to a counter-offer' })
+    respondToCounterOffer(
+        @Request() req: any,
+        @Param('id') id: string,
+        @Body() body: {
+            action: 'ACCEPT' | 'REJECT' | 'COUNTER';
+            revisedSalary?: number;
+            revisedBonus?: number;
+            revisedEquity?: string;
+            revisedStartDate?: string;
+            notes?: string;
+        },
+    ) {
+        return this.offersService.respondToCounterOffer(id, req.user.tenantId, req.user.sub, {
+            ...body,
+            revisedStartDate: body.revisedStartDate ? new Date(body.revisedStartDate) : undefined,
+        });
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
+    @Get(':id/negotiation-history')
+    @ApiOperation({ summary: 'Get negotiation history for an offer' })
+    getNegotiationHistory(@Request() req: any, @Param('id') id: string) {
+        return this.offersService.getNegotiationHistory(id, req.user.tenantId);
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
+    @Get(':id/comparison')
+    @ApiOperation({ summary: 'Get offer comparison (original vs current terms)' })
+    getOfferComparison(@Request() req: any, @Param('id') id: string) {
+        return this.offersService.getOfferComparison(id, req.user.tenantId);
+    }
 }

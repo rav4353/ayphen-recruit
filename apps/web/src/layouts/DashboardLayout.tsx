@@ -23,6 +23,8 @@ import { useTheme } from '../contexts/ThemeContext';
 import { ThemeToggle, LanguageSwitcher, NotificationDrawer } from '../components/ui';
 import { ForcedPasswordChangeModal } from '../components/auth/ForcedPasswordChangeModal';
 import { cn } from '../lib/utils';
+import { ErrorBoundary } from '../components/common/ErrorBoundary';
+import { ApiStatusIndicator } from '../components/common/ApiStatusIndicator';
 import { preferencesApi, settingsApi } from '../lib/api';
 import logoLight from '../assets/branding/logo_light_theme.png';
 import logoDark from '../assets/branding/logo_dark_theme.png';
@@ -120,7 +122,7 @@ export function DashboardLayout() {
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         )}
       >
-        <div className="flex flex-col h-full overflow-hidden">
+        <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="relative flex items-center h-16 px-6 border-b border-neutral-200 dark:border-neutral-800">
             <Link to={`/${tenantId}/dashboard`} className="mx-auto flex items-center gap-3">
@@ -154,7 +156,7 @@ export function DashboardLayout() {
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 px-4 py-6 space-y-1.5 overflow-hidden">
+          <nav className="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto overscroll-contain scrollbar-hidden">
             {navigation.map((item) => (
               <NavLink
                 key={item.name}
@@ -217,6 +219,7 @@ export function DashboardLayout() {
 
           {/* Right side controls */}
           <div className="flex items-center gap-2 ml-auto">
+            <ApiStatusIndicator />
             <NotificationDrawer />
             <LanguageSwitcher variant="icon" />
             <ThemeToggle />
@@ -225,7 +228,9 @@ export function DashboardLayout() {
 
         {/* Page content */}
         <main className="flex-1 p-3 sm:p-4 lg:p-6 overflow-auto bg-neutral-50 dark:bg-neutral-950 scroll-smooth-mobile">
-          <Outlet />
+          <ErrorBoundary>
+            <Outlet />
+          </ErrorBoundary>
         </main>
       </div>
     </div>

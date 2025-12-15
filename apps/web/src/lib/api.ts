@@ -46,6 +46,31 @@ api.interceptors.response.use(
 
 export default api;
 
+/**
+ * Utility to extract data from API responses consistently.
+ * Handles both { data: T } and { data: { data: T } } response formats.
+ */
+export function extractData<T>(response: { data: T | { data: T } }): T {
+  const data = response.data;
+  if (data && typeof data === 'object' && 'data' in data) {
+    return (data as { data: T }).data;
+  }
+  return data as T;
+}
+
+/**
+ * Utility to safely access nested properties with fallback
+ */
+export function safeGet<T>(obj: any, path: string, fallback: T): T {
+  const keys = path.split('.');
+  let result = obj;
+  for (const key of keys) {
+    if (result === null || result === undefined) return fallback;
+    result = result[key];
+  }
+  return result ?? fallback;
+}
+
 // Auth API
 export const authApi = {
   // Basic auth
@@ -151,6 +176,13 @@ export const candidatesApi = {
     api.post('/candidates/merge', data),
   createReferral: (data: Record<string, unknown>) => api.post('/candidates/referral', data),
   getMyReferrals: () => api.get('/candidates/referrals/my'),
+  // Duplicate detection
+  checkDuplicates: (data: { email?: string; phone?: string; firstName?: string; lastName?: string; excludeId?: string }) =>
+    api.post('/candidates/check-duplicates', data),
+  // GDPR consent
+  updateGdprConsent: (id: string, data: { dataProcessingConsent: boolean; marketingConsent?: boolean; consentSource?: string }) =>
+    api.patch(`/candidates/${id}/gdpr-consent`, data),
+  anonymize: (id: string) => api.post(`/candidates/${id}/anonymize`),
 };
 
 // Skills API
@@ -244,6 +276,8 @@ export const analyticsApi = {
   getPipelineHealth: () => api.get('/analytics/pipeline'),
   getTimeToHire: () => api.get('/analytics/time-to-hire'),
   getRecentActivity: () => api.get('/analytics/recent-activity'),
+  getHiringFunnel: (jobId?: string) => api.get('/analytics/hiring-funnel', { params: { jobId } }),
+  getSourceEffectiveness: () => api.get('/analytics/source-effectiveness'),
 };
 
 export const reportsApi = {
@@ -306,6 +340,8 @@ export const aiApi = {
       },
     });
   },
+  generateSubjectLines: (data: { context: string; candidateName?: string; jobTitle?: string; companyName?: string }) =>
+    api.post('/ai/generate-subject-lines', data),
 };
 
 // SLA API
@@ -377,6 +413,15 @@ export const storageApi = {
     const formData = new FormData();
     formData.append('file', file);
     return api.post('/storage/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+  },
+  uploadPublic: (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post('/storage/upload/public', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -538,23 +583,6 @@ export const smsApi = {
   saveTemplate: (data: { name: string; content: string }) => api.post('/sms/templates', data),
 };
 
-// Job Boards API
-export const jobBoardsApi = {
-  getSettings: () => api.get('/job-boards/settings'),
-  getProviderSettings: (provider: string) => api.get(`/job-boards/settings/${provider}`),
-  configure: (data: {
-    provider: 'LINKEDIN' | 'INDEED' | 'ZIPRECRUITER' | 'GLASSDOOR' | 'MONSTER';
-    apiKey: string;
-    apiSecret?: string;
-    companyId?: string;
-    sandboxMode?: boolean;
-  }) => api.post('/job-boards/configure', data),
-  disconnect: (provider: string) => api.delete(`/job-boards/settings/${provider}`),
-  postJob: (data: { jobId: string; providers?: string[] }) => api.post('/job-boards/post-job', data),
-  getJobPostings: (jobId: string) => api.get(`/job-boards/postings/${jobId}`),
-  removePosting: (postingId: string) => api.delete(`/job-boards/postings/${postingId}`),
-  getAvailableBoards: () => api.get('/job-boards/available'),
-};
 
 // E-Signature API
 export const esignatureApi = {
@@ -582,3 +610,756 @@ export const esignatureApi = {
   voidEnvelope: (envelopeId: string, reason: string) =>
     api.put(`/esignature/envelopes/${envelopeId}/void`, { reason }),
 };
+
+// Notifications API
+export const notificationsApi = {
+  getAll: (params?: { read?: boolean; type?: string }) =>
+    api.get('/notifications', { params }),
+  getUnreadCount: () => api.get('/notifications/count'),
+  getPreferences: () => api.get('/notifications/preferences'),
+  updatePreferences: (data: Record<string, boolean>) =>
+    api.patch('/notifications/preferences', data),
+  markAsRead: (id: string) => api.patch(`/notifications/${id}/read`),
+  markAllAsRead: () => api.post('/notifications/read-all'),
+  delete: (id: string) => api.delete(`/notifications/${id}`),
+  clearAll: () => api.delete('/notifications'),
+};
+
+// User Availability API
+export const userAvailabilityApi = {
+  get: () => api.get('/users/me/availability'),
+  update: (data: {
+    timezone?: string;
+    slots?: { dayOfWeek: number; startTime: string; endTime: string }[];
+    bufferMinutes?: number;
+    maxMeetingsPerDay?: number;
+  }) => api.put('/users/me/availability', data),
+  getSlots: (date: string, duration?: number) =>
+    api.get('/users/me/availability/slots', { params: { date, duration } }),
+  blockDates: (dates: string[]) => api.post('/users/me/availability/block', { dates }),
+  unblockDates: (dates: string[]) => api.post('/users/me/availability/unblock', { dates }),
+  getUserAvailability: (userId: string) => api.get(`/users/${userId}/availability`),
+  getUserSlots: (userId: string, date: string, duration?: number) =>
+    api.get(`/users/${userId}/availability/slots`, { params: { date, duration } }),
+};
+
+// Application History & Timeline API
+export const applicationHistoryApi = {
+  getHistory: (applicationId: string) => api.get(`/applications/${applicationId}/history`),
+  getStageTransitions: (applicationId: string) => api.get(`/applications/${applicationId}/stage-transitions`),
+  getTimeline: (applicationId: string, params?: { categories?: string; limit?: number }) =>
+    api.get(`/applications/${applicationId}/timeline`, { params }),
+};
+
+// Audit Logs API
+export const auditLogsApi = {
+  getAll: (params?: {
+    page?: number;
+    limit?: number;
+    action?: string;
+    userId?: string;
+    entityType?: string;
+    startDate?: string;
+    endDate?: string;
+    search?: string;
+  }) => api.get('/audit-logs', { params }),
+  getActions: () => api.get('/audit-logs/actions'),
+  getStats: (days?: number) => api.get('/audit-logs/stats', { params: { days } }),
+  export: (params?: { action?: string; userId?: string; startDate?: string; endDate?: string }) =>
+    api.get('/audit-logs/export', { params, responseType: 'blob' }),
+};
+
+// Interview Panels API
+export const interviewPanelsApi = {
+  create: (jobId: string, data: {
+    name: string;
+    interviewerIds: string[];
+    stageId?: string;
+    interviewType?: string;
+    isDefault?: boolean;
+  }) => api.post(`/jobs/${jobId}/interview-panels`, data),
+  getAll: (jobId: string) => api.get(`/jobs/${jobId}/interview-panels`),
+  update: (jobId: string, panelId: string, data: {
+    name?: string;
+    interviewerIds?: string[];
+    stageId?: string;
+    interviewType?: string;
+    isDefault?: boolean;
+  }) => api.patch(`/jobs/${jobId}/interview-panels/${panelId}`, data),
+  delete: (jobId: string, panelId: string) => api.delete(`/jobs/${jobId}/interview-panels/${panelId}`),
+  getSuggestedInterviewers: (jobId: string, date?: string) =>
+    api.get(`/jobs/${jobId}/interview-panels/suggested-interviewers`, { params: { date } }),
+};
+
+// Interview Feedback Summary API
+export const interviewFeedbackApi = {
+  getSummary: (applicationId: string) => api.get(`/interviews/feedback/application/${applicationId}/summary`),
+  getComparison: (jobId: string, candidateIds?: string[]) =>
+    api.get(`/interviews/feedback/job/${jobId}/comparison`, { params: { candidateIds: candidateIds?.join(',') } }),
+  getPending: () => api.get('/interviews/feedback/pending'),
+};
+
+// Offer Negotiation API
+export const offerNegotiationApi = {
+  submitCounterOffer: (offerId: string, data: {
+    requestedSalary?: number;
+    requestedBonus?: number;
+    requestedEquity?: string;
+    requestedStartDate?: string;
+    notes?: string;
+  }) => api.post(`/offers/${offerId}/counter-offer`, data),
+  respondToCounter: (offerId: string, data: {
+    action: 'ACCEPT' | 'REJECT' | 'COUNTER';
+    revisedSalary?: number;
+    revisedBonus?: number;
+    revisedEquity?: string;
+    revisedStartDate?: string;
+    notes?: string;
+  }) => api.post(`/offers/${offerId}/respond-counter`, data),
+  getNegotiationHistory: (offerId: string) => api.get(`/offers/${offerId}/negotiation-history`),
+  getComparison: (offerId: string) => api.get(`/offers/${offerId}/comparison`),
+};
+
+// Candidate Import API
+export const candidateImportApi = {
+  import: (data: {
+    csvData: string;
+    skipDuplicates?: boolean;
+    updateExisting?: boolean;
+    jobId?: string;
+    source?: string;
+    tags?: string[];
+  }) => api.post('/candidates/import', data),
+  validate: (csvData: string) => api.post('/candidates/import/validate', { csvData }),
+  getTemplate: () => api.get('/candidates/import/template', { responseType: 'blob' }),
+};
+
+// Candidate Comparison API
+export const candidateComparisonApi = {
+  compare: (candidateIds: string[]) =>
+    api.post('/candidates/compare', { candidateIds }),
+  compareJobCandidates: (jobId: string, limit?: number) =>
+    api.get(`/candidates/compare/job/${jobId}`, { params: { limit } }),
+  getSummary: (candidateIds: string[]) =>
+    api.post('/candidates/compare/summary', { candidateIds }),
+};
+
+// Candidate Leaderboard API
+export const candidateLeaderboardApi = {
+  get: (jobId: string, params?: {
+    sortBy?: 'composite' | 'matchScore' | 'rating' | 'skillMatch' | 'stageProgress';
+    limit?: number;
+    includeRejected?: boolean;
+  }) => api.get(`/applications/job/${jobId}/leaderboard`, { params }),
+  getTopCandidates: (limit?: number) => api.get('/applications/top-candidates', { params: { limit } }),
+};
+
+// Job Requisition API
+export const jobRequisitionApi = {
+  create: (tenantId: string, data: {
+    title: string;
+    departmentId?: string;
+    locationId?: string;
+    headcount: number;
+    priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+    targetStartDate?: string;
+    justification: string;
+    budgetApproved?: boolean;
+    salaryRange?: { min: number; max: number; currency: string };
+    skills?: string[];
+    employmentType?: string;
+  }) => api.post(`/${tenantId}/jobs/requisitions`, data),
+  getAll: (tenantId: string, params?: { status?: string; departmentId?: string; priority?: string }) =>
+    api.get(`/${tenantId}/jobs/requisitions`, { params }),
+  getStats: (tenantId: string) => api.get(`/${tenantId}/jobs/requisitions/stats`),
+  approve: (tenantId: string, requisitionId: string, notes?: string) =>
+    api.post(`/${tenantId}/jobs/requisitions/${requisitionId}/approve`, { notes }),
+  reject: (tenantId: string, requisitionId: string, notes?: string) =>
+    api.post(`/${tenantId}/jobs/requisitions/${requisitionId}/reject`, { notes }),
+  convert: (tenantId: string, requisitionId: string, additionalData?: Record<string, unknown>) =>
+    api.post(`/${tenantId}/jobs/requisitions/${requisitionId}/convert`, additionalData),
+};
+
+// Talent Pools API
+export const talentPoolsApi = {
+  create: (data: {
+    name: string;
+    description?: string;
+    criteria?: { skills?: string[]; locations?: string[]; experience?: { min?: number; max?: number }; sources?: string[] };
+    isPublic?: boolean;
+  }) => api.post('/talent-pools', data),
+  getAll: () => api.get('/talent-pools'),
+  getStats: () => api.get('/talent-pools/stats'),
+  getById: (id: string) => api.get(`/talent-pools/${id}`),
+  update: (id: string, data: {
+    name?: string;
+    description?: string;
+    criteria?: { skills?: string[]; locations?: string[]; experience?: { min?: number; max?: number }; sources?: string[] };
+    isPublic?: boolean;
+  }) => api.put(`/talent-pools/${id}`, data),
+  addCandidates: (id: string, candidateIds: string[]) => api.post(`/talent-pools/${id}/candidates`, { candidateIds }),
+  removeCandidates: (id: string, candidateIds: string[]) => api.delete(`/talent-pools/${id}/candidates`, { data: { candidateIds } }),
+  searchCandidates: (id: string, query?: string) => api.get(`/talent-pools/${id}/search-candidates`, { params: { q: query } }),
+  delete: (id: string) => api.delete(`/talent-pools/${id}`),
+};
+
+// Interview Questions API
+export const interviewQuestionsApi = {
+  create: (data: {
+    question: string;
+    category: string;
+    difficulty?: 'EASY' | 'MEDIUM' | 'HARD';
+    expectedAnswer?: string;
+    skills?: string[];
+    timeMinutes?: number;
+  }) => api.post('/interview-questions', data),
+  getAll: (params?: { category?: string; difficulty?: string; skills?: string }) =>
+    api.get('/interview-questions', { params }),
+  getCategories: () => api.get('/interview-questions/categories'),
+  getById: (id: string) => api.get(`/interview-questions/${id}`),
+  update: (id: string, data: {
+    question?: string;
+    category?: string;
+    difficulty?: 'EASY' | 'MEDIUM' | 'HARD';
+    expectedAnswer?: string;
+    skills?: string[];
+    timeMinutes?: number;
+  }) => api.put(`/interview-questions/${id}`, data),
+  delete: (id: string) => api.delete(`/interview-questions/${id}`),
+  generateForJob: (jobId: string, count?: number) => api.post('/interview-questions/generate', { jobId, count }),
+};
+
+// Candidate Notes API
+export const candidateNotesApi = {
+  create: (candidateId: string, data: { content: string; isPrivate?: boolean; mentionedUserIds?: string[] }) =>
+    api.post(`/candidates/${candidateId}/notes`, data),
+  getAll: (candidateId: string) => api.get(`/candidates/${candidateId}/notes`),
+  update: (candidateId: string, noteId: string, data: { content?: string; isPrivate?: boolean }) =>
+    api.put(`/candidates/${candidateId}/notes/${noteId}`, data),
+  delete: (candidateId: string, noteId: string) => api.delete(`/candidates/${candidateId}/notes/${noteId}`),
+  pin: (candidateId: string, noteId: string) => api.post(`/candidates/${candidateId}/notes/${noteId}/pin`),
+  unpin: (candidateId: string, noteId: string) => api.post(`/candidates/${candidateId}/notes/${noteId}/unpin`),
+};
+
+// Skill Assessments API
+export const skillAssessmentsApi = {
+  create: (data: {
+    name: string;
+    description?: string;
+    skills: string[];
+    duration?: number;
+    passingScore?: number;
+    questions?: { question: string; options?: string[]; correctAnswer?: string; points?: number }[];
+  }) => api.post('/skill-assessments', data),
+  getAll: () => api.get('/skill-assessments'),
+  getById: (id: string) => api.get(`/skill-assessments/${id}`),
+  update: (id: string, data: Record<string, unknown>) => api.put(`/skill-assessments/${id}`, data),
+  delete: (id: string) => api.delete(`/skill-assessments/${id}`),
+  sendToCandidate: (assessmentId: string, candidateId: string, applicationId?: string) =>
+    api.post(`/skill-assessments/${assessmentId}/send`, { candidateId, applicationId }),
+  getResults: (assessmentId: string, candidateId: string) =>
+    api.get(`/skill-assessments/${assessmentId}/results/${candidateId}`),
+  submitResults: (assessmentId: string, data: { candidateId: string; answers: Record<string, string>; timeTaken?: number }) =>
+    api.post(`/skill-assessments/${assessmentId}/submit`, data),
+};
+
+// Bulk Email Campaigns API
+export const bulkEmailApi = {
+  create: (data: {
+    name: string;
+    subject: string;
+    body: string;
+    recipientType: 'candidates' | 'talent_pool' | 'custom';
+    recipientIds?: string[];
+    talentPoolId?: string;
+    filters?: Record<string, unknown>;
+    scheduledAt?: string;
+  }) => api.post('/bulk-email/campaigns', data),
+  getAll: () => api.get('/bulk-email/campaigns'),
+  getById: (id: string) => api.get(`/bulk-email/campaigns/${id}`),
+  send: (id: string) => api.post(`/bulk-email/campaigns/${id}/send`),
+  cancel: (id: string) => api.post(`/bulk-email/campaigns/${id}/cancel`),
+  getStats: (id: string) => api.get(`/bulk-email/campaigns/${id}/stats`),
+  preview: (data: { subject: string; body: string; sampleCandidateId?: string }) =>
+    api.post('/bulk-email/preview', data),
+};
+
+// Hiring Team API
+export const hiringTeamApi = {
+  addMember: (jobId: string, data: {
+    userId: string;
+    role: 'HIRING_MANAGER' | 'RECRUITER' | 'INTERVIEWER' | 'COORDINATOR' | 'APPROVER' | 'OBSERVER';
+    permissions?: {
+      canViewCandidates?: boolean;
+      canEditCandidates?: boolean;
+      canScheduleInterviews?: boolean;
+      canProvideFeedback?: boolean;
+      canMakeOffers?: boolean;
+      canApprove?: boolean;
+    };
+  }) => api.post(`/jobs/${jobId}/team`, data),
+  getMembers: (jobId: string) => api.get(`/jobs/${jobId}/team`),
+  updateMember: (jobId: string, memberId: string, data: {
+    role?: 'HIRING_MANAGER' | 'RECRUITER' | 'INTERVIEWER' | 'COORDINATOR' | 'APPROVER' | 'OBSERVER';
+    permissions?: Record<string, boolean>;
+  }) => api.put(`/jobs/${jobId}/team/${memberId}`, data),
+  removeMember: (jobId: string, memberId: string) => api.delete(`/jobs/${jobId}/team/${memberId}`),
+  getMyJobs: () => api.get('/users/me/hiring-teams'),
+};
+
+// Advanced Candidate Search API
+export const candidateSearchApi = {
+  search: (params: {
+    query?: string;
+    skills?: string[];
+    skillsMatch?: 'ALL' | 'ANY';
+    locations?: string[];
+    experience?: { min?: number; max?: number };
+    companies?: string[];
+    titles?: string[];
+    sources?: string[];
+    tags?: string[];
+    createdAfter?: string;
+    createdBefore?: string;
+    hasApplications?: boolean;
+    applicationStatus?: string[];
+    excludeJobIds?: string[];
+    sortBy?: 'relevance' | 'createdAt' | 'updatedAt' | 'name';
+    sortOrder?: 'asc' | 'desc';
+    page?: number;
+    limit?: number;
+  }) => api.post('/candidates/search', params),
+  getSuggestions: (query: string, field?: string) =>
+    api.get('/candidates/search/suggestions', { params: { q: query, field } }),
+  saveSearch: (name: string, query: Record<string, unknown>) =>
+    api.post('/candidates/search/save', { name, query }),
+  getSavedSearches: () => api.get('/candidates/search/saved'),
+};
+
+// Job Templates API
+export const jobTemplatesApi = {
+  create: (data: {
+    name: string;
+    title: string;
+    description: string;
+    requirements?: string;
+    responsibilities?: string;
+    benefits?: string;
+    employmentType?: string;
+    skills?: string[];
+  }) => api.post('/job-templates', data),
+  getAll: (includeInactive?: boolean) =>
+    api.get('/job-templates', { params: { includeInactive } }),
+  getById: (id: string) => api.get(`/job-templates/${id}`),
+  update: (id: string, data: Record<string, unknown>) => api.put(`/job-templates/${id}`, data),
+  delete: (id: string) => api.delete(`/job-templates/${id}`),
+  duplicate: (id: string, name: string) => api.post(`/job-templates/${id}/duplicate`, { name }),
+  createJob: (id: string, overrides?: {
+    title?: string;
+    description?: string;
+    departmentId?: string;
+    locationId?: string;
+    hiringManagerId?: string;
+    pipelineId?: string;
+  }) => api.post(`/job-templates/${id}/create-job`, overrides),
+  getStats: () => api.get('/job-templates/stats'),
+};
+
+// Interview Kits API
+export const interviewKitsApi = {
+  create: (data: {
+    name: string;
+    description?: string;
+    interviewType: string;
+    duration?: number;
+    questions?: {
+      question: string;
+      category: string;
+      expectedAnswer?: string;
+      duration?: number;
+    }[];
+    scorecard?: {
+      name: string;
+      criteria: { name: string; weight: number; description?: string }[];
+    };
+    tips?: string[];
+    resources?: { title: string; url: string }[];
+  }) => api.post('/interview-kits', data),
+  getAll: (interviewType?: string) =>
+    api.get('/interview-kits', { params: { interviewType } }),
+  getById: (id: string) => api.get(`/interview-kits/${id}`),
+  update: (id: string, data: Record<string, unknown>) => api.put(`/interview-kits/${id}`, data),
+  delete: (id: string) => api.delete(`/interview-kits/${id}`),
+  duplicate: (id: string, name: string) => api.post(`/interview-kits/${id}/duplicate`, { name }),
+  getInterviewTypes: () => api.get('/interview-kits/types'),
+  assignToInterview: (kitId: string, interviewId: string) =>
+    api.post(`/interview-kits/${kitId}/assign/${interviewId}`),
+};
+
+// Departments API
+export const departmentsApi = {
+  create: (data: { name: string; code?: string; parentId?: string }) =>
+    api.post('/departments', data),
+  getAll: (hierarchy?: boolean) =>
+    api.get('/departments', { params: { hierarchy } }),
+  getById: (id: string) => api.get(`/departments/${id}`),
+  update: (id: string, data: { name?: string; code?: string; parentId?: string }) =>
+    api.put(`/departments/${id}`, data),
+  delete: (id: string) => api.delete(`/departments/${id}`),
+  getStats: () => api.get('/departments/stats'),
+  moveUsers: (fromId: string, toId: string, userIds: string[]) =>
+    api.post(`/departments/${fromId}/move-users`, { toDepartmentId: toId, userIds }),
+};
+
+// Referrals API
+export const referralsApi = {
+  create: (data: { candidateId: string; jobId?: string; notes?: string }) =>
+    api.post('/referrals', data),
+  getMyReferrals: () => api.get('/referrals/my'),
+  getMyStats: () => api.get('/referrals/my/stats'),
+  getAll: (filters?: { status?: string; referrerId?: string }) =>
+    api.get('/referrals', { params: filters }),
+  getStats: (userId?: string) => api.get('/referrals/stats', { params: { userId } }),
+  getLeaderboard: (limit?: number) => api.get('/referrals/leaderboard', { params: { limit } }),
+  updateStatus: (id: string, status: 'PENDING' | 'INTERVIEWED' | 'HIRED' | 'REJECTED') =>
+    api.patch(`/referrals/${id}/status`, { status }),
+  markBonusPaid: (id: string) => api.post(`/referrals/${id}/pay-bonus`),
+  getBonusConfig: () => api.get('/referrals/config'),
+  setBonusConfig: (config: { hiredBonus: number; interviewBonus?: number; currency: string }) =>
+    api.post('/referrals/config', config),
+};
+
+// Candidate Activity API
+export const candidateActivityApi = {
+  getTimeline: (candidateId: string, params?: { limit?: number; offset?: number; types?: string }) =>
+    api.get(`/candidates/${candidateId}/activity`, { params }),
+  getSummary: (candidateId: string) => api.get(`/candidates/${candidateId}/activity/summary`),
+  getActivityTypes: () => api.get('/candidates/activity/types'),
+};
+
+// Email Sequences API
+export const emailSequencesApi = {
+  create: (data: {
+    name: string;
+    description?: string;
+    triggerType: 'MANUAL' | 'APPLICATION_CREATED' | 'STAGE_ENTERED' | 'OFFER_SENT';
+    triggerStageId?: string;
+    steps: { subject: string; body: string; delayDays: number; delayHours: number }[];
+  }) => api.post('/email-sequences', data),
+  getAll: () => api.get('/email-sequences'),
+  getById: (id: string) => api.get(`/email-sequences/${id}`),
+  update: (id: string, data: Record<string, unknown>) => api.put(`/email-sequences/${id}`, data),
+  delete: (id: string) => api.delete(`/email-sequences/${id}`),
+  enrollCandidate: (sequenceId: string, candidateId: string) =>
+    api.post(`/email-sequences/${sequenceId}/enroll/${candidateId}`),
+  unenrollCandidate: (sequenceId: string, candidateId: string) =>
+    api.delete(`/email-sequences/${sequenceId}/enroll/${candidateId}`),
+  getCandidateEnrollments: (candidateId: string) =>
+    api.get(`/email-sequences/candidate/${candidateId}/enrollments`),
+};
+
+// Bulk Actions API
+export const bulkActionsApi = {
+  moveStage: (applicationIds: string[], targetStageId: string) =>
+    api.post('/applications/bulk/move-stage', { applicationIds, targetStageId }),
+  updateStatus: (applicationIds: string[], status: 'REJECTED' | 'WITHDRAWN', reason?: string) =>
+    api.post('/applications/bulk/update-status', { applicationIds, status, reason }),
+  assign: (applicationIds: string[], assigneeId: string) =>
+    api.post('/applications/bulk/assign', { applicationIds, assigneeId }),
+  addTags: (applicationIds: string[], tags: string[]) =>
+    api.post('/applications/bulk/add-tags', { applicationIds, tags }),
+  sendEmail: (applicationIds: string[], subject: string, body: string) =>
+    api.post('/applications/bulk/send-email', { applicationIds, subject, body }),
+};
+
+// Interview Scheduling API
+export const interviewSchedulingApi = {
+  createLink: (data: {
+    applicationId: string;
+    interviewerIds: string[];
+    duration: number;
+    interviewType: string;
+    expiresInDays?: number;
+    instructions?: string;
+  }) => api.post('/interview-scheduling/links', data),
+  getLinks: (status?: string) => api.get('/interview-scheduling/links', { params: { status } }),
+  cancelLink: (token: string) => api.delete(`/interview-scheduling/links/${token}`),
+};
+
+// Public Scheduling API (for candidates)
+export const publicSchedulingApi = {
+  getLinkDetails: (token: string) => api.get(`/schedule/${token}`),
+  getAvailableSlots: (token: string, startDate: string, endDate: string) =>
+    api.get(`/schedule/${token}/slots`, { params: { startDate, endDate } }),
+  bookSlot: (token: string, data: { start: string; interviewerId: string }) =>
+    api.post(`/schedule/${token}/book`, data),
+};
+
+// ==================== INTEGRATIONS ====================
+
+// Job Boards API
+export const jobBoardsApi = {
+  getSettings: () => api.get('/integrations/job-boards'),
+  getAvailable: () => api.get('/integrations/job-boards/available'),
+  configure: (data: { provider: string; apiKey: string; apiSecret?: string; companyId?: string }) =>
+    api.post('/integrations/job-boards/configure', data),
+  disconnect: (provider: string) => api.delete(`/integrations/job-boards/${provider}`),
+  postJob: (jobId: string, providers?: string[]) =>
+    api.post(`/integrations/job-boards/post/${jobId}`, { providers }),
+};
+
+// LinkedIn Apply API
+export const linkedInApplyApi = {
+  getConfig: () => api.get('/integrations/linkedin/config'),
+  configure: (data: { clientId: string; clientSecret: string; redirectUri: string }) =>
+    api.post('/integrations/linkedin/configure', data),
+  getOAuthUrl: (jobId: string, tenantId: string) =>
+    api.get(`/integrations/linkedin/oauth-url/${jobId}`, { params: { tenantId } }),
+  getButtonConfig: (jobId: string, tenantId: string) =>
+    api.get(`/integrations/linkedin/button-config/${jobId}`, { params: { tenantId } }),
+};
+
+// Indeed Feed API
+export const indeedFeedApi = {
+  getConfig: () => api.get('/integrations/indeed/config'),
+  configure: (data: { publisherId: string; companyName: string; includeDescription?: boolean; includeSalary?: boolean }) =>
+    api.post('/integrations/indeed/configure', data),
+  validateFeed: () => api.get('/integrations/indeed/validate'),
+  getFeedUrl: (tenantId: string) => `/api/integrations/indeed/feed/${tenantId}`,
+};
+
+// ZipRecruiter API
+export const zipRecruiterApi = {
+  getConfig: () => api.get('/integrations/ziprecruiter/config'),
+  configure: (data: { apiKey: string; publisherId: string; sandboxMode?: boolean }) =>
+    api.post('/integrations/ziprecruiter/configure', data),
+  postJob: (jobId: string) => api.post(`/integrations/ziprecruiter/post/${jobId}`),
+  removeJob: (externalId: string) => api.delete(`/integrations/ziprecruiter/job/${externalId}`),
+  getStats: (externalId: string) => api.get(`/integrations/ziprecruiter/stats/${externalId}`),
+  syncAll: () => api.post('/integrations/ziprecruiter/sync-all'),
+};
+
+// HRIS Sync API
+export const hrisApi = {
+  getConfig: () => api.get('/integrations/hris/config'),
+  getProviders: () => api.get('/integrations/hris/providers'),
+  configure: (data: {
+    provider: string;
+    apiKey?: string;
+    apiSecret?: string;
+    subdomain?: string;
+    syncEnabled?: boolean;
+    syncDirection?: 'IMPORT' | 'EXPORT' | 'BIDIRECTIONAL';
+    syncFrequency?: 'HOURLY' | 'DAILY' | 'WEEKLY';
+  }) => api.post('/integrations/hris/configure', data),
+  disconnect: () => api.delete('/integrations/hris'),
+  syncEmployees: () => api.post('/integrations/hris/sync'),
+  exportHires: () => api.post('/integrations/hris/export-hires'),
+  testConnection: () => api.get('/integrations/hris/test'),
+  getFieldMappings: () => api.get('/integrations/hris/field-mappings'),
+  updateFieldMappings: (mappings: Record<string, string>) =>
+    api.put('/integrations/hris/field-mappings', { mappings }),
+  getSyncHistory: (limit?: number) => api.get('/integrations/hris/sync-history', { params: { limit } }),
+};
+
+// Slack/Teams Messaging API
+export const messagingApi = {
+  // Slack
+  getSlackConfig: () => api.get('/integrations/messaging/slack/config'),
+  configureSlack: (data: {
+    botToken: string;
+    signingSecret: string;
+    defaultChannelId?: string;
+    notificationChannels?: Record<string, string>;
+  }) => api.post('/integrations/messaging/slack/configure', data),
+  getSlackChannels: () => api.get('/integrations/messaging/slack/channels'),
+  testSlack: () => api.get('/integrations/messaging/slack/test'),
+  // Teams
+  getTeamsConfig: () => api.get('/integrations/messaging/teams/config'),
+  configureTeams: (data: { webhookUrl: string; notificationChannels?: Record<string, string> }) =>
+    api.post('/integrations/messaging/teams/configure', data),
+  testTeams: () => api.get('/integrations/messaging/teams/test'),
+  // Unified
+  disconnectAll: () => api.delete('/integrations/messaging'),
+  sendTestNotification: () => api.post('/integrations/messaging/test-notification'),
+};
+
+// Webhooks API
+export const webhooksApi = {
+  getAll: () => api.get('/integrations/webhooks'),
+  getEvents: () => api.get('/integrations/webhooks/events'),
+  getOne: (id: string) => api.get(`/integrations/webhooks/${id}`),
+  create: (data: { name: string; url: string; events: string[]; headers?: Record<string, string> }) =>
+    api.post('/integrations/webhooks', data),
+  update: (id: string, data: { name?: string; url?: string; events?: string[]; isActive?: boolean }) =>
+    api.put(`/integrations/webhooks/${id}`, data),
+  delete: (id: string) => api.delete(`/integrations/webhooks/${id}`),
+  regenerateSecret: (id: string) => api.post(`/integrations/webhooks/${id}/regenerate-secret`),
+  test: (id: string) => api.post(`/integrations/webhooks/${id}/test`),
+  getDeliveries: (id: string, limit?: number) =>
+    api.get(`/integrations/webhooks/${id}/deliveries`, { params: { limit } }),
+};
+
+// ==================== CAREER SITE ====================
+
+// Career Site Admin API
+export const careerSiteApi = {
+  getConfig: () => api.get('/career-site/admin/config'),
+  updateConfig: (data: any) => api.put('/career-site/admin/config', data),
+  updateBranding: (data: any) => api.put('/career-site/admin/branding', data),
+  updateLayout: (data: any) => api.put('/career-site/admin/layout', data),
+  updateCompanyInfo: (data: any) => api.put('/career-site/admin/company-info', data),
+  updateSeo: (data: any) => api.put('/career-site/admin/seo', data),
+  updateCustomCode: (data: any) => api.put('/career-site/admin/custom-code', data),
+  // Pages
+  addPage: (data: { title: string; slug: string; content: string }) =>
+    api.post('/career-site/admin/pages', data),
+  updatePage: (pageId: string, data: any) => api.put(`/career-site/admin/pages/${pageId}`, data),
+  deletePage: (pageId: string) => api.delete(`/career-site/admin/pages/${pageId}`),
+  // Testimonials
+  addTestimonial: (data: { name: string; role: string; image?: string; quote: string }) =>
+    api.post('/career-site/admin/testimonials', data),
+  deleteTestimonial: (id: string) => api.delete(`/career-site/admin/testimonials/${id}`),
+  // Preview
+  getPreviewUrl: () => api.get('/career-site/admin/preview-url'),
+};
+
+// Custom Domain API
+export const customDomainApi = {
+  getStatus: () => api.get('/career-site/domain/status'),
+  setSubdomain: (subdomain: string) => api.post('/career-site/domain/subdomain', { subdomain }),
+  addCustomDomain: (domain: string) => api.post('/career-site/domain/custom', { domain }),
+  verifyDomain: () => api.post('/career-site/domain/verify'),
+  removeDomain: () => api.delete('/career-site/domain/custom'),
+  getDnsInstructions: () => api.get('/career-site/domain/dns-instructions'),
+};
+
+// Application Form API
+export const applicationFormApi = {
+  getConfig: () => api.get('/career-site/application-form/config'),
+  updateConfig: (data: any) => api.put('/career-site/application-form/config', data),
+  getFieldTypes: () => api.get('/career-site/application-form/field-types'),
+  // Custom fields
+  addField: (data: any) => api.post('/career-site/application-form/fields', data),
+  updateField: (fieldId: string, data: any) => api.put(`/career-site/application-form/fields/${fieldId}`, data),
+  deleteField: (fieldId: string) => api.delete(`/career-site/application-form/fields/${fieldId}`),
+  reorderFields: (fieldIds: string[]) => api.put('/career-site/application-form/fields/reorder', { fieldIds }),
+  // Job-specific form
+  getJobForm: (jobId: string) => api.get(`/career-site/application-form/job/${jobId}`),
+  setJobForm: (jobId: string, data: any) => api.put(`/career-site/application-form/job/${jobId}`, data),
+  addScreeningQuestion: (jobId: string, data: any) =>
+    api.post(`/career-site/application-form/job/${jobId}/screening-questions`, data),
+};
+
+// Public Career Site API (for candidates)
+export const publicCareerSiteApi = {
+  getCareerSite: (tenantId: string) => api.get(`/careers/${tenantId}`),
+  getJobs: (tenantId: string, params?: {
+    search?: string;
+    department?: string;
+    location?: string;
+    employmentType?: string;
+    workLocation?: string;
+    page?: number;
+    limit?: number;
+  }) => api.get(`/careers/${tenantId}/jobs`, { params }),
+  getJob: (tenantId: string, jobId: string) => api.get(`/careers/${tenantId}/jobs/${jobId}`),
+  getApplicationForm: (tenantId: string, jobId: string) =>
+    api.get(`/careers/${tenantId}/jobs/${jobId}/application-form`),
+  validateApplication: (tenantId: string, jobId: string, data: Record<string, any>) =>
+    api.post(`/careers/${tenantId}/jobs/${jobId}/validate`, data),
+};
+
+// ==================== BULK IMPORT ====================
+
+export const bulkImportApi = {
+  // Candidate import
+  getCandidateFields: () => api.get('/bulk-import/candidates/fields'),
+  getCandidateTemplate: () => api.get('/bulk-import/candidates/template'),
+  previewCandidates: (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post('/bulk-import/candidates/preview', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+  importCandidates: (file: File, mappings: any[], options?: {
+    skipDuplicates?: boolean;
+    updateExisting?: boolean;
+    defaultSource?: string;
+    defaultTags?: string[];
+  }) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('mappings', JSON.stringify(mappings));
+    if (options?.skipDuplicates) formData.append('skipDuplicates', 'true');
+    if (options?.updateExisting) formData.append('updateExisting', 'true');
+    if (options?.defaultSource) formData.append('defaultSource', options.defaultSource);
+    if (options?.defaultTags) formData.append('defaultTags', JSON.stringify(options.defaultTags));
+    return api.post('/bulk-import/candidates/import', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+  // Job import
+  getJobFields: () => api.get('/bulk-import/jobs/fields'),
+  getJobTemplate: () => api.get('/bulk-import/jobs/template'),
+  previewJobs: (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post('/bulk-import/jobs/preview', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+  importJobs: (file: File, mappings: any[], options?: {
+    defaultStatus?: string;
+    defaultPipelineId?: string;
+  }) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('mappings', JSON.stringify(mappings));
+    if (options?.defaultStatus) formData.append('defaultStatus', options.defaultStatus);
+    if (options?.defaultPipelineId) formData.append('defaultPipelineId', options.defaultPipelineId);
+    return api.post('/bulk-import/jobs/import', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+  // History
+  getHistory: (limit?: number) => api.get('/bulk-import/history', { params: { limit } }),
+};
+
+// ==================== CUSTOM REPORTS ====================
+
+export const customReportsApi = {
+  getColumns: (entityType: string) => api.get(`/custom-reports/columns/${entityType}`),
+  getFilterOperators: (fieldType: string) => api.get(`/custom-reports/filter-operators/${fieldType}`),
+  getDatePresets: () => api.get('/custom-reports/date-presets'),
+  executeReport: (definition: any) => api.post('/custom-reports/execute', definition),
+  exportReport: (definition: any) => api.post('/custom-reports/export', definition, { responseType: 'blob' }),
+  getSavedReports: () => api.get('/custom-reports/saved'),
+  saveReport: (report: { name: string; description?: string; definition: any; isPublic?: boolean }) =>
+    api.post('/custom-reports/saved', report),
+  deleteReport: (id: string) => api.delete(`/custom-reports/saved/${id}`),
+};
+
+// ==================== AUDIT LOGS ====================
+
+export const auditLogApi = {
+  getActionTypes: () => api.get('/audit-logs/action-types'),
+  getLogs: (params?: {
+    action?: string;
+    userId?: string;
+    applicationId?: string;
+    candidateId?: string;
+    startDate?: string;
+    endDate?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+  }) => api.get('/audit-logs', { params }),
+  getStats: (startDate?: string, endDate?: string) =>
+    api.get('/audit-logs/stats', { params: { startDate, endDate } }),
+  getLog: (id: string) => api.get(`/audit-logs/${id}`),
+  exportLogs: (params?: { action?: string; startDate?: string; endDate?: string }) =>
+    api.get('/audit-logs/export', { params, responseType: 'blob' }),
+};
+

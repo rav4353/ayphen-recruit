@@ -557,6 +557,27 @@ export class JobsService {
     return Promise.all(jobs.map(job => this.enrichJobWithStatusColor(job, tenantId)));
   }
   async generateXmlFeed(tenantId: string) {
+    // Get tenant branding settings
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { name: true, domain: true },
+    });
+
+    // Get company info from settings
+    let companyName = tenant?.name || 'Company';
+    let companyUrl = tenant?.domain || 'https://careers.example.com';
+
+    try {
+      const companySetting = await this.settingsService.getSettingByKey(tenantId, 'company_info');
+      if (companySetting?.value) {
+        const companyInfo = companySetting.value as { name?: string; website?: string };
+        if (companyInfo.name) companyName = companyInfo.name;
+        if (companyInfo.website) companyUrl = companyInfo.website;
+      }
+    } catch {
+      // Use defaults if setting not found
+    }
+
     const jobs = await this.prisma.job.findMany({
       where: {
         tenantId,
@@ -571,22 +592,23 @@ export class JobsService {
     // Simple XML generation for Indeed/ZipRecruiter
     let xml = '<?xml version="1.0" encoding="utf-8"?>\n';
     xml += '<source>\n';
-    xml += '  <publisher>TalentX</publisher>\n';
-    xml += `  <publisherurl>https://talentx.ayphen.com</publisherurl>\n`;
+    xml += `  <publisher>${companyName}</publisher>\n`;
+    xml += `  <publisherurl>${companyUrl}</publisherurl>\n`;
     xml += `  <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>\n`;
 
     for (const job of jobs) {
+      const jobUrl = `${companyUrl}/careers/${tenantId}/jobs/${job.id}`;
       xml += '  <job>\n';
       xml += `    <title><![CDATA[${job.title}]]></title>\n`;
       xml += `    <date><![CDATA[${job.createdAt.toUTCString()}]]></date>\n`;
       xml += `    <referencenumber><![CDATA[${job.id}]]></referencenumber>\n`;
-      xml += `    <url><![CDATA[https://talentx.ayphen.com/jobs/${job.id}]]></url>\n`;
-      xml += `    <company><![CDATA[Ayphen]]></company>\n`; // TODO: Get from tenant settings
+      xml += `    <url><![CDATA[${jobUrl}]]></url>\n`;
+      xml += `    <company><![CDATA[${companyName}]]></company>\n`;
       xml += `    <city><![CDATA[${job.location?.city || ''}]]></city>\n`;
       xml += `    <state><![CDATA[${job.location?.state || ''}]]></state>\n`;
       xml += `    <country><![CDATA[${job.location?.country || ''}]]></country>\n`;
       xml += `    <description><![CDATA[${job.description}]]></description>\n`;
-      if (job.salaryMin && job.salaryMax) {
+      if (job.showSalary && job.salaryMin && job.salaryMax) {
         xml += `    <salary><![CDATA[${job.salaryMin} - ${job.salaryMax} ${job.salaryCurrency}]]></salary>\n`;
       }
       xml += `    <jobtype><![CDATA[${job.employmentType}]]></jobtype>\n`;
@@ -600,5 +622,323 @@ export class JobsService {
 
   private async generateJobCode() {
     return `JOB-${Math.floor(100000 + Math.random() * 900000)}`;
+  }
+
+  /**
+   * Create a job requisition (request to hire)
+   */
+  async createRequisition(
+    tenantId: string,
+    userId: string,
+    data: {
+      title: string;
+      departmentId?: string;
+      locationId?: string;
+      headcount: number;
+      priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+      targetStartDate?: Date;
+      justification: string;
+      budgetApproved?: boolean;
+      salaryRange?: { min: number; max: number; currency: string };
+      skills?: string[];
+      employmentType?: string;
+    },
+  ) {
+    const requisitionId = `REQ-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+
+    // Create requisition as activity log entry
+    const requisition = await this.prisma.activityLog.create({
+      data: {
+        action: 'REQUISITION_CREATED',
+        description: `Job requisition created: ${data.title}`,
+        userId,
+        metadata: {
+          requisitionId,
+          tenantId,
+          ...data,
+          status: 'PENDING_APPROVAL',
+          createdBy: userId,
+          createdAt: new Date().toISOString(),
+          approvals: [],
+          history: [
+            {
+              action: 'CREATED',
+              userId,
+              timestamp: new Date().toISOString(),
+            },
+          ],
+        },
+      },
+    });
+
+    return {
+      id: requisitionId,
+      title: data.title,
+      headcount: data.headcount,
+      priority: data.priority,
+      status: 'PENDING_APPROVAL',
+      createdAt: requisition.createdAt,
+    };
+  }
+
+  /**
+   * Get all requisitions for a tenant
+   */
+  async getRequisitions(
+    tenantId: string,
+    filters?: {
+      status?: string;
+      departmentId?: string;
+      priority?: string;
+    },
+  ) {
+    const requisitionLogs = await this.prisma.activityLog.findMany({
+      where: {
+        action: 'REQUISITION_CREATED',
+        metadata: {
+          path: ['tenantId'],
+          equals: tenantId,
+        },
+      },
+      include: {
+        user: {
+          select: { id: true, firstName: true, lastName: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Get latest state of each requisition
+    const requisitionMap = new Map<string, any>();
+    for (const log of requisitionLogs) {
+      const metadata = log.metadata as any;
+      if (!requisitionMap.has(metadata.requisitionId)) {
+        requisitionMap.set(metadata.requisitionId, {
+          ...metadata,
+          createdAt: log.createdAt,
+          createdBy: log.user,
+        });
+      }
+    }
+
+    let requisitions = Array.from(requisitionMap.values());
+
+    // Apply filters
+    if (filters?.status) {
+      requisitions = requisitions.filter(r => r.status === filters.status);
+    }
+    if (filters?.departmentId) {
+      requisitions = requisitions.filter(r => r.departmentId === filters.departmentId);
+    }
+    if (filters?.priority) {
+      requisitions = requisitions.filter(r => r.priority === filters.priority);
+    }
+
+    // Get department and location details
+    const departmentIds = requisitions.map(r => r.departmentId).filter(Boolean);
+    const locationIds = requisitions.map(r => r.locationId).filter(Boolean);
+
+    const [departments, locations] = await Promise.all([
+      departmentIds.length > 0
+        ? this.prisma.department.findMany({ where: { id: { in: departmentIds } } })
+        : [],
+      locationIds.length > 0
+        ? this.prisma.location.findMany({ where: { id: { in: locationIds } } })
+        : [],
+    ]);
+
+    const deptMap = new Map<string, any>(departments.map(d => [d.id, d] as [string, any]));
+    const locMap = new Map<string, any>(locations.map(l => [l.id, l] as [string, any]));
+
+    return requisitions.map(r => ({
+      id: r.requisitionId,
+      title: r.title,
+      headcount: r.headcount,
+      priority: r.priority,
+      status: r.status,
+      targetStartDate: r.targetStartDate,
+      justification: r.justification,
+      budgetApproved: r.budgetApproved,
+      salaryRange: r.salaryRange,
+      department: r.departmentId ? deptMap.get(r.departmentId) : null,
+      location: r.locationId ? locMap.get(r.locationId) : null,
+      createdAt: r.createdAt,
+      createdBy: r.createdBy,
+      linkedJobId: r.linkedJobId,
+    }));
+  }
+
+  /**
+   * Update requisition status (approve/reject)
+   */
+  async updateRequisitionStatus(
+    requisitionId: string,
+    tenantId: string,
+    userId: string,
+    action: 'APPROVE' | 'REJECT' | 'CANCEL',
+    notes?: string,
+  ) {
+    // Find the requisition
+    const requisitionLog = await this.prisma.activityLog.findFirst({
+      where: {
+        action: 'REQUISITION_CREATED',
+        metadata: {
+          path: ['requisitionId'],
+          equals: requisitionId,
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!requisitionLog) {
+      throw new NotFoundException('Requisition not found');
+    }
+
+    const currentMetadata = requisitionLog.metadata as any;
+
+    const newStatus = action === 'APPROVE' ? 'APPROVED' :
+                      action === 'REJECT' ? 'REJECTED' : 'CANCELLED';
+
+    const updatedMetadata = {
+      ...currentMetadata,
+      status: newStatus,
+      history: [
+        ...(currentMetadata.history || []),
+        {
+          action: action,
+          userId,
+          notes,
+          timestamp: new Date().toISOString(),
+        },
+      ],
+    };
+
+    // Create update log
+    await this.prisma.activityLog.create({
+      data: {
+        action: 'REQUISITION_CREATED',
+        description: `Requisition ${action.toLowerCase()}ed: ${currentMetadata.title}`,
+        userId,
+        metadata: updatedMetadata,
+      },
+    });
+
+    return {
+      id: requisitionId,
+      status: newStatus,
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * Convert approved requisition to job posting
+   */
+  async convertRequisitionToJob(
+    requisitionId: string,
+    tenantId: string,
+    userId: string,
+    additionalData?: Partial<CreateJobDto>,
+  ) {
+    // Find the requisition
+    const requisitionLog = await this.prisma.activityLog.findFirst({
+      where: {
+        action: 'REQUISITION_CREATED',
+        metadata: {
+          path: ['requisitionId'],
+          equals: requisitionId,
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!requisitionLog) {
+      throw new NotFoundException('Requisition not found');
+    }
+
+    const reqData = requisitionLog.metadata as any;
+
+    if (reqData.status !== 'APPROVED') {
+      throw new BadRequestException('Only approved requisitions can be converted to jobs');
+    }
+
+    // Create job from requisition
+    const jobDto: CreateJobDto = {
+      title: reqData.title,
+      description: additionalData?.description || `Position for ${reqData.title}`,
+      departmentId: reqData.departmentId,
+      locationId: reqData.locationId,
+      employmentType: reqData.employmentType || 'FULL_TIME',
+      skills: reqData.skills || [],
+      salaryMin: reqData.salaryRange?.min,
+      salaryMax: reqData.salaryRange?.max,
+      salaryCurrency: reqData.salaryRange?.currency || 'USD',
+      openings: reqData.headcount,
+      status: 'DRAFT',
+      ...additionalData,
+    };
+
+    const job = await this.create(jobDto, tenantId, userId);
+
+    // Update requisition with linked job
+    const updatedMetadata = {
+      ...reqData,
+      linkedJobId: job.id,
+      status: 'CONVERTED',
+      history: [
+        ...(reqData.history || []),
+        {
+          action: 'CONVERTED_TO_JOB',
+          userId,
+          jobId: job.id,
+          timestamp: new Date().toISOString(),
+        },
+      ],
+    };
+
+    await this.prisma.activityLog.create({
+      data: {
+        action: 'REQUISITION_CREATED',
+        description: `Requisition converted to job: ${reqData.title}`,
+        userId,
+        metadata: updatedMetadata,
+      },
+    });
+
+    return {
+      requisitionId,
+      jobId: job.id,
+      jobTitle: job.title,
+      message: 'Requisition successfully converted to job posting',
+    };
+  }
+
+  /**
+   * Get requisition statistics
+   */
+  async getRequisitionStats(tenantId: string) {
+    const requisitions = await this.getRequisitions(tenantId);
+
+    const stats = {
+      total: requisitions.length,
+      byStatus: {
+        pending: requisitions.filter(r => r.status === 'PENDING_APPROVAL').length,
+        approved: requisitions.filter(r => r.status === 'APPROVED').length,
+        rejected: requisitions.filter(r => r.status === 'REJECTED').length,
+        converted: requisitions.filter(r => r.status === 'CONVERTED').length,
+        cancelled: requisitions.filter(r => r.status === 'CANCELLED').length,
+      },
+      byPriority: {
+        urgent: requisitions.filter(r => r.priority === 'URGENT').length,
+        high: requisitions.filter(r => r.priority === 'HIGH').length,
+        medium: requisitions.filter(r => r.priority === 'MEDIUM').length,
+        low: requisitions.filter(r => r.priority === 'LOW').length,
+      },
+      totalHeadcount: requisitions.reduce((sum, r) => sum + (r.headcount || 0), 0),
+      pendingHeadcount: requisitions
+        .filter(r => r.status === 'PENDING_APPROVAL' || r.status === 'APPROVED')
+        .reduce((sum, r) => sum + (r.headcount || 0), 0),
+    };
+
+    return stats;
   }
 }

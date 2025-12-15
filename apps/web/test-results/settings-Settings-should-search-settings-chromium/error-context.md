@@ -1,0 +1,248 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - link "BMW TalentX" [ref=e7] [cursor=pointer]:
+        - /url: /e71612ab-f2ca-4798-b598-082e1266ec96/dashboard
+        - img "BMW" [ref=e8]
+        - img "TalentX" [ref=e10]
+      - navigation [ref=e11]:
+        - link "Dashboard" [ref=e12] [cursor=pointer]:
+          - /url: /e71612ab-f2ca-4798-b598-082e1266ec96/dashboard
+          - img [ref=e13]
+          - generic [ref=e18]: Dashboard
+        - link "Jobs" [ref=e19] [cursor=pointer]:
+          - /url: /e71612ab-f2ca-4798-b598-082e1266ec96/jobs
+          - img [ref=e20]
+          - generic [ref=e23]: Jobs
+        - link "Pipeline" [ref=e24] [cursor=pointer]:
+          - /url: /e71612ab-f2ca-4798-b598-082e1266ec96/pipeline
+          - img [ref=e25]
+          - generic [ref=e29]: Pipeline
+        - link "Candidates" [ref=e30] [cursor=pointer]:
+          - /url: /e71612ab-f2ca-4798-b598-082e1266ec96/candidates
+          - img [ref=e31]
+          - generic [ref=e36]: Candidates
+        - link "Referrals" [ref=e37] [cursor=pointer]:
+          - /url: /e71612ab-f2ca-4798-b598-082e1266ec96/referrals
+          - img [ref=e38]
+          - generic [ref=e44]: Referrals
+        - link "Sourcing" [ref=e45] [cursor=pointer]:
+          - /url: /e71612ab-f2ca-4798-b598-082e1266ec96/sourcing
+          - img [ref=e46]
+          - generic [ref=e49]: Sourcing
+        - link "Interviews" [ref=e50] [cursor=pointer]:
+          - /url: /e71612ab-f2ca-4798-b598-082e1266ec96/interviews
+          - img [ref=e51]
+          - generic [ref=e53]: Interviews
+        - link "Offers" [ref=e54] [cursor=pointer]:
+          - /url: /e71612ab-f2ca-4798-b598-082e1266ec96/offers
+          - img [ref=e55]
+          - generic [ref=e58]: Offers
+        - link "Onboarding" [ref=e59] [cursor=pointer]:
+          - /url: /e71612ab-f2ca-4798-b598-082e1266ec96/onboarding
+          - img [ref=e60]
+          - generic [ref=e65]: Onboarding
+        - link "Messages" [ref=e66] [cursor=pointer]:
+          - /url: /e71612ab-f2ca-4798-b598-082e1266ec96/inbox
+          - img [ref=e67]
+          - generic [ref=e70]: Messages
+        - link "Reports" [ref=e71] [cursor=pointer]:
+          - /url: /e71612ab-f2ca-4798-b598-082e1266ec96/reports
+          - img [ref=e72]
+          - generic [ref=e73]: Reports
+        - link "Settings" [ref=e74] [cursor=pointer]:
+          - /url: /e71612ab-f2ca-4798-b598-082e1266ec96/settings
+          - img [ref=e75]
+          - generic [ref=e78]: Settings
+      - generic [ref=e80]:
+        - generic [ref=e81]: RR
+        - generic [ref=e82]:
+          - paragraph [ref=e83]: Ravanth Raja
+          - paragraph [ref=e84]: ravanthsri20@gmail.com
+        - button "Logout" [ref=e85] [cursor=pointer]:
+          - img [ref=e86]
+  - generic [ref=e89]:
+    - banner [ref=e90]:
+      - generic [ref=e91]:
+        - generic [ref=e92]:
+          - button "Notifications" [ref=e93] [cursor=pointer]:
+            - img [ref=e94]
+          - generic [ref=e97]:
+            - generic [ref=e98]:
+              - generic [ref=e99]:
+                - img [ref=e100]
+                - heading "Notifications" [level=2] [ref=e103]
+              - button [ref=e104] [cursor=pointer]:
+                - img [ref=e105]
+            - combobox [ref=e109]:
+              - option "All" [selected]
+              - option "Applications"
+              - option "Interviews"
+              - option "Offers"
+              - option "Jobs"
+              - option "SLA Alerts"
+              - option "Approvals"
+              - option "Onboarding"
+              - option "System"
+            - generic [ref=e111]:
+              - img [ref=e112]
+              - paragraph [ref=e115]: No notifications
+        - button "Select language" [ref=e117] [cursor=pointer]:
+          - img [ref=e118]
+        - button "Select theme" [ref=e122] [cursor=pointer]:
+          - img [ref=e123]
+    - main [ref=e129]:
+      - generic [ref=e130]:
+        - generic [ref=e131]:
+          - heading "Settings" [level=1] [ref=e132]
+          - generic [ref=e133]:
+            - img [ref=e134]
+            - textbox "Search settings..." [active] [ref=e137]: email
+            - button [ref=e138] [cursor=pointer]:
+              - img [ref=e139]
+        - generic [ref=e144]:
+          - paragraph [ref=e145]: 10 results for "email"
+          - button "Notifications Email and push notification preferences Notifications" [ref=e146] [cursor=pointer]:
+            - generic [ref=e147]:
+              - generic [ref=e148]:
+                - img [ref=e150]
+                - generic [ref=e153]:
+                  - heading "Notifications" [level=4] [ref=e154]
+                  - paragraph [ref=e155]:
+                    - mark [ref=e156]: Email
+                    - text: and push notification preferences
+              - generic [ref=e157]:
+                - generic [ref=e158]: Notifications
+                - img [ref=e159]
+          - button "Templates Email, offer, and scorecard templates Templates" [ref=e161] [cursor=pointer]:
+            - generic [ref=e162]:
+              - generic [ref=e163]:
+                - img [ref=e165]
+                - generic [ref=e168]:
+                  - heading "Templates" [level=4] [ref=e169]
+                  - paragraph [ref=e170]:
+                    - mark [ref=e171]: Email
+                    - text: ", offer, and scorecard templates"
+              - generic [ref=e172]:
+                - generic [ref=e173]: Templates
+                - img [ref=e174]
+          - button "Email Email configuration and SMTP settings Email" [ref=e176] [cursor=pointer]:
+            - generic [ref=e177]:
+              - generic [ref=e178]:
+                - img [ref=e180]
+                - generic [ref=e183]:
+                  - heading "Email" [level=4] [ref=e184]:
+                    - mark [ref=e185]: Email
+                  - paragraph [ref=e186]:
+                    - mark [ref=e187]: Email
+                    - text: configuration and SMTP settings
+              - generic [ref=e188]:
+                - generic [ref=e189]: Email
+                - img [ref=e190]
+          - button "Email Notifications Send notifications to email Notifications" [ref=e192] [cursor=pointer]:
+            - generic [ref=e193]:
+              - generic [ref=e194]:
+                - img [ref=e196]
+                - generic [ref=e199]:
+                  - heading "Email Notifications" [level=4] [ref=e200]:
+                    - mark [ref=e201]: Email
+                    - text: Notifications
+                  - paragraph [ref=e202]:
+                    - text: Send notifications to
+                    - mark [ref=e203]: email
+              - generic [ref=e204]:
+                - generic [ref=e205]: Notifications
+                - img [ref=e206]
+          - button "Email Automation Automated email responses Automations" [ref=e208] [cursor=pointer]:
+            - generic [ref=e209]:
+              - generic [ref=e210]:
+                - img [ref=e212]
+                - generic [ref=e214]:
+                  - heading "Email Automation" [level=4] [ref=e215]:
+                    - mark [ref=e216]: Email
+                    - text: Automation
+                  - paragraph [ref=e217]:
+                    - text: Automated
+                    - mark [ref=e218]: email
+                    - text: responses
+              - generic [ref=e219]:
+                - generic [ref=e220]: Automations
+                - img [ref=e221]
+          - button "Email Templates Templates for emails Templates" [ref=e223] [cursor=pointer]:
+            - generic [ref=e224]:
+              - generic [ref=e225]:
+                - img [ref=e227]
+                - generic [ref=e230]:
+                  - heading "Email Templates" [level=4] [ref=e231]:
+                    - mark [ref=e232]: Email
+                    - text: Templates
+                  - paragraph [ref=e233]:
+                    - text: Templates for
+                    - mark [ref=e234]: email
+                    - text: s
+              - generic [ref=e235]:
+                - generic [ref=e236]: Templates
+                - img [ref=e237]
+          - button "Create Email Template Create a new email template Templates" [ref=e239] [cursor=pointer]:
+            - generic [ref=e240]:
+              - generic [ref=e241]:
+                - img [ref=e243]
+                - generic [ref=e246]:
+                  - heading "Create Email Template" [level=4] [ref=e247]:
+                    - text: Create
+                    - mark [ref=e248]: Email
+                    - text: Template
+                  - paragraph [ref=e249]:
+                    - text: Create a new
+                    - mark [ref=e250]: email
+                    - text: template
+              - generic [ref=e251]:
+                - generic [ref=e252]: Templates
+                - img [ref=e253]
+          - button "Email Settings Configure email sending Email" [ref=e255] [cursor=pointer]:
+            - generic [ref=e256]:
+              - generic [ref=e257]:
+                - img [ref=e259]
+                - generic [ref=e262]:
+                  - heading "Email Settings" [level=4] [ref=e263]:
+                    - mark [ref=e264]: Email
+                    - text: Settings
+                  - paragraph [ref=e265]:
+                    - text: Configure
+                    - mark [ref=e266]: email
+                    - text: sending
+              - generic [ref=e267]:
+                - generic [ref=e268]: Email
+                - img [ref=e269]
+          - button "Sender Email From email address Email" [ref=e271] [cursor=pointer]:
+            - generic [ref=e272]:
+              - generic [ref=e273]:
+                - img [ref=e275]
+                - generic [ref=e278]:
+                  - heading "Sender Email" [level=4] [ref=e279]:
+                    - text: Sender
+                    - mark [ref=e280]: Email
+                  - paragraph [ref=e281]:
+                    - text: From
+                    - mark [ref=e282]: email
+                    - text: address
+              - generic [ref=e283]:
+                - generic [ref=e284]: Email
+                - img [ref=e285]
+          - button "Sender Name From name for emails Email" [ref=e287] [cursor=pointer]:
+            - generic [ref=e288]:
+              - generic [ref=e289]:
+                - img [ref=e291]
+                - generic [ref=e294]:
+                  - heading "Sender Name" [level=4] [ref=e295]
+                  - paragraph [ref=e296]:
+                    - text: From name for
+                    - mark [ref=e297]: email
+                    - text: s
+              - generic [ref=e298]:
+                - generic [ref=e299]: Email
+                - img [ref=e300]
+```

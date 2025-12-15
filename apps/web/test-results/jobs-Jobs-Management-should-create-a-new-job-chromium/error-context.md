@@ -1,0 +1,98 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - link "Ayphen TalentX" [ref=e7] [cursor=pointer]:
+        - /url: /jobs/dashboard
+        - img "Ayphen" [ref=e8]
+        - img "TalentX" [ref=e10]
+      - navigation [ref=e11]:
+        - link "Dashboard" [ref=e12] [cursor=pointer]:
+          - /url: /jobs/dashboard
+          - img [ref=e13]
+          - generic [ref=e18]: Dashboard
+        - link "Jobs" [ref=e19] [cursor=pointer]:
+          - /url: /jobs/jobs
+          - img [ref=e20]
+          - generic [ref=e23]: Jobs
+        - link "Pipeline" [ref=e24] [cursor=pointer]:
+          - /url: /jobs/pipeline
+          - img [ref=e25]
+          - generic [ref=e29]: Pipeline
+        - link "Candidates" [ref=e30] [cursor=pointer]:
+          - /url: /jobs/candidates
+          - img [ref=e31]
+          - generic [ref=e36]: Candidates
+        - link "Referrals" [ref=e37] [cursor=pointer]:
+          - /url: /jobs/referrals
+          - img [ref=e38]
+          - generic [ref=e44]: Referrals
+        - link "Sourcing" [ref=e45] [cursor=pointer]:
+          - /url: /jobs/sourcing
+          - img [ref=e46]
+          - generic [ref=e49]: Sourcing
+        - link "Interviews" [ref=e50] [cursor=pointer]:
+          - /url: /jobs/interviews
+          - img [ref=e51]
+          - generic [ref=e53]: Interviews
+        - link "Offers" [ref=e54] [cursor=pointer]:
+          - /url: /jobs/offers
+          - img [ref=e55]
+          - generic [ref=e58]: Offers
+        - link "Onboarding" [ref=e59] [cursor=pointer]:
+          - /url: /jobs/onboarding
+          - img [ref=e60]
+          - generic [ref=e65]: Onboarding
+        - link "Messages" [ref=e66] [cursor=pointer]:
+          - /url: /jobs/inbox
+          - img [ref=e67]
+          - generic [ref=e70]: Messages
+        - link "Reports" [ref=e71] [cursor=pointer]:
+          - /url: /jobs/reports
+          - img [ref=e72]
+          - generic [ref=e73]: Reports
+        - link "Settings" [ref=e74] [cursor=pointer]:
+          - /url: /jobs/settings
+          - img [ref=e75]
+          - generic [ref=e78]: Settings
+      - generic [ref=e80]:
+        - generic [ref=e81]: RR
+        - generic [ref=e82]:
+          - paragraph [ref=e83]: Ravanth Raja
+          - paragraph [ref=e84]: ravanthsri20@gmail.com
+        - button "Logout" [ref=e85] [cursor=pointer]:
+          - img [ref=e86]
+  - generic [ref=e89]:
+    - banner [ref=e90]:
+      - generic [ref=e91]:
+        - generic [ref=e92]:
+          - button "Notifications" [ref=e93] [cursor=pointer]:
+            - img [ref=e94]
+          - generic [ref=e97]:
+            - generic [ref=e98]:
+              - generic [ref=e99]:
+                - img [ref=e100]
+                - heading "Notifications" [level=2] [ref=e103]
+              - button [ref=e104] [cursor=pointer]:
+                - img [ref=e105]
+            - combobox [ref=e109]:
+              - option "All" [selected]
+              - option "Applications"
+              - option "Interviews"
+              - option "Offers"
+              - option "Jobs"
+              - option "SLA Alerts"
+              - option "Approvals"
+              - option "Onboarding"
+              - option "System"
+            - generic [ref=e111]:
+              - img [ref=e112]
+              - paragraph [ref=e115]: No notifications
+        - button "Select language" [ref=e117] [cursor=pointer]:
+          - img [ref=e118]
+        - button "Select theme" [ref=e122] [cursor=pointer]:
+          - img [ref=e123]
+    - main [ref=e129]
+```

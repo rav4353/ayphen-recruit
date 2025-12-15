@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Card, Button, Input } from '../ui';
-import { CheckCircle2, AlertCircle, Calendar, FileSignature, Loader2, ExternalLink, Trash2, Shield, Briefcase, Settings as SettingsIcon } from 'lucide-react';
-import { calendarApi, esignatureApi, jobBoardsApi, bgvApi } from '../../lib/api';
+import { CheckCircle2, AlertCircle, Calendar, FileSignature, Loader2, ExternalLink, Trash2, Shield, Briefcase, Settings as SettingsIcon, MessageSquare, Send } from 'lucide-react';
+import { calendarApi, esignatureApi, jobBoardsApi, bgvApi, messagingApi } from '../../lib/api';
 import toast from 'react-hot-toast';
 
-type TabType = 'calendar' | 'esignature' | 'jobBoards' | 'bgv';
+type TabType = 'calendar' | 'esignature' | 'jobBoards' | 'bgv' | 'messaging';
 
 interface CalendarConnection {
     id: string;
@@ -93,6 +93,18 @@ export function IntegrationSettings() {
     const [esignForm, setEsignForm] = useState({ clientId: '', clientSecret: '' });
     const [configuringEsign, setConfiguringEsign] = useState(false);
 
+    // Messaging (Slack/Teams) State
+    const [slackConfig, setSlackConfig] = useState<{ isConfigured: boolean; channels?: string[] } | null>(null);
+    const [teamsConfig, setTeamsConfig] = useState<{ isConfigured: boolean; hasWebhook?: boolean } | null>(null);
+    const [messagingLoading, setMessagingLoading] = useState(false);
+    const [testingSlack, setTestingSlack] = useState(false);
+    const [testingTeams, setTestingTeams] = useState(false);
+    const [sendingTestNotification, setSendingTestNotification] = useState(false);
+    const [slackForm, setSlackForm] = useState({ botToken: '', signingSecret: '', defaultChannelId: '' });
+    const [teamsForm, setTeamsForm] = useState({ webhookUrl: '' });
+    const [configuringSlack, setConfiguringSlack] = useState(false);
+    const [configuringTeams, setConfiguringTeams] = useState(false);
+
     // Fetch data when tabs change
     useEffect(() => {
         if (activeTab === 'calendar') {
@@ -105,8 +117,114 @@ export function IntegrationSettings() {
             fetchAvailableJobBoards();
         } else if (activeTab === 'bgv') {
             fetchBgvSettings();
+        } else if (activeTab === 'messaging') {
+            fetchMessagingSettings();
         }
     }, [activeTab]);
+
+    const fetchMessagingSettings = async () => {
+        setMessagingLoading(true);
+        try {
+            const [slackRes, teamsRes] = await Promise.all([
+                messagingApi.getSlackConfig().catch(() => ({ data: { isConfigured: false } })),
+                messagingApi.getTeamsConfig().catch(() => ({ data: { isConfigured: false } })),
+            ]);
+            setSlackConfig(slackRes.data?.data || slackRes.data || { isConfigured: false });
+            setTeamsConfig(teamsRes.data?.data || teamsRes.data || { isConfigured: false });
+        } catch (error) {
+            console.error('Failed to fetch messaging settings', error);
+        } finally {
+            setMessagingLoading(false);
+        }
+    };
+
+    const handleTestSlack = async () => {
+        setTestingSlack(true);
+        try {
+            const res = await messagingApi.testSlack();
+            const result = res.data?.data || res.data;
+            if (result?.success) {
+                toast.success(result.message || 'Slack connection verified!');
+            } else {
+                toast.error(result?.message || 'Slack connection test failed');
+            }
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || 'Failed to test Slack connection');
+        } finally {
+            setTestingSlack(false);
+        }
+    };
+
+    const handleTestTeams = async () => {
+        setTestingTeams(true);
+        try {
+            const res = await messagingApi.testTeams();
+            const result = res.data?.data || res.data;
+            if (result?.success) {
+                toast.success(result.message || 'Teams connection verified!');
+            } else {
+                toast.error(result?.message || 'Teams connection test failed');
+            }
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || 'Failed to test Teams connection');
+        } finally {
+            setTestingTeams(false);
+        }
+    };
+
+    const handleSendTestNotification = async () => {
+        setSendingTestNotification(true);
+        try {
+            await messagingApi.sendTestNotification();
+            toast.success('Test notification sent to all configured channels!');
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || 'Failed to send test notification');
+        } finally {
+            setSendingTestNotification(false);
+        }
+    };
+
+    const handleConfigureSlack = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!slackForm.botToken || !slackForm.signingSecret) {
+            toast.error('Bot Token and Signing Secret are required');
+            return;
+        }
+        setConfiguringSlack(true);
+        try {
+            await messagingApi.configureSlack({
+                botToken: slackForm.botToken,
+                signingSecret: slackForm.signingSecret,
+                defaultChannelId: slackForm.defaultChannelId || undefined,
+            });
+            toast.success('Slack configured successfully');
+            setSlackForm({ botToken: '', signingSecret: '', defaultChannelId: '' });
+            fetchMessagingSettings();
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || 'Failed to configure Slack');
+        } finally {
+            setConfiguringSlack(false);
+        }
+    };
+
+    const handleConfigureTeams = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!teamsForm.webhookUrl) {
+            toast.error('Webhook URL is required');
+            return;
+        }
+        setConfiguringTeams(true);
+        try {
+            await messagingApi.configureTeams({ webhookUrl: teamsForm.webhookUrl });
+            toast.success('Teams configured successfully');
+            setTeamsForm({ webhookUrl: '' });
+            fetchMessagingSettings();
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || 'Failed to configure Teams');
+        } finally {
+            setConfiguringTeams(false);
+        }
+    };
 
     const fetchJobBoardSettings = async () => {
         setJobBoardsLoading(true);
@@ -122,7 +240,7 @@ export function IntegrationSettings() {
 
     const fetchAvailableJobBoards = async () => {
         try {
-            const res = await jobBoardsApi.getAvailableBoards();
+            const res = await jobBoardsApi.getAvailable();
             setAvailableJobBoards(res.data.data || []);
         } catch (error) {
             // Use default boards if API fails
@@ -310,7 +428,7 @@ export function IntegrationSettings() {
     const handleOAuthCallback = async (code: string, state: string) => {
         try {
             const stateData = JSON.parse(atob(state));
-            
+
             if (stateData.provider) {
                 // Calendar OAuth
                 const redirectUri = `${window.location.origin}${window.location.pathname}`;
@@ -380,6 +498,7 @@ export function IntegrationSettings() {
         { id: 'esignature' as TabType, label: 'E-Signature', icon: FileSignature },
         { id: 'jobBoards' as TabType, label: 'Job Boards', icon: Briefcase },
         { id: 'bgv' as TabType, label: 'Background Checks', icon: Shield },
+        { id: 'messaging' as TabType, label: 'Slack/Teams', icon: MessageSquare },
     ];
 
     return (
@@ -415,10 +534,10 @@ export function IntegrationSettings() {
                             <div className="p-4 border border-neutral-200 dark:border-neutral-700 rounded-lg">
                                 <div className="flex items-center gap-3 mb-4">
                                     <svg className="w-6 h-6" viewBox="0 0 24 24">
-                                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
                                     </svg>
                                     <h4 className="font-medium text-neutral-900 dark:text-white">Google Calendar</h4>
                                     {calendarSettings?.google?.isConfigured && (
@@ -444,7 +563,7 @@ export function IntegrationSettings() {
                                     <Button type="submit" size="sm" isLoading={savingGoogle}>Save Google Credentials</Button>
                                 </form>
                                 <p className="text-xs text-neutral-500 mt-2">
-                                    Get credentials at <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Google Cloud Console</a>. 
+                                    Get credentials at <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Google Cloud Console</a>.
                                     Add redirect URI: <code className="bg-neutral-100 dark:bg-neutral-800 px-1 rounded">{window.location.origin}/settings</code>
                                 </p>
                             </div>
@@ -453,7 +572,7 @@ export function IntegrationSettings() {
                             <div className="p-4 border border-neutral-200 dark:border-neutral-700 rounded-lg">
                                 <div className="flex items-center gap-3 mb-4">
                                     <svg className="w-6 h-6" viewBox="0 0 24 24">
-                                        <path fill="#0078D4" d="M24 7.387v10.478c0 .23-.08.424-.238.576-.159.152-.352.228-.578.228h-8.26v-6.182l1.458 1.042a.49.49 0 0 0 .588 0l6.453-4.629a.425.425 0 0 0 .107-.088.3.3 0 0 0 .067-.126.41.41 0 0 0 .02-.127.267.267 0 0 0-.02-.097.298.298 0 0 0-.067-.107.425.425 0 0 0-.107-.087L16.97 4.64v2.747H1.893l-.039-.069L0 7.387A.8.8 0 0 1 .238 6.8c.159-.156.351-.234.578-.234h8.892V2.234c0-.23.079-.424.238-.576.158-.152.35-.228.578-.228h4.62c.226 0 .419.076.577.228.159.152.238.346.238.576v4.332h7.225c.226 0 .419.078.578.234.158.156.238.35.238.576v.011Z"/>
+                                        <path fill="#0078D4" d="M24 7.387v10.478c0 .23-.08.424-.238.576-.159.152-.352.228-.578.228h-8.26v-6.182l1.458 1.042a.49.49 0 0 0 .588 0l6.453-4.629a.425.425 0 0 0 .107-.088.3.3 0 0 0 .067-.126.41.41 0 0 0 .02-.127.267.267 0 0 0-.02-.097.298.298 0 0 0-.067-.107.425.425 0 0 0-.107-.087L16.97 4.64v2.747H1.893l-.039-.069L0 7.387A.8.8 0 0 1 .238 6.8c.159-.156.351-.234.578-.234h8.892V2.234c0-.23.079-.424.238-.576.158-.152.35-.228.578-.228h4.62c.226 0 .419.076.577.228.159.152.238.346.238.576v4.332h7.225c.226 0 .419.078.578.234.158.156.238.35.238.576v.011Z" />
                                     </svg>
                                     <h4 className="font-medium text-neutral-900 dark:text-white">Microsoft Outlook</h4>
                                     {calendarSettings?.outlook?.isConfigured && (
@@ -485,7 +604,7 @@ export function IntegrationSettings() {
                                     <Button type="submit" size="sm" isLoading={savingOutlook}>Save Outlook Credentials</Button>
                                 </form>
                                 <p className="text-xs text-neutral-500 mt-2">
-                                    Get credentials at <a href="https://portal.azure.com/#blade/Microsoft_AAD_RegisteredApps" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Azure Portal</a>. 
+                                    Get credentials at <a href="https://portal.azure.com/#blade/Microsoft_AAD_RegisteredApps" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Azure Portal</a>.
                                     Use "common" for multi-tenant apps.
                                 </p>
                             </div>
@@ -529,7 +648,7 @@ export function IntegrationSettings() {
                                                     </Button>
                                                 </>
                                             ) : (
-                                                <Button 
+                                                <Button
                                                     onClick={() => handleConnectCalendar('GOOGLE')}
                                                     isLoading={connectingCalendar === 'GOOGLE'}
                                                     disabled={!calendarSettings?.google?.isConfigured}
@@ -564,7 +683,7 @@ export function IntegrationSettings() {
                                                     </Button>
                                                 </>
                                             ) : (
-                                                <Button 
+                                                <Button
                                                     onClick={() => handleConnectCalendar('OUTLOOK')}
                                                     isLoading={connectingCalendar === 'OUTLOOK'}
                                                     disabled={!calendarSettings?.outlook?.isConfigured}
@@ -578,7 +697,7 @@ export function IntegrationSettings() {
                                 </div>
                             )}
 
-                        <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+                            <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
                                 <h4 className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-1">How it works</h4>
                                 <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
                                     <li>• Interviews scheduled in TalentX will automatically appear in your calendar</li>
@@ -745,7 +864,7 @@ export function IntegrationSettings() {
                     <Card>
                         <div className="p-6 space-y-4">
                             <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-4">Connected Job Boards</h3>
-                            
+
                             {jobBoardsLoading ? (
                                 <div className="flex justify-center py-8">
                                     <Loader2 className="animate-spin text-blue-600" size={32} />
@@ -890,7 +1009,7 @@ export function IntegrationSettings() {
                     <Card>
                         <div className="p-6 space-y-4">
                             <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-4">Available Providers</h3>
-                            
+
                             <div className="space-y-4">
                                 {bgvProviders.map((provider) => (
                                     <div key={provider.id} className="flex items-center justify-between p-4 border border-neutral-200 dark:border-neutral-700 rounded-lg">
@@ -925,6 +1044,149 @@ export function IntegrationSettings() {
                                     <li>• Initiate checks from candidate profiles or application workflows</li>
                                     <li>• Receive real-time status updates and results</li>
                                     <li>• View detailed reports directly in TalentX</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </Card>
+                </div>
+            )}
+
+            {/* Messaging (Slack/Teams) Tab */}
+            {activeTab === 'messaging' && (
+                <div className="space-y-6">
+                    <Card>
+                        <div className="p-6 space-y-6">
+                            <div>
+                                <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-2">Slack & Microsoft Teams Integration</h3>
+                                <p className="text-sm text-neutral-500">Connect Slack or Teams to receive notifications about new applications, interview updates, and more.</p>
+                            </div>
+
+                            {messagingLoading ? (
+                                <div className="flex justify-center py-8">
+                                    <Loader2 className="animate-spin text-blue-600" size={32} />
+                                </div>
+                            ) : (
+                                <div className="space-y-6">
+                                    {/* Slack Configuration */}
+                                    <div className="p-4 border border-neutral-200 dark:border-neutral-700 rounded-lg">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 bg-[#4A154B] rounded-lg flex items-center justify-center">
+                                                    <svg viewBox="0 0 24 24" className="w-6 h-6 fill-white">
+                                                        <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z"/>
+                                                    </svg>
+                                                </div>
+                                                <div>
+                                                    <h4 className="font-medium text-neutral-900 dark:text-white">Slack</h4>
+                                                    <p className="text-sm text-neutral-500">Send notifications to Slack channels</p>
+                                                </div>
+                                            </div>
+                                            {slackConfig?.isConfigured ? (
+                                                <div className="flex items-center gap-2">
+                                                    <span className="flex items-center gap-1 text-green-600 text-sm font-medium">
+                                                        <CheckCircle2 size={16} /> Connected
+                                                    </span>
+                                                    <Button variant="secondary" size="sm" onClick={handleTestSlack} isLoading={testingSlack}>
+                                                        Test
+                                                    </Button>
+                                                </div>
+                                            ) : (
+                                                <span className="text-neutral-400 text-sm">Not Connected</span>
+                                            )}
+                                        </div>
+                                        <form onSubmit={handleConfigureSlack} className="space-y-4">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <Input
+                                                    label="Bot Token"
+                                                    type="password"
+                                                    value={slackForm.botToken}
+                                                    onChange={(e) => setSlackForm(prev => ({ ...prev, botToken: e.target.value }))}
+                                                    placeholder="xoxb-..."
+                                                />
+                                                <Input
+                                                    label="Signing Secret"
+                                                    type="password"
+                                                    value={slackForm.signingSecret}
+                                                    onChange={(e) => setSlackForm(prev => ({ ...prev, signingSecret: e.target.value }))}
+                                                    placeholder="Enter signing secret"
+                                                />
+                                            </div>
+                                            <Input
+                                                label="Default Channel ID (optional)"
+                                                value={slackForm.defaultChannelId}
+                                                onChange={(e) => setSlackForm(prev => ({ ...prev, defaultChannelId: e.target.value }))}
+                                                placeholder="C01234567"
+                                            />
+                                            <Button type="submit" size="sm" isLoading={configuringSlack}>
+                                                {slackConfig?.isConfigured ? 'Update Slack' : 'Configure Slack'}
+                                            </Button>
+                                        </form>
+                                    </div>
+
+                                    {/* Teams Configuration */}
+                                    <div className="p-4 border border-neutral-200 dark:border-neutral-700 rounded-lg">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 bg-[#6264A7] rounded-lg flex items-center justify-center">
+                                                    <svg viewBox="0 0 24 24" className="w-6 h-6 fill-white">
+                                                        <path d="M20.625 8.089h-5.466c.235-.316.395-.688.468-1.09h4.998c.826 0 1.375.562 1.375 1.36v6.168c0 1.296-.78 2.25-1.942 2.434-.102.017-.208.025-.316.025h-1.875V11.52c0-1.905-1.483-3.43-3.333-3.43H8.333c-.213 0-.42.022-.625.056v-1.96c0-.798.549-1.36 1.375-1.36h4.998c.072.402.232.774.468 1.09H9.083c-.367 0-.625.267-.625.636v.088c.206-.033.416-.056.625-.056h6.201c.367 0 .625.267.625.635v.088c.206-.033.416-.056.625-.056h4.691c.826 0 1.375-.562 1.375-1.36 0-.798-.549-1.36-1.375-1.36h-1.875V2.867C19.375 1.285 18.118 0 16.562 0h-9.124C5.882 0 4.625 1.285 4.625 2.867V9.13c-.344.19-.625.477-.625.894v7.509c0 .693.537 1.253 1.2 1.297h.05c.033.687.566 1.236 1.225 1.236h.05c.033.654.537 1.182 1.158 1.23.033.687.566 1.236 1.225 1.236h.05c.066.654.566 1.182 1.192 1.23.033.654.537 1.182 1.158 1.23V24h8.192c1.556 0 2.813-1.285 2.813-2.867V9.449c0-.798-.549-1.36-1.375-1.36zm-9.375 1.36c0-.368.258-.635.625-.635h5.458c.367 0 .625.267.625.635v5.614c0 .368-.258.635-.625.635H11.875c-.367 0-.625-.267-.625-.635V9.449z"/>
+                                                    </svg>
+                                                </div>
+                                                <div>
+                                                    <h4 className="font-medium text-neutral-900 dark:text-white">Microsoft Teams</h4>
+                                                    <p className="text-sm text-neutral-500">Send notifications via webhook</p>
+                                                </div>
+                                            </div>
+                                            {teamsConfig?.isConfigured ? (
+                                                <div className="flex items-center gap-2">
+                                                    <span className="flex items-center gap-1 text-green-600 text-sm font-medium">
+                                                        <CheckCircle2 size={16} /> Connected
+                                                    </span>
+                                                    <Button variant="secondary" size="sm" onClick={handleTestTeams} isLoading={testingTeams}>
+                                                        Test
+                                                    </Button>
+                                                </div>
+                                            ) : (
+                                                <span className="text-neutral-400 text-sm">Not Connected</span>
+                                            )}
+                                        </div>
+                                        <form onSubmit={handleConfigureTeams} className="space-y-4">
+                                            <Input
+                                                label="Incoming Webhook URL"
+                                                value={teamsForm.webhookUrl}
+                                                onChange={(e) => setTeamsForm(prev => ({ ...prev, webhookUrl: e.target.value }))}
+                                                placeholder="https://outlook.office.com/webhook/..."
+                                            />
+                                            <Button type="submit" size="sm" isLoading={configuringTeams}>
+                                                {teamsConfig?.isConfigured ? 'Update Teams' : 'Configure Teams'}
+                                            </Button>
+                                        </form>
+                                    </div>
+
+                                    {/* Test Notification */}
+                                    {(slackConfig?.isConfigured || teamsConfig?.isConfigured) && (
+                                        <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+                                            <div className="flex items-center justify-between">
+                                                <div>
+                                                    <h4 className="text-sm font-medium text-blue-800 dark:text-blue-200">Send Test Notification</h4>
+                                                    <p className="text-sm text-blue-600 dark:text-blue-300">Send a test message to all configured channels</p>
+                                                </div>
+                                                <Button variant="secondary" size="sm" onClick={handleSendTestNotification} isLoading={sendingTestNotification}>
+                                                    <Send size={16} className="mr-1" /> Send Test
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            <div className="bg-neutral-50 dark:bg-neutral-800/50 p-4 rounded-lg mt-6">
+                                <h4 className="text-sm font-medium text-neutral-800 dark:text-neutral-200 mb-2">Notification Events</h4>
+                                <ul className="text-sm text-neutral-600 dark:text-neutral-400 space-y-1">
+                                    <li>• New job applications received</li>
+                                    <li>• Candidate stage changes</li>
+                                    <li>• Interview scheduled/completed</li>
+                                    <li>• Offers sent/accepted/declined</li>
                                 </ul>
                             </div>
                         </div>

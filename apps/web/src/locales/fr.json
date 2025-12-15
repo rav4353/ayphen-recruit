@@ -63,7 +63,9 @@
     "key": "Clé",
     "status": "Statut",
     "options": "Options",
-    "confirmDelete": "Êtes-vous sûr de vouloir supprimer cet élément ?"
+    "confirmDelete": "Êtes-vous sûr de vouloir supprimer cet élément ?",
+    "saveChanges": "Enregistrer les modifications",
+    "update": "Mise à jour"
   },
   "permissions": {
     "candidate": {

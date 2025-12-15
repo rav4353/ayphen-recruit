@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { NotificationsService } from '../notifications/notifications.service';
 
 export interface SLAStatus {
     status: 'ON_TRACK' | 'AT_RISK' | 'OVERDUE';
@@ -11,7 +12,10 @@ export interface SLAStatus {
 
 @Injectable()
 export class SlaService {
-    constructor(private readonly prisma: PrismaService) { }
+    constructor(
+        private readonly prisma: PrismaService,
+        private readonly notificationsService: NotificationsService,
+    ) { }
 
     /**
      * Calculate SLA status for an application
@@ -144,9 +148,23 @@ export class SlaService {
             },
         });
 
-        // TODO: Send email notification to recruiter/hiring manager
-        // This will be implemented when Module 7 (Communication) is available
-        console.log(`SLA ${type} notification for application ${application.id}`);
+        // Send notification to recruiter/hiring manager
+        try {
+            const recipientIds: string[] = [];
+            if (application.job?.recruiterId) recipientIds.push(application.job.recruiterId);
+            if (application.job?.hiringManagerId) recipientIds.push(application.job.hiringManagerId);
+
+            if (recipientIds.length > 0 && application.job?.tenantId) {
+                await this.notificationsService.notifySlaAlert(
+                    application,
+                    type,
+                    recipientIds,
+                    application.job.tenantId,
+                );
+            }
+        } catch (error) {
+            console.error(`Failed to send SLA ${type} notification:`, error);
+        }
     }
 
     /**
@@ -207,6 +225,121 @@ export class SlaService {
             where: { id: stageId },
             data: { slaDays },
         });
+    }
+
+    /**
+     * Get SLA dashboard for a tenant
+     */
+    async getSlaDashboard(tenantId: string) {
+        const { atRisk, overdue } = await this.getAtRiskApplications(tenantId);
+
+        // Get jobs with SLA issues
+        const jobsWithIssues = new Map<string, { job: any; atRisk: number; overdue: number }>();
+
+        for (const app of [...atRisk, ...overdue]) {
+            const jobId = app.job?.id;
+            if (!jobId) continue;
+
+            if (!jobsWithIssues.has(jobId)) {
+                jobsWithIssues.set(jobId, { job: app.job, atRisk: 0, overdue: 0 });
+            }
+
+            const jobStats = jobsWithIssues.get(jobId)!;
+            if (app.slaStatus.status === 'AT_RISK') {
+                jobStats.atRisk++;
+            } else if (app.slaStatus.status === 'OVERDUE') {
+                jobStats.overdue++;
+            }
+        }
+
+        // Get stage breakdown
+        const stageBreakdown = new Map<string, { stage: string; atRisk: number; overdue: number }>();
+
+        for (const app of [...atRisk, ...overdue]) {
+            const stageName = app.currentStage?.name || 'Unknown';
+            if (!stageBreakdown.has(stageName)) {
+                stageBreakdown.set(stageName, { stage: stageName, atRisk: 0, overdue: 0 });
+            }
+
+            const stageStats = stageBreakdown.get(stageName)!;
+            if (app.slaStatus.status === 'AT_RISK') {
+                stageStats.atRisk++;
+            } else if (app.slaStatus.status === 'OVERDUE') {
+                stageStats.overdue++;
+            }
+        }
+
+        return {
+            summary: {
+                totalAtRisk: atRisk.length,
+                totalOverdue: overdue.length,
+                totalIssues: atRisk.length + overdue.length,
+            },
+            byJob: Array.from(jobsWithIssues.values()).map(j => ({
+                jobId: j.job.id,
+                jobTitle: j.job.title,
+                atRisk: j.atRisk,
+                overdue: j.overdue,
+            })),
+            byStage: Array.from(stageBreakdown.values()),
+            applications: {
+                atRisk: atRisk.slice(0, 10).map(a => ({
+                    id: a.id,
+                    candidateName: `${a.candidate?.firstName || ''} ${a.candidate?.lastName || ''}`,
+                    jobTitle: a.job?.title,
+                    stageName: a.currentStage?.name,
+                    daysInStage: a.slaStatus.daysInStage,
+                    slaLimit: a.slaStatus.slaLimit,
+                })),
+                overdue: overdue.slice(0, 10).map(a => ({
+                    id: a.id,
+                    candidateName: `${a.candidate?.firstName || ''} ${a.candidate?.lastName || ''}`,
+                    jobTitle: a.job?.title,
+                    stageName: a.currentStage?.name,
+                    daysInStage: a.slaStatus.daysInStage,
+                    slaLimit: a.slaStatus.slaLimit,
+                    daysOverdue: a.slaStatus.daysInStage - a.slaStatus.slaLimit,
+                })),
+            },
+        };
+    }
+
+    /**
+     * Get SLA trends over time
+     */
+    async getSlaTrends(tenantId: string, days: number = 30) {
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - days);
+
+        const slaActivities = await this.prisma.activityLog.findMany({
+            where: {
+                action: { in: ['SLA_AT_RISK', 'SLA_OVERDUE'] },
+                createdAt: { gte: startDate },
+                application: {
+                    job: { tenantId },
+                },
+            },
+            orderBy: { createdAt: 'asc' },
+        });
+
+        // Group by date
+        const byDate = new Map<string, { date: string; atRisk: number; overdue: number }>();
+
+        for (const activity of slaActivities) {
+            const dateKey = activity.createdAt.toISOString().split('T')[0];
+            if (!byDate.has(dateKey)) {
+                byDate.set(dateKey, { date: dateKey, atRisk: 0, overdue: 0 });
+            }
+
+            const dayStats = byDate.get(dateKey)!;
+            if (activity.action === 'SLA_AT_RISK') {
+                dayStats.atRisk++;
+            } else {
+                dayStats.overdue++;
+            }
+        }
+
+        return Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date));
     }
 
     /**

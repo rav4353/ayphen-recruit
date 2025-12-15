@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './stores/auth';
 import { InboxPage } from './pages/communication/InboxPage';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 // Layouts
 import { DashboardLayout } from './layouts/DashboardLayout';
@@ -34,6 +35,7 @@ import { StatusColorProvider } from './contexts/StatusColorContext';
 import { PublicJobPage } from './pages/careers/PublicJobPage';
 import { CareerPage } from './pages/public/CareerPage';
 import { JobApplicationPage } from './pages/public/JobApplicationPage';
+import { InterviewSchedulePage } from './pages/public/InterviewSchedulePage';
 import { ReferralsPage } from './pages/referrals/ReferralsPage';
 import { SettingsPage } from './components/settings/SettingsPage';
 import { CalendarPage } from './pages/interviews/CalendarPage';
@@ -70,9 +72,10 @@ function RedirectToDashboard() {
 
 function App() {
   return (
-    <ConfirmationProvider>
-      <StatusColorProvider>
-        <UnsavedChangesProvider>
+    <ErrorBoundary>
+      <ConfirmationProvider>
+        <StatusColorProvider>
+          <UnsavedChangesProvider>
           <Routes>
             {/* Auth routes */}
             <Route element={<AuthLayout />}>
@@ -140,13 +143,15 @@ function App() {
             <Route path="/:tenantId/jobs/:id/public" element={<PublicJobPage />} />
             {/* <Route path="/jobs/public/:tenantId" element={<PublicJobBoard />} /> */}
             <Route path="/offers/public/:token" element={<CandidateOfferPage />} />
+            <Route path="/schedule/:token" element={<InterviewSchedulePage />} />
 
             {/* Catch all */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
-        </UnsavedChangesProvider>
-      </StatusColorProvider>
-    </ConfirmationProvider >
+          </UnsavedChangesProvider>
+        </StatusColorProvider>
+      </ConfirmationProvider>
+    </ErrorBoundary>
   );
 }
 

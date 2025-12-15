@@ -4,6 +4,8 @@ import { CommunicationWebhooksController } from './communication-webhooks.contro
 import { CommunicationEmailsService } from './communication-emails.service';
 import { EmailTemplatesController } from './templates/email-templates.controller';
 import { EmailTemplatesService } from './templates/email-templates.service';
+import { EmailSequencesService } from './email-sequences.service';
+import { EmailSequencesController } from './email-sequences.controller';
 import { SmsController } from './sms.controller';
 import { PrismaModule } from '../../prisma/prisma.module';
 import { EmailService } from '../../common/services/email.service';
@@ -12,9 +14,9 @@ import { ConfigModule } from '@nestjs/config';
 
 @Module({
     imports: [PrismaModule, ConfigModule],
-    controllers: [CommunicationEmailsController, EmailTemplatesController, CommunicationWebhooksController, SmsController],
-    providers: [CommunicationEmailsService, EmailService, EmailTemplatesService, SmsService],
-    exports: [CommunicationEmailsService, EmailTemplatesService, SmsService],
+    controllers: [CommunicationEmailsController, EmailTemplatesController, CommunicationWebhooksController, SmsController, EmailSequencesController],
+    providers: [CommunicationEmailsService, EmailService, EmailTemplatesService, SmsService, EmailSequencesService],
+    exports: [CommunicationEmailsService, EmailTemplatesService, SmsService, EmailSequencesService],
 })
 export class CommunicationModule { }
 // Rebuild trigger

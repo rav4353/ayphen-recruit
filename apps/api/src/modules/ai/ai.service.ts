@@ -77,4 +77,28 @@ export class AiService {
             };
         }
     }
+
+    async generateSubjectLines(data: {
+        context: string;
+        candidateName?: string;
+        jobTitle?: string;
+        companyName?: string;
+    }) {
+        try {
+            const response = await axios.post(`${this.aiServiceUrl}/generate-subject-lines`, data);
+            return response.data;
+        } catch (error) {
+            console.error('AI Service Error (Subject Lines):', error);
+            // Return fallback suggestions
+            return {
+                suggestions: [
+                    `Regarding Your Application${data.jobTitle ? ` for ${data.jobTitle}` : ''}`,
+                    'Next Steps in Your Application',
+                    'Important Update from Our Team',
+                    'Your Application Status',
+                    'We Have an Update for You',
+                ],
+            };
+        }
+    }
 }

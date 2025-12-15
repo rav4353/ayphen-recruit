@@ -286,4 +286,212 @@ export class UsersService {
   private generateEmployeeId(): string {
     return `EMP-${Math.floor(100000 + Math.random() * 900000)}`;
   }
+
+  /**
+   * Get user availability slots for scheduling
+   */
+  async getAvailability(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, firstName: true, lastName: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Get availability from activity log (stored as USER_AVAILABILITY action)
+    const availabilityLog = await this.prisma.activityLog.findFirst({
+      where: {
+        userId,
+        action: 'USER_AVAILABILITY',
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const defaultAvailability = {
+      timezone: 'UTC',
+      slots: [
+        { dayOfWeek: 1, startTime: '09:00', endTime: '17:00' },
+        { dayOfWeek: 2, startTime: '09:00', endTime: '17:00' },
+        { dayOfWeek: 3, startTime: '09:00', endTime: '17:00' },
+        { dayOfWeek: 4, startTime: '09:00', endTime: '17:00' },
+        { dayOfWeek: 5, startTime: '09:00', endTime: '17:00' },
+      ],
+      bufferMinutes: 15,
+      maxMeetingsPerDay: 8,
+      blockedDates: [],
+    };
+
+    if (!availabilityLog) {
+      return defaultAvailability;
+    }
+
+    return { ...defaultAvailability, ...(availabilityLog.metadata as any) };
+  }
+
+  /**
+   * Update user availability slots
+   */
+  async updateAvailability(
+    userId: string,
+    data: {
+      timezone?: string;
+      slots?: { dayOfWeek: number; startTime: string; endTime: string }[];
+      bufferMinutes?: number;
+      maxMeetingsPerDay?: number;
+      blockedDates?: string[];
+    },
+  ) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const currentAvailability = await this.getAvailability(userId);
+
+    const updatedAvailability = {
+      ...currentAvailability,
+      ...data,
+      updatedAt: new Date().toISOString(),
+    };
+
+    // Delete old availability record
+    await this.prisma.activityLog.deleteMany({
+      where: {
+        userId,
+        action: 'USER_AVAILABILITY',
+      },
+    });
+
+    // Create new availability record
+    await this.prisma.activityLog.create({
+      data: {
+        action: 'USER_AVAILABILITY',
+        description: 'User availability updated',
+        userId,
+        metadata: updatedAvailability,
+      },
+    });
+
+    return updatedAvailability;
+  }
+
+  /**
+   * Get available time slots for a user on a specific date
+   */
+  async getAvailableTimeslots(
+    userId: string,
+    date: string,
+    durationMinutes: number = 60,
+  ) {
+    const availability = await this.getAvailability(userId);
+    const targetDate = new Date(date);
+    const dayOfWeek = targetDate.getDay() === 0 ? 7 : targetDate.getDay(); // Convert Sunday from 0 to 7
+
+    // Check if user has availability on this day
+    const daySlot = availability.slots?.find((s: any) => s.dayOfWeek === dayOfWeek);
+    if (!daySlot) {
+      return { date, slots: [], message: 'User not available on this day' };
+    }
+
+    // Check if date is blocked
+    if (availability.blockedDates?.includes(date)) {
+      return { date, slots: [], message: 'Date is blocked' };
+    }
+
+    // Get existing interviews for this user on this date
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const existingInterviews = await this.prisma.interview.findMany({
+      where: {
+        interviewerId: userId,
+        scheduledAt: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
+        status: { not: 'CANCELLED' },
+      },
+      select: { scheduledAt: true, duration: true },
+    });
+
+    // Check max meetings limit
+    if (availability.maxMeetingsPerDay && existingInterviews.length >= availability.maxMeetingsPerDay) {
+      return { date, slots: [], message: 'Maximum meetings reached for this day' };
+    }
+
+    // Generate available time slots
+    const slots: { start: string; end: string }[] = [];
+    const bufferMinutes = availability.bufferMinutes || 0;
+
+    const [startHour, startMin] = daySlot.startTime.split(':').map(Number);
+    const [endHour, endMin] = daySlot.endTime.split(':').map(Number);
+
+    let currentTime = new Date(date);
+    currentTime.setHours(startHour, startMin, 0, 0);
+
+    const endTime = new Date(date);
+    endTime.setHours(endHour, endMin, 0, 0);
+
+    while (currentTime.getTime() + durationMinutes * 60 * 1000 <= endTime.getTime()) {
+      const slotEnd = new Date(currentTime.getTime() + durationMinutes * 60 * 1000);
+
+      // Check if slot conflicts with existing interviews
+      const hasConflict = existingInterviews.some((interview) => {
+        const interviewStart = new Date(interview.scheduledAt);
+        const interviewEnd = new Date(interviewStart.getTime() + interview.duration * 60 * 1000);
+
+        // Add buffer time
+        const bufferedStart = new Date(interviewStart.getTime() - bufferMinutes * 60 * 1000);
+        const bufferedEnd = new Date(interviewEnd.getTime() + bufferMinutes * 60 * 1000);
+
+        return (
+          (currentTime >= bufferedStart && currentTime < bufferedEnd) ||
+          (slotEnd > bufferedStart && slotEnd <= bufferedEnd) ||
+          (currentTime <= bufferedStart && slotEnd >= bufferedEnd)
+        );
+      });
+
+      if (!hasConflict) {
+        slots.push({
+          start: currentTime.toISOString(),
+          end: slotEnd.toISOString(),
+        });
+      }
+
+      // Move to next slot (30 min intervals)
+      currentTime = new Date(currentTime.getTime() + 30 * 60 * 1000);
+    }
+
+    return { date, timezone: availability.timezone, slots };
+  }
+
+  /**
+   * Block specific dates for a user
+   */
+  async blockDates(userId: string, dates: string[]) {
+    const availability = await this.getAvailability(userId);
+    const existingBlocked = availability.blockedDates || [];
+    const newBlocked = [...new Set([...existingBlocked, ...dates])];
+
+    return this.updateAvailability(userId, { blockedDates: newBlocked });
+  }
+
+  /**
+   * Unblock specific dates for a user
+   */
+  async unblockDates(userId: string, dates: string[]) {
+    const availability = await this.getAvailability(userId);
+    const existingBlocked = availability.blockedDates || [];
+    const newBlocked = existingBlocked.filter((d: string) => !dates.includes(d));
+
+    return this.updateAvailability(userId, { blockedDates: newBlocked });
+  }
 }

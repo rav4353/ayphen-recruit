@@ -22,12 +22,20 @@ export enum Permission {
     // Settings
     SETTINGS_VIEW = 'settings.view',
     SETTINGS_EDIT = 'settings.edit',
+    SETTINGS_MANAGE = 'settings.manage',
 
     // Users
     USER_MANAGE = 'user.manage',
 
     // Reports
-    REPORT_VIEW = 'report.view'
+    REPORT_VIEW = 'report.view',
+
+    // Jobs (additional)
+    JOB_MANAGE = 'job.manage',
+
+    // Integrations
+    INTEGRATION_VIEW = 'integration.view',
+    INTEGRATION_MANAGE = 'integration.manage',
 }
 
 export const ROLE_PERMISSIONS: Record<string, Permission[]> = {

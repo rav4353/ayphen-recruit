@@ -255,18 +255,181 @@ export class WorkflowsService {
      * Create task action
      */
     private async createTask(config: Record<string, any>, application: any) {
-        // TODO: Implement task creation
-        console.log('Creating task:', config);
-        // This would create a task/reminder for the recruiter
+        const { title, description, assigneeType, dueInDays, priority } = config;
+
+        // Determine assignee
+        let assigneeId: string | null = null;
+        if (assigneeType === 'RECRUITER') {
+            assigneeId = application.job?.recruiterId;
+        } else if (assigneeType === 'HIRING_MANAGER') {
+            assigneeId = application.job?.hiringManagerId;
+        } else if (assigneeType === 'ASSIGNED_TO') {
+            assigneeId = application.assignedToId;
+        }
+
+        if (!assigneeId) {
+            this.logger.warn('No assignee found for CREATE_TASK action');
+            return;
+        }
+
+        // Calculate due date
+        const dueDate = dueInDays 
+            ? new Date(Date.now() + dueInDays * 24 * 60 * 60 * 1000) 
+            : new Date(Date.now() + 3 * 24 * 60 * 60 * 1000); // Default 3 days
+
+        // Process template variables
+        const processedTitle = (title || 'Follow up on application')
+            .replace(/{{candidate_name}}/g, `${application.candidate?.firstName || ''} ${application.candidate?.lastName || ''}`)
+            .replace(/{{job_title}}/g, application.job?.title || '');
+
+        const processedDescription = (description || '')
+            .replace(/{{candidate_name}}/g, `${application.candidate?.firstName || ''} ${application.candidate?.lastName || ''}`)
+            .replace(/{{job_title}}/g, application.job?.title || '')
+            .replace(/{{stage_name}}/g, application.currentStage?.name || '');
+
+        // Create activity log entry as a task
+        await this.prisma.activityLog.create({
+            data: {
+                action: 'TASK_CREATED',
+                description: processedTitle,
+                applicationId: application.id,
+                candidateId: application.candidateId,
+                userId: assigneeId,
+                metadata: {
+                    taskType: 'WORKFLOW_TASK',
+                    taskDescription: processedDescription,
+                    dueDate: dueDate.toISOString(),
+                    priority: priority || 'MEDIUM',
+                    status: 'PENDING',
+                    workflowGenerated: true,
+                },
+            },
+        });
+
+        // Send notification to assignee
+        try {
+            const assignee = await this.prisma.user.findUnique({
+                where: { id: assigneeId },
+                select: { email: true, firstName: true },
+            });
+
+            if (assignee?.email) {
+                await this.emailService.sendEmail({
+                    to: assignee.email,
+                    subject: `Task: ${processedTitle}`,
+                    html: `
+                        <p>Hi ${assignee.firstName},</p>
+                        <p>A new task has been created for you:</p>
+                        <p><strong>${processedTitle}</strong></p>
+                        <p>${processedDescription}</p>
+                        <p><strong>Due:</strong> ${dueDate.toLocaleDateString()}</p>
+                        <p>Please review the application in the system.</p>
+                    `,
+                });
+            }
+        } catch (error) {
+            this.logger.error('Failed to send task notification email:', error);
+        }
+
+        this.logger.log(`Created task "${processedTitle}" for user ${assigneeId}`);
     }
 
     /**
      * Request feedback action
      */
     private async requestFeedback(config: Record<string, any>, application: any) {
-        // TODO: Implement feedback request
-        console.log('Requesting feedback:', config);
-        // This would send a notification to interviewers to submit feedback
+        const { interviewerIds, message, dueInDays } = config;
+
+        // Get interviewers - either from config or from recent interviews
+        let targetInterviewerIds: string[] = interviewerIds || [];
+
+        if (targetInterviewerIds.length === 0) {
+            // Get interviewers from recent interviews for this application
+            const interviews = await this.prisma.interview.findMany({
+                where: {
+                    applicationId: application.id,
+                    status: 'COMPLETED',
+                },
+                select: { interviewerId: true },
+                orderBy: { scheduledAt: 'desc' },
+                take: 5,
+            });
+
+            targetInterviewerIds = interviews.map(i => i.interviewerId);
+        }
+
+        if (targetInterviewerIds.length === 0) {
+            this.logger.warn('No interviewers found for REQUEST_FEEDBACK action');
+            return;
+        }
+
+        const dueDate = dueInDays
+            ? new Date(Date.now() + dueInDays * 24 * 60 * 60 * 1000)
+            : new Date(Date.now() + 2 * 24 * 60 * 60 * 1000); // Default 2 days
+
+        // Get interviewers' details
+        const interviewers = await this.prisma.user.findMany({
+            where: { id: { in: targetInterviewerIds } },
+            select: { id: true, email: true, firstName: true },
+        });
+
+        const candidateName = `${application.candidate?.firstName || ''} ${application.candidate?.lastName || ''}`.trim();
+        const jobTitle = application.job?.title || '';
+
+        for (const interviewer of interviewers) {
+            // Check if feedback already exists
+            const existingFeedback = await this.prisma.interviewFeedback.findFirst({
+                where: {
+                    reviewerId: interviewer.id,
+                    interview: { applicationId: application.id },
+                },
+            });
+
+            if (existingFeedback) {
+                continue; // Skip if feedback already submitted
+            }
+
+            // Create activity log for feedback request
+            await this.prisma.activityLog.create({
+                data: {
+                    action: 'FEEDBACK_REQUESTED',
+                    description: `Feedback requested from ${interviewer.firstName}`,
+                    applicationId: application.id,
+                    candidateId: application.candidateId,
+                    userId: interviewer.id,
+                    metadata: {
+                        requestType: 'INTERVIEW_FEEDBACK',
+                        dueDate: dueDate.toISOString(),
+                        status: 'PENDING',
+                        workflowGenerated: true,
+                    },
+                },
+            });
+
+            // Send email notification
+            try {
+                const processedMessage = (message || `Please provide your feedback for ${candidateName}'s interview.`)
+                    .replace(/{{candidate_name}}/g, candidateName)
+                    .replace(/{{job_title}}/g, jobTitle);
+
+                await this.emailService.sendEmail({
+                    to: interviewer.email,
+                    subject: `Feedback Requested: ${candidateName} - ${jobTitle}`,
+                    html: `
+                        <p>Hi ${interviewer.firstName},</p>
+                        <p>${processedMessage}</p>
+                        <p><strong>Candidate:</strong> ${candidateName}</p>
+                        <p><strong>Position:</strong> ${jobTitle}</p>
+                        <p><strong>Please submit by:</strong> ${dueDate.toLocaleDateString()}</p>
+                        <p>Please log in to the system to submit your feedback.</p>
+                    `,
+                });
+            } catch (error) {
+                this.logger.error(`Failed to send feedback request email to ${interviewer.email}:`, error);
+            }
+        }
+
+        this.logger.log(`Requested feedback from ${interviewers.length} interviewers for application ${application.id}`);
     }
 
     /**

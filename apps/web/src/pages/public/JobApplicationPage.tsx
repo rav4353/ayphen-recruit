@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useParams, useNavigate } from 'react-router-dom';
-import { jobsApi, applicationsApi } from '../../lib/api';
+import { jobsApi, applicationsApi, storageApi } from '../../lib/api';
 import { Job } from '../../lib/types';
 import { Button, Input } from '../../components/ui';
 import { MapPin, Briefcase, Clock, ArrowLeft, Upload, CheckCircle } from 'lucide-react';
@@ -83,6 +83,16 @@ export function JobApplicationPage() {
 
         setIsSubmitting(true);
         try {
+            // Step 1: Upload the resume file first
+            const resumeFile = data.resume[0] as File;
+            const uploadResponse = await storageApi.uploadPublic(resumeFile);
+            const resumeUrl = uploadResponse.data?.data?.url || uploadResponse.data?.url;
+
+            if (!resumeUrl) {
+                throw new Error('Failed to upload resume');
+            }
+
+            // Step 2: Submit the application with the resume URL
             await applicationsApi.createPublic({
                 jobId,
                 tenantId,
@@ -92,14 +102,19 @@ export function JobApplicationPage() {
                 phone: data.phone,
                 linkedinUrl: data.linkedinUrl,
                 portfolioUrl: data.portfolioUrl,
+                resumeUrl,
                 source: 'CAREER_PAGE',
             });
 
             setIsSuccess(true);
             window.scrollTo(0, 0);
-        } catch (error) {
+        } catch (error: any) {
             console.error('Application failed', error);
-            toast.error('Failed to submit application. Please try again.');
+            if (error?.response?.data?.message) {
+                toast.error(error.response.data.message);
+            } else {
+                toast.error('Failed to submit application. Please try again.');
+            }
         } finally {
             setIsSubmitting(false);
         }

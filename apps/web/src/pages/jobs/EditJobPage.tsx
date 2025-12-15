@@ -68,11 +68,21 @@ export function EditJobPage() {
         try {
             const skillsArray = data.skills || [];
 
+            // Handle salary values - send undefined if not set or 0 (class-validator requires undefined, not null)
+            const salaryMin = data.salaryMin ? Number(data.salaryMin) : undefined;
+            const salaryMax = data.salaryMax ? Number(data.salaryMax) : undefined;
+
+            // Filter out invalid scorecardTemplateId values (like "new" or empty string)
+            const scorecardTemplateId = data.scorecardTemplateId && data.scorecardTemplateId !== 'new'
+                ? data.scorecardTemplateId
+                : undefined;
+
             await jobsApi.update(tenantId, id, {
                 ...data,
                 skills: skillsArray,
-                salaryMin: Number(data.salaryMin),
-                salaryMax: Number(data.salaryMax),
+                salaryMin,
+                salaryMax,
+                scorecardTemplateId,
             });
 
             if (requestApproval) {

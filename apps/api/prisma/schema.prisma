@@ -223,6 +223,10 @@ model User {
   // BGV
   bgvChecksInitiated BGVCheck[]
 
+  // Notifications
+  notifications           Notification[]
+  notificationPreferences NotificationPreference?
+
   @@unique([email, tenantId])
   @@index([tenantId])
   @@index([email])
@@ -1258,4 +1262,88 @@ model BGVSettings {
   tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@map("bgv_settings")
+}
+
+// ============================================
+// NOTIFICATIONS
+// ============================================
+
+enum NotificationType {
+  APPLICATION
+  INTERVIEW
+  OFFER
+  JOB
+  SLA
+  APPROVAL
+  ONBOARDING
+  BGV
+  SYSTEM
+  MESSAGE
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  type      NotificationType
+  title     String
+  message   String           @db.Text
+  link      String?
+  read      Boolean          @default(false)
+  metadata  Json?
+  createdAt DateTime         @default(now())
+
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  tenantId String
+
+  @@index([userId])
+  @@index([tenantId])
+  @@index([read])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+model NotificationPreference {
+  id                    String  @id @default(uuid())
+  
+  // Application notifications
+  newApplication        Boolean @default(true)
+  applicationStageChange Boolean @default(true)
+  
+  // Interview notifications
+  interviewScheduled    Boolean @default(true)
+  interviewReminder     Boolean @default(true)
+  interviewFeedback     Boolean @default(true)
+  
+  // Offer notifications
+  offerCreated          Boolean @default(true)
+  offerApproval         Boolean @default(true)
+  offerAccepted         Boolean @default(true)
+  offerDeclined         Boolean @default(true)
+  
+  // Job notifications
+  jobApproval           Boolean @default(true)
+  jobPublished          Boolean @default(true)
+  
+  // SLA notifications
+  slaAtRisk             Boolean @default(true)
+  slaOverdue            Boolean @default(true)
+  
+  // Other notifications
+  approvalRequests      Boolean @default(true)
+  onboardingUpdates     Boolean @default(true)
+  bgvUpdates            Boolean @default(true)
+  systemAlerts          Boolean @default(true)
+  
+  // Delivery preferences
+  emailEnabled          Boolean @default(true)
+  pushEnabled           Boolean @default(true)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId   String @unique
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notification_preferences")
 }

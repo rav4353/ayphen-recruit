@@ -63,7 +63,9 @@
     "key": "Key",
     "status": "Status",
     "options": "Options",
-    "confirmDelete": "Are you sure you want to delete this item?"
+    "confirmDelete": "Are you sure you want to delete this item?",
+    "saveChanges": "Save Changes",
+    "update": "Update"
   },
   "permissions": {
     "candidate": {
@@ -986,9 +988,6 @@
     "checklist": "Checklist",
     "task": "Task",
     "assignee": "Assignee"
-  },
-  "inbox": {
-    "title": "Inbox"
   },
   "reports": {
     "title": "Reports",

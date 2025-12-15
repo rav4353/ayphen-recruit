@@ -1,0 +1,343 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - generic [ref=e5]:
+        - link "Ayphen TalentX" [ref=e7] [cursor=pointer]:
+          - /url: /e71612ab-f2ca-4798-b598-082e1266ec96/dashboard
+          - img "Ayphen" [ref=e8]
+          - img "TalentX" [ref=e10]
+        - navigation [ref=e11]:
+          - link "Dashboard" [ref=e12] [cursor=pointer]:
+            - /url: /e71612ab-f2ca-4798-b598-082e1266ec96/dashboard
+            - img [ref=e13]
+            - generic [ref=e18]: Dashboard
+          - link "Jobs" [ref=e19] [cursor=pointer]:
+            - /url: /e71612ab-f2ca-4798-b598-082e1266ec96/jobs
+            - img [ref=e20]
+            - generic [ref=e23]: Jobs
+          - link "Pipeline" [ref=e24] [cursor=pointer]:
+            - /url: /e71612ab-f2ca-4798-b598-082e1266ec96/pipeline
+            - img [ref=e25]
+            - generic [ref=e29]: Pipeline
+          - link "Candidates" [ref=e30] [cursor=pointer]:
+            - /url: /e71612ab-f2ca-4798-b598-082e1266ec96/candidates
+            - img [ref=e31]
+            - generic [ref=e36]: Candidates
+          - link "Referrals" [ref=e37] [cursor=pointer]:
+            - /url: /e71612ab-f2ca-4798-b598-082e1266ec96/referrals
+            - img [ref=e38]
+            - generic [ref=e44]: Referrals
+          - link "Sourcing" [ref=e45] [cursor=pointer]:
+            - /url: /e71612ab-f2ca-4798-b598-082e1266ec96/sourcing
+            - img [ref=e46]
+            - generic [ref=e49]: Sourcing
+          - link "Interviews" [ref=e50] [cursor=pointer]:
+            - /url: /e71612ab-f2ca-4798-b598-082e1266ec96/interviews
+            - img [ref=e51]
+            - generic [ref=e53]: Interviews
+          - link "Offers" [ref=e54] [cursor=pointer]:
+            - /url: /e71612ab-f2ca-4798-b598-082e1266ec96/offers
+            - img [ref=e55]
+            - generic [ref=e58]: Offers
+          - link "Onboarding" [ref=e59] [cursor=pointer]:
+            - /url: /e71612ab-f2ca-4798-b598-082e1266ec96/onboarding
+            - img [ref=e60]
+            - generic [ref=e65]: Onboarding
+          - link "Messages" [ref=e66] [cursor=pointer]:
+            - /url: /e71612ab-f2ca-4798-b598-082e1266ec96/inbox
+            - img [ref=e67]
+            - generic [ref=e70]: Messages
+          - link "Reports" [ref=e71] [cursor=pointer]:
+            - /url: /e71612ab-f2ca-4798-b598-082e1266ec96/reports
+            - img [ref=e72]
+            - generic [ref=e73]: Reports
+          - link "Settings" [ref=e74] [cursor=pointer]:
+            - /url: /e71612ab-f2ca-4798-b598-082e1266ec96/settings
+            - img [ref=e75]
+            - generic [ref=e78]: Settings
+        - generic [ref=e80]:
+          - generic [ref=e81]: RR
+          - generic [ref=e82]:
+            - paragraph [ref=e83]: Ravanth Raja
+            - paragraph [ref=e84]: ravanthsri20@gmail.com
+          - button "Logout" [ref=e85] [cursor=pointer]:
+            - img [ref=e86]
+    - generic [ref=e89]:
+      - banner [ref=e90]:
+        - generic [ref=e91]:
+          - generic [ref=e92]:
+            - button "Notifications" [ref=e93] [cursor=pointer]:
+              - img [ref=e94]
+            - generic [ref=e97]:
+              - generic [ref=e98]:
+                - generic [ref=e99]:
+                  - img [ref=e100]
+                  - heading "Notifications" [level=2] [ref=e103]
+                - button [ref=e104] [cursor=pointer]:
+                  - img [ref=e105]
+              - combobox [ref=e109]:
+                - option "All" [selected]
+                - option "Applications"
+                - option "Interviews"
+                - option "Offers"
+                - option "Jobs"
+                - option "SLA Alerts"
+                - option "Approvals"
+                - option "Onboarding"
+                - option "System"
+              - generic [ref=e111]:
+                - img [ref=e112]
+                - paragraph [ref=e115]: No notifications
+          - button "Select language" [ref=e117] [cursor=pointer]:
+            - img [ref=e118]
+          - button "Select theme" [ref=e122] [cursor=pointer]:
+            - img [ref=e123]
+      - main [ref=e129]:
+        - generic [ref=e130]:
+          - heading "Dashboard" [level=1] [ref=e132]
+          - generic [ref=e134]:
+            - generic [ref=e135]:
+              - heading "System Overview" [level=1] [ref=e136]
+              - paragraph [ref=e137]: Monitor system health, user activity, and compliance status.
+            - generic [ref=e139]:
+              - generic [ref=e141]:
+                - heading "System Health Monitor" [level=3] [ref=e143]:
+                  - generic [ref=e144]:
+                    - img [ref=e146]
+                    - generic [ref=e148]: System Health Monitor
+                - generic [ref=e150]:
+                  - generic [ref=e151]:
+                    - img [ref=e152]
+                    - generic [ref=e156]: Live
+                  - generic [ref=e157]:
+                    - img [ref=e158]
+                    - generic [ref=e161]: 24m
+              - generic [ref=e162]:
+                - generic [ref=e165]:
+                  - generic [ref=e166]:
+                    - img [ref=e168]
+                    - generic [ref=e171]:
+                      - heading "System Healthy" [level=3] [ref=e172]
+                      - paragraph [ref=e173]: 4 services monitored • Last checked 2:45:21 PM
+                  - generic [ref=e174]:
+                    - img [ref=e175]
+                    - generic [ref=e178]: 99.9% Uptime
+                - generic [ref=e179]:
+                  - generic [ref=e180]:
+                    - generic [ref=e181]:
+                      - img [ref=e182]
+                      - heading "Response Times (ms)" [level=4] [ref=e184]
+                    - generic [ref=e186]:
+                      - list [ref=e188]:
+                        - listitem [ref=e189]:
+                          - img "AI Service legend icon" [ref=e190]
+                          - text: AI Service
+                        - listitem [ref=e192]:
+                          - img "Database legend icon" [ref=e193]
+                          - text: Database
+                        - listitem [ref=e195]:
+                          - img "Email legend icon" [ref=e196]
+                          - text: Email
+                      - application [ref=e198]:
+                        - generic [ref=e223]:
+                          - generic [ref=e224]:
+                            - generic [ref=e226]: 14:45:16
+                            - generic [ref=e228]: 14:45:21
+                          - generic [ref=e229]:
+                            - generic [ref=e231]: "0"
+                            - generic [ref=e233]: "30"
+                            - generic [ref=e235]: "60"
+                            - generic [ref=e237]: "90"
+                            - generic [ref=e239]: "120"
+                  - generic [ref=e240]:
+                    - generic [ref=e241]:
+                      - img [ref=e242]
+                      - heading "Memory Usage (%)" [level=4] [ref=e244]
+                    - application [ref=e247]:
+                      - generic [ref=e266]:
+                        - generic [ref=e267]:
+                          - generic [ref=e269]: 14:45:16
+                          - generic [ref=e271]: 14:45:21
+                        - generic [ref=e272]:
+                          - generic [ref=e274]: "0"
+                          - generic [ref=e276]: "25"
+                          - generic [ref=e278]: "50"
+                          - generic [ref=e280]: "75"
+                          - generic [ref=e282]: "100"
+                - generic [ref=e283]:
+                  - generic [ref=e286]:
+                    - generic [ref=e287]:
+                      - img [ref=e289]
+                      - img [ref=e294]
+                    - generic [ref=e297]:
+                      - heading "Database" [level=4] [ref=e298]
+                      - paragraph [ref=e299]: Healthy
+                    - generic [ref=e300]:
+                      - generic [ref=e301]:
+                        - generic [ref=e302]:
+                          - img [ref=e303]
+                          - text: Response
+                        - generic [ref=e305]: 1ms
+                      - paragraph [ref=e306]: Connected
+                  - generic [ref=e309]:
+                    - generic [ref=e310]:
+                      - img [ref=e312]
+                      - img [ref=e316]
+                    - generic [ref=e319]:
+                      - heading "API Server" [level=4] [ref=e320]
+                      - paragraph [ref=e321]: Healthy
+                    - generic [ref=e322]:
+                      - text: "0"
+                      - paragraph [ref=e323]: Running
+                  - generic [ref=e326]:
+                    - generic [ref=e327]:
+                      - img [ref=e329]
+                      - img [ref=e333]
+                    - generic [ref=e336]:
+                      - heading "Email Service" [level=4] [ref=e337]
+                      - paragraph [ref=e338]: Healthy
+                    - generic [ref=e340]:
+                      - generic [ref=e341]:
+                        - img [ref=e342]
+                        - text: Response
+                      - generic [ref=e344]: 45ms
+                  - generic [ref=e347]:
+                    - generic [ref=e348]:
+                      - img [ref=e350]
+                      - img [ref=e354]
+                    - generic [ref=e357]:
+                      - heading "AI Service" [level=4] [ref=e358]
+                      - paragraph [ref=e359]: Healthy
+                    - generic [ref=e361]:
+                      - generic [ref=e362]:
+                        - img [ref=e363]
+                        - text: Response
+                      - generic [ref=e365]: 120ms
+                - generic [ref=e366]:
+                  - generic [ref=e367]:
+                    - generic [ref=e368]:
+                      - heading "Memory Usage" [level=4] [ref=e369]
+                      - generic [ref=e370]: 54MB / 65MB
+                    - paragraph [ref=e373]: 83.1% utilized
+                  - generic [ref=e374]:
+                    - heading "Environment" [level=4] [ref=e375]
+                    - generic [ref=e376]:
+                      - generic [ref=e377]:
+                        - generic [ref=e378]: Node Version
+                        - generic [ref=e379]: v20.11.0
+                      - generic [ref=e380]:
+                        - generic [ref=e381]: Platform
+                        - generic [ref=e382]: darwin
+            - generic [ref=e383]:
+              - generic [ref=e384]:
+                - generic [ref=e385]:
+                  - heading "User Activity" [level=3] [ref=e389]
+                  - generic [ref=e390]:
+                    - generic [ref=e391]:
+                      - generic [ref=e392]:
+                        - generic [ref=e393]:
+                          - img [ref=e394]
+                          - generic [ref=e399]: Active Today
+                        - paragraph [ref=e400]: "42"
+                        - paragraph [ref=e401]: +5 vs yesterday
+                      - generic [ref=e402]:
+                        - generic [ref=e403]:
+                          - img [ref=e404]
+                          - generic [ref=e407]: Licenses
+                        - paragraph [ref=e408]: 48/50
+                        - paragraph [ref=e409]: 2 remaining
+                    - generic [ref=e410]:
+                      - heading "Most Active Recruiters" [level=4] [ref=e411]
+                      - generic [ref=e412]:
+                        - generic [ref=e413]:
+                          - generic [ref=e414]:
+                            - generic [ref=e415]: "#1"
+                            - generic [ref=e416]: Sarah Chen
+                          - generic [ref=e417]: 145 actions
+                        - generic [ref=e418]:
+                          - generic [ref=e419]:
+                            - generic [ref=e420]: "#2"
+                            - generic [ref=e421]: Mike Johnson
+                          - generic [ref=e422]: 123 actions
+                        - generic [ref=e423]:
+                          - generic [ref=e424]:
+                            - generic [ref=e425]: "#3"
+                            - generic [ref=e426]: Alex Kim
+                          - generic [ref=e427]: 98 actions
+                - generic [ref=e428]:
+                  - heading "Compliance Alerts" [level=3] [ref=e432]
+                  - generic [ref=e433]:
+                    - generic [ref=e435]:
+                      - img [ref=e437]
+                      - generic [ref=e439]:
+                        - paragraph [ref=e440]: 5 Candidates data expiring in 7 days (GDPR)
+                        - generic [ref=e441]:
+                          - generic [ref=e442]: Warning
+                          - button "Resolve" [ref=e443] [cursor=pointer]
+                    - generic [ref=e445]:
+                      - img [ref=e447]
+                      - generic [ref=e452]:
+                        - paragraph [ref=e453]: Missing diversity data for Engineering Dept
+                        - generic [ref=e454]:
+                          - generic [ref=e455]: Critical
+                          - button "Resolve" [ref=e456] [cursor=pointer]
+                    - generic [ref=e458]:
+                      - img [ref=e460]
+                      - generic [ref=e462]:
+                        - paragraph [ref=e463]: Background check failed for John Doe
+                        - generic [ref=e464]:
+                          - generic [ref=e465]: Critical
+                          - button "Resolve" [ref=e466] [cursor=pointer]
+              - generic [ref=e467]:
+                - generic [ref=e468]:
+                  - generic [ref=e470]:
+                    - heading "Recent Audit Logs" [level=3] [ref=e472]
+                    - button "View All" [ref=e474] [cursor=pointer]
+                  - generic [ref=e475]:
+                    - generic [ref=e476]:
+                      - img [ref=e478]
+                      - generic [ref=e483]:
+                        - paragraph [ref=e484]: "Changed User Role: Junior Recruiter"
+                        - paragraph [ref=e485]: by Admin User • 10 mins ago
+                    - generic [ref=e486]:
+                      - img [ref=e488]
+                      - generic [ref=e491]:
+                        - paragraph [ref=e492]: Exported Candidate Data (500 records)
+                        - paragraph [ref=e493]: by Sarah Chen • 1 hour ago
+                    - generic [ref=e494]:
+                      - img [ref=e496]
+                      - generic [ref=e499]:
+                        - paragraph [ref=e500]: Updated Email Templates
+                        - paragraph [ref=e501]: by Mike Johnson • 2 hours ago
+                    - generic [ref=e502]:
+                      - img [ref=e504]
+                      - generic [ref=e509]:
+                        - paragraph [ref=e510]: "Deactivated User: Alex Kim"
+                        - paragraph [ref=e511]: by Admin User • 4 hours ago
+                - generic [ref=e512]:
+                  - heading "Billing & Usage" [level=3] [ref=e516]
+                  - generic [ref=e517]:
+                    - generic [ref=e518]:
+                      - generic [ref=e519]:
+                        - paragraph [ref=e520]: Current Plan
+                        - paragraph [ref=e521]: Enterprise
+                      - button "Manage" [ref=e522] [cursor=pointer]
+                    - generic [ref=e523]:
+                      - generic [ref=e524]:
+                        - generic [ref=e525]:
+                          - img [ref=e526]
+                          - text: AI Credits
+                        - generic [ref=e528]: 8,450 / 10,000 used
+                      - paragraph [ref=e531]: Resets on Jan 1, 2026
+                    - generic [ref=e532]:
+                      - generic [ref=e533]:
+                        - generic [ref=e534]: Next Billing Date
+                        - generic [ref=e535]: Jan 1, 2026
+                      - generic [ref=e536]:
+                        - generic [ref=e537]: Estimated Cost
+                        - generic [ref=e538]: $499.00
+  - generic [ref=e539]: "25"
+```

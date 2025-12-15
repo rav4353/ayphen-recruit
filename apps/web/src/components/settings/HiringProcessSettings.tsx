@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardHeader, Button, Modal, ConfirmationModal } from '../ui';
 import { Plus, Clock, Video, CheckSquare, Edit2, Trash2, Users, ArrowRight } from 'lucide-react';
 import { PipelineSettings } from './PipelineSettings';
 import { ScorecardTemplatesSettings } from './ScorecardTemplatesSettings';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { settingsApi } from '../../lib/api';
+import { settingsApi, rolesApi, usersApi } from '../../lib/api';
 import toast from 'react-hot-toast';
 
 export function HiringProcessSettings() {
@@ -22,6 +22,19 @@ export function HiringProcessSettings() {
     const [approvalModalOpen, setApprovalModalOpen] = useState(false);
     const [editingApproval, setEditingApproval] = useState<any>(null);
     const [deleteApprovalId, setDeleteApprovalId] = useState<string | null>(null);
+
+    // SLA State
+    const [slaSettings, setSlaSettings] = useState({
+        screening: { days: 2, alertEnabled: true, alertDaysBefore: 1 },
+        phoneScreen: { days: 3, alertEnabled: true, alertDaysBefore: 1 },
+        interview: { days: 5, alertEnabled: true, alertDaysBefore: 1 },
+        assessment: { days: 3, alertEnabled: false, alertDaysBefore: 1 },
+        backgroundCheck: { days: 7, alertEnabled: true, alertDaysBefore: 2 },
+        offer: { days: 3, alertEnabled: true, alertDaysBefore: 1 },
+        offerAcceptance: { days: 5, alertEnabled: true, alertDaysBefore: 2 },
+        onboarding: { days: 14, alertEnabled: true, alertDaysBefore: 3 },
+    });
+    const [savingSla, setSavingSla] = useState(false);
 
     // Interview Types Query
     const { data: interviewTypes = [] } = useQuery({
@@ -89,6 +102,54 @@ export function HiringProcessSettings() {
         const newTypes = interviewTypes.filter((t: any) => t.id !== deleteInterviewId);
         saveInterviewTypesMutation.mutate(newTypes);
         setDeleteInterviewId(null);
+    };
+
+    // SLA Query
+    const { data: slaData } = useQuery({
+        queryKey: ['sla-settings'],
+        queryFn: async () => {
+            try {
+                const response = await settingsApi.getByKey('sla_settings');
+                return response.data?.value || null;
+            } catch {
+                return null;
+            }
+        },
+    });
+
+    // Update SLA settings when data is fetched
+    useEffect(() => {
+        if (slaData) {
+            setSlaSettings(prev => ({ ...prev, ...slaData }));
+        }
+    }, [slaData]);
+
+    // SLA Mutation
+    const saveSlaSettingsMutation = useMutation({
+        mutationFn: async (settings: typeof slaSettings) => {
+            return settingsApi.update('sla_settings', { value: settings, category: 'HIRING' });
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['sla-settings'] });
+            toast.success('SLA settings saved successfully');
+            setSavingSla(false);
+        },
+        onError: () => {
+            toast.error('Failed to save SLA settings');
+            setSavingSla(false);
+        },
+    });
+
+    const handleSaveSlaSettings = () => {
+        setSavingSla(true);
+        saveSlaSettingsMutation.mutate(slaSettings);
+    };
+
+    const updateSlaStage = (stage: keyof typeof slaSettings, field: string, value: number | boolean) => {
+        setSlaSettings(prev => ({
+            ...prev,
+            [stage]: { ...prev[stage], [field]: value }
+        }));
     };
 
     // Approvals Mutations
@@ -186,48 +247,105 @@ export function HiringProcessSettings() {
             )}
 
             {activeTab === 'slas' && (
-                <Card>
-                    <CardHeader title={t('hiringProcess.slas.title')} description={t('hiringProcess.slas.description')} />
-                    <div className="p-6 space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="p-4 border border-neutral-200 dark:border-neutral-700 rounded-lg">
-                                <div className="flex items-center justify-between mb-2">
-                                    <span className="font-medium">{t('hiringProcess.slas.screening')}</span>
-                                    <Clock size={16} className="text-neutral-400" />
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <input type="number" className="w-20 px-3 py-2 border rounded-md dark:bg-neutral-800 dark:border-neutral-700" defaultValue={2} />
-                                    <span className="text-sm text-neutral-500">{t('hiringProcess.slas.daysMax')}</span>
-                                </div>
+                <div className="space-y-6">
+                    <Card>
+                        <CardHeader title={t('hiringProcess.slas.title')} description={t('hiringProcess.slas.description')} />
+                        <div className="p-6">
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                {/* Resume Screening */}
+                                <SlaStageCard
+                                    title="Resume Screening"
+                                    description="Time to review and screen new applications"
+                                    stage="screening"
+                                    settings={slaSettings.screening}
+                                    onUpdate={updateSlaStage}
+                                />
+
+                                {/* Phone Screen */}
+                                <SlaStageCard
+                                    title="Phone Screen"
+                                    description="Time to complete initial phone screening"
+                                    stage="phoneScreen"
+                                    settings={slaSettings.phoneScreen}
+                                    onUpdate={updateSlaStage}
+                                />
+
+                                {/* Interview */}
+                                <SlaStageCard
+                                    title="Interview Scheduling"
+                                    description="Time to schedule and complete interviews"
+                                    stage="interview"
+                                    settings={slaSettings.interview}
+                                    onUpdate={updateSlaStage}
+                                />
+
+                                {/* Assessment */}
+                                <SlaStageCard
+                                    title="Assessment"
+                                    description="Time to complete candidate assessments"
+                                    stage="assessment"
+                                    settings={slaSettings.assessment}
+                                    onUpdate={updateSlaStage}
+                                />
+
+                                {/* Background Check */}
+                                <SlaStageCard
+                                    title="Background Check"
+                                    description="Time to complete background verification"
+                                    stage="backgroundCheck"
+                                    settings={slaSettings.backgroundCheck}
+                                    onUpdate={updateSlaStage}
+                                />
+
+                                {/* Offer */}
+                                <SlaStageCard
+                                    title="Offer Generation"
+                                    description="Time to prepare and send offer letter"
+                                    stage="offer"
+                                    settings={slaSettings.offer}
+                                    onUpdate={updateSlaStage}
+                                />
+
+                                {/* Offer Acceptance */}
+                                <SlaStageCard
+                                    title="Offer Acceptance"
+                                    description="Time for candidate to accept/decline offer"
+                                    stage="offerAcceptance"
+                                    settings={slaSettings.offerAcceptance}
+                                    onUpdate={updateSlaStage}
+                                />
+
+                                {/* Onboarding */}
+                                <SlaStageCard
+                                    title="Onboarding Preparation"
+                                    description="Time to prepare onboarding materials"
+                                    stage="onboarding"
+                                    settings={slaSettings.onboarding}
+                                    onUpdate={updateSlaStage}
+                                />
                             </div>
 
-                            <div className="p-4 border border-neutral-200 dark:border-neutral-700 rounded-lg">
-                                <div className="flex items-center justify-between mb-2">
-                                    <span className="font-medium">{t('hiringProcess.slas.interview')}</span>
-                                    <Clock size={16} className="text-neutral-400" />
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <input type="number" className="w-20 px-3 py-2 border rounded-md dark:bg-neutral-800 dark:border-neutral-700" defaultValue={5} />
-                                    <span className="text-sm text-neutral-500">{t('hiringProcess.slas.daysMax')}</span>
-                                </div>
+                            <div className="flex justify-end mt-6 pt-4 border-t border-neutral-200 dark:border-neutral-700">
+                                <Button onClick={handleSaveSlaSettings} disabled={savingSla}>
+                                    {savingSla ? 'Saving...' : t('hiringProcess.slas.save')}
+                                </Button>
                             </div>
+                        </div>
+                    </Card>
 
-                            <div className="p-4 border border-neutral-200 dark:border-neutral-700 rounded-lg">
-                                <div className="flex items-center justify-between mb-2">
-                                    <span className="font-medium">{t('hiringProcess.slas.offer')}</span>
-                                    <Clock size={16} className="text-neutral-400" />
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <input type="number" className="w-20 px-3 py-2 border rounded-md dark:bg-neutral-800 dark:border-neutral-700" defaultValue={3} />
-                                    <span className="text-sm text-neutral-500">{t('hiringProcess.slas.daysMax')}</span>
-                                </div>
+                    {/* SLA Info Card */}
+                    <Card>
+                        <div className="p-6">
+                            <h3 className="font-medium text-neutral-900 dark:text-white mb-3">How SLAs Work</h3>
+                            <div className="space-y-2 text-sm text-neutral-600 dark:text-neutral-400">
+                                <p>• <strong>Target Days:</strong> Maximum number of days allowed for each hiring stage</p>
+                                <p>• <strong>Alerts:</strong> When enabled, notifications are sent before the deadline</p>
+                                <p>• <strong>Alert Days Before:</strong> How many days before the deadline to send alerts</p>
+                                <p>• SLA breaches are tracked in the Reports section for performance monitoring</p>
                             </div>
                         </div>
-                        <div className="flex justify-end mt-4">
-                            <Button>{t('hiringProcess.slas.save')}</Button>
-                        </div>
-                    </div>
-                </Card>
+                    </Card>
+                </div>
             )}
 
             {activeTab === 'scorecards' && (
@@ -327,17 +445,28 @@ export function HiringProcessSettings() {
                                     </div>
 
                                     <div className="flex items-center gap-2 flex-wrap">
-                                        {workflow.steps?.map((step: string, index: number) => (
-                                            <div key={index} className="flex items-center gap-2">
-                                                <div className="flex items-center gap-2 px-3 py-1.5 bg-neutral-100 dark:bg-neutral-800 rounded-lg text-sm">
-                                                    <Users size={14} className="text-neutral-500" />
-                                                    <span className="font-medium">{index + 1}. {step}</span>
+                                        {workflow.steps?.map((step: any, index: number) => {
+                                            // Handle both old format (string) and new format (object)
+                                            const isOldFormat = typeof step === 'string';
+                                            const displayName = isOldFormat ? step : (step.userName || step.roleName || 'Unknown');
+                                            const roleName = isOldFormat ? '' : step.roleName;
+                                            return (
+                                                <div key={index} className="flex items-center gap-2">
+                                                    <div className="flex items-center gap-2 px-3 py-1.5 bg-neutral-100 dark:bg-neutral-800 rounded-lg text-sm">
+                                                        <Users size={14} className="text-neutral-500" />
+                                                        <div className="flex flex-col">
+                                                            <span className="font-medium">{index + 1}. {displayName}</span>
+                                                            {!isOldFormat && roleName && (
+                                                                <span className="text-xs text-neutral-500">{roleName}</span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    {index < workflow.steps.length - 1 && (
+                                                        <ArrowRight size={14} className="text-neutral-400" />
+                                                    )}
                                                 </div>
-                                                {index < workflow.steps.length - 1 && (
-                                                    <ArrowRight size={14} className="text-neutral-400" />
-                                                )}
-                                            </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             ))}
@@ -361,6 +490,76 @@ export function HiringProcessSettings() {
                 confirmLabel="Delete"
                 variant="danger"
             />
+        </div>
+    );
+}
+
+// SLA Stage Card Component
+interface SlaStageSettings {
+    days: number;
+    alertEnabled: boolean;
+    alertDaysBefore: number;
+}
+
+function SlaStageCard({ title, description, stage, settings, onUpdate }: {
+    title: string;
+    description: string;
+    stage: string;
+    settings: SlaStageSettings;
+    onUpdate: (stage: any, field: string, value: number | boolean) => void;
+}) {
+    return (
+        <div className="p-4 border border-neutral-200 dark:border-neutral-700 rounded-lg hover:border-blue-300 dark:hover:border-blue-700 transition-colors">
+            <div className="flex items-start justify-between mb-3">
+                <div>
+                    <h4 className="font-medium text-neutral-900 dark:text-white">{title}</h4>
+                    <p className="text-xs text-neutral-500 mt-0.5">{description}</p>
+                </div>
+                <Clock size={16} className="text-neutral-400 mt-1" />
+            </div>
+            
+            <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                    <label className="text-sm text-neutral-600 dark:text-neutral-400 w-24">Target Days</label>
+                    <input
+                        type="number"
+                        min={1}
+                        max={90}
+                        value={settings.days}
+                        onChange={(e) => onUpdate(stage, 'days', Number(e.target.value))}
+                        className="w-20 px-3 py-1.5 text-sm border rounded-md dark:bg-neutral-800 dark:border-neutral-700"
+                    />
+                    <span className="text-xs text-neutral-500">days</span>
+                </div>
+                
+                <div className="flex items-center gap-3">
+                    <label className="text-sm text-neutral-600 dark:text-neutral-400 w-24">Send Alerts</label>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={settings.alertEnabled}
+                            onChange={(e) => onUpdate(stage, 'alertEnabled', e.target.checked)}
+                            className="sr-only peer"
+                        />
+                        <div className="w-9 h-5 bg-neutral-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-neutral-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-neutral-600 peer-checked:bg-blue-600"></div>
+                    </label>
+                </div>
+                
+                {settings.alertEnabled && (
+                    <div className="flex items-center gap-3">
+                        <label className="text-sm text-neutral-600 dark:text-neutral-400 w-24">Alert Before</label>
+                        <input
+                            type="number"
+                            min={1}
+                            max={settings.days - 1 || 1}
+                            value={settings.alertDaysBefore}
+                            onChange={(e) => onUpdate(stage, 'alertDaysBefore', Number(e.target.value))}
+                            className="w-20 px-3 py-1.5 text-sm border rounded-md dark:bg-neutral-800 dark:border-neutral-700"
+                        />
+                        <span className="text-xs text-neutral-500">days before deadline</span>
+                    </div>
+                )}
+            </div>
         </div>
     );
 }
@@ -403,22 +602,115 @@ function InterviewTypeForm({ initialData, onSubmit, onCancel, isLoading }: any) 
     );
 }
 
+// Approval Step interface
+interface ApprovalStep {
+    role: string;
+    roleName: string;
+    userId: string;
+    userName: string;
+}
+
 // Approval Workflow Form Component
 function ApprovalWorkflowForm({ initialData, onSubmit, onCancel, isLoading }: any) {
     const [name, setName] = useState(initialData?.name || '');
     const [description, setDescription] = useState(initialData?.description || '');
-    const [steps, setSteps] = useState<string[]>(initialData?.steps || ['']);
+    const [steps, setSteps] = useState<ApprovalStep[]>(() => {
+        // Convert old format (string[]) to new format if needed
+        if (initialData?.steps) {
+            if (typeof initialData.steps[0] === 'string') {
+                return initialData.steps.map((s: string) => ({ role: '', roleName: s, userId: '', userName: '' }));
+            }
+            return initialData.steps;
+        }
+        return [{ role: '', roleName: '', userId: '', userName: '' }];
+    });
 
-    const addStep = () => setSteps([...steps, '']);
+    // Fetch roles
+    const [roles, setRoles] = useState<any[]>([]);
+    const [users, setUsers] = useState<any[]>([]);
+    const [loadingRoles, setLoadingRoles] = useState(false);
+    const [loadingUsers, setLoadingUsers] = useState(false);
+
+    useEffect(() => {
+        fetchRoles();
+        fetchUsers();
+    }, []);
+
+    const fetchRoles = async () => {
+        setLoadingRoles(true);
+        try {
+            const response = await rolesApi.getAll();
+            setRoles(response.data?.data || response.data || []);
+        } catch (error) {
+            console.error('Failed to fetch roles', error);
+            // Fallback roles
+            setRoles([
+                { id: 'ADMIN', name: 'Admin' },
+                { id: 'RECRUITER', name: 'Recruiter' },
+                { id: 'HIRING_MANAGER', name: 'Hiring Manager' },
+                { id: 'HR', name: 'HR' },
+            ]);
+        } finally {
+            setLoadingRoles(false);
+        }
+    };
+
+    const fetchUsers = async () => {
+        setLoadingUsers(true);
+        try {
+            const response = await usersApi.getAll();
+            setUsers(response.data?.data || response.data || []);
+        } catch (error) {
+            console.error('Failed to fetch users', error);
+        } finally {
+            setLoadingUsers(false);
+        }
+    };
+
+    const getUsersByRole = (roleId: string) => {
+        if (!roleId) return [];
+        return users.filter((user: any) => user.role === roleId || user.roleId === roleId);
+    };
+
+    const addStep = () => setSteps([...steps, { role: '', roleName: '', userId: '', userName: '' }]);
     const removeStep = (index: number) => setSteps(steps.filter((_, i) => i !== index));
-    const updateStep = (index: number, value: string) => {
+
+    const updateStepRole = (index: number, roleId: string) => {
+        const role = roles.find((r: any) => r.id === roleId);
         const newSteps = [...steps];
-        newSteps[index] = value;
+        newSteps[index] = {
+            ...newSteps[index],
+            role: roleId,
+            roleName: role?.name || roleId,
+            userId: '', // Reset user when role changes
+            userName: '',
+        };
         setSteps(newSteps);
     };
 
+    const updateStepUser = (index: number, userId: string) => {
+        const user = users.find((u: any) => u.id === userId);
+        const newSteps = [...steps];
+        newSteps[index] = {
+            ...newSteps[index],
+            userId: userId,
+            userName: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email : '',
+        };
+        setSteps(newSteps);
+    };
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        const validSteps = steps.filter(s => s.role && s.userId);
+        if (validSteps.length === 0) {
+            toast.error('Please add at least one approval step with a role and user');
+            return;
+        }
+        onSubmit({ name, description, steps: validSteps });
+    };
+
     return (
-        <form onSubmit={(e) => { e.preventDefault(); onSubmit({ name, description, steps: steps.filter(s => s.trim()) }); }} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
             <div>
                 <label className="block text-sm font-medium mb-1">Workflow Name</label>
                 <input type="text" required value={name} onChange={(e) => setName(e.target.value)} className="w-full p-2 border rounded-md dark:bg-neutral-800 dark:border-neutral-700" placeholder="e.g., Job Requisition Approval" />
@@ -429,13 +721,47 @@ function ApprovalWorkflowForm({ initialData, onSubmit, onCancel, isLoading }: an
             </div>
             <div>
                 <label className="block text-sm font-medium mb-2">Approval Steps</label>
-                <div className="space-y-2">
+                <p className="text-xs text-neutral-500 mb-3">Select a role, then choose a specific user from that role to approve.</p>
+                <div className="space-y-3">
                     {steps.map((step, index) => (
-                        <div key={index} className="flex gap-2 items-center">
-                            <span className="text-sm text-neutral-500 w-6">{index + 1}.</span>
-                            <input type="text" value={step} onChange={(e) => updateStep(index, e.target.value)} className="flex-1 p-2 border rounded-md dark:bg-neutral-800 dark:border-neutral-700" placeholder="Role or person (e.g., Hiring Manager)" />
+                        <div key={index} className="flex gap-2 items-start p-3 bg-neutral-50 dark:bg-neutral-800/50 rounded-lg border border-neutral-200 dark:border-neutral-700">
+                            <span className="text-sm font-medium text-neutral-500 w-6 pt-2">{index + 1}.</span>
+                            <div className="flex-1 space-y-2">
+                                <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label className="block text-xs text-neutral-500 mb-1">Role</label>
+                                        <select
+                                            value={step.role}
+                                            onChange={(e) => updateStepRole(index, e.target.value)}
+                                            className="w-full p-2 border rounded-md dark:bg-neutral-800 dark:border-neutral-700 text-sm"
+                                            disabled={loadingRoles}
+                                        >
+                                            <option value="">Select Role</option>
+                                            {roles.map((role: any) => (
+                                                <option key={role.id} value={role.id}>{role.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-neutral-500 mb-1">Approver</label>
+                                        <select
+                                            value={step.userId}
+                                            onChange={(e) => updateStepUser(index, e.target.value)}
+                                            className="w-full p-2 border rounded-md dark:bg-neutral-800 dark:border-neutral-700 text-sm"
+                                            disabled={!step.role || loadingUsers}
+                                        >
+                                            <option value="">{step.role ? 'Select User' : 'Select role first'}</option>
+                                            {getUsersByRole(step.role).map((user: any) => (
+                                                <option key={user.id} value={user.id}>
+                                                    {user.firstName} {user.lastName} ({user.email})
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
                             {steps.length > 1 && (
-                                <button type="button" onClick={() => removeStep(index)} className="p-2 text-red-500 hover:bg-red-50 rounded">
+                                <button type="button" onClick={() => removeStep(index)} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded mt-5">
                                     <Trash2 size={16} />
                                 </button>
                             )}

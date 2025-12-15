@@ -62,4 +62,20 @@ export class SlaController {
         const stage = await this.slaService.updateStageSla(stageId, dto.slaDays);
         return { data: stage };
     }
+
+    @Get('dashboard')
+    @ApiOperation({ summary: 'Get SLA dashboard with summary statistics' })
+    @ApiResponse({ status: 200, description: 'Returns SLA dashboard data' })
+    async getSlaDashboard(@CurrentUser() user: JwtPayload) {
+        const dashboard = await this.slaService.getSlaDashboard(user.tenantId);
+        return { data: dashboard };
+    }
+
+    @Get('trends')
+    @ApiOperation({ summary: 'Get SLA trends over time' })
+    @ApiResponse({ status: 200, description: 'Returns SLA trends' })
+    async getSlaTrends(@CurrentUser() user: JwtPayload) {
+        const trends = await this.slaService.getSlaTrends(user.tenantId);
+        return { data: trends };
+    }
 }

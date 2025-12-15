@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Body,
   Patch,
   Param,
@@ -16,6 +17,7 @@ import { CandidatesService } from './candidates.service';
 import { CreateCandidateDto } from './dto/create-candidate.dto';
 import { UpdateCandidateDto } from './dto/update-candidate.dto';
 import { CandidateQueryDto } from './dto/candidate-query.dto';
+import { DuplicateCheckDto, GdprConsentDto } from './dto/duplicate-check.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/auth.service';
@@ -137,5 +139,144 @@ export class CandidatesController {
   @RequirePermissions(Permission.CANDIDATE_DELETE)
   remove(@Param('id') id: string) {
     return this.candidatesService.remove(id);
+  }
+
+  @Post('check-duplicates')
+  @ApiOperation({ summary: 'Find potential duplicate candidates' })
+  @RequirePermissions(Permission.CANDIDATE_VIEW)
+  checkDuplicates(
+    @Body() dto: DuplicateCheckDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.candidatesService.findDuplicates(user.tenantId, dto);
+  }
+
+  @Patch(':id/gdpr-consent')
+  @ApiOperation({ summary: 'Update GDPR consent for a candidate' })
+  @RequirePermissions(Permission.CANDIDATE_EDIT)
+  updateGdprConsent(
+    @Param('id') id: string,
+    @Body() dto: GdprConsentDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.candidatesService.updateGdprConsent(id, dto, user.sub);
+  }
+
+  @Post(':id/anonymize')
+  @ApiOperation({ summary: 'Anonymize candidate data (GDPR Right to be Forgotten)' })
+  @RequirePermissions(Permission.CANDIDATE_DELETE)
+  anonymizeCandidate(
+    @Param('id') id: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.candidatesService.anonymizeCandidate(id, user.sub);
+  }
+
+  @Post('import')
+  @ApiOperation({ summary: 'Import candidates from CSV' })
+  @RequirePermissions(Permission.CANDIDATE_CREATE)
+  importCandidates(
+    @CurrentUser() user: JwtPayload,
+    @Body() body: {
+      csvData: string;
+      skipDuplicates?: boolean;
+      updateExisting?: boolean;
+      jobId?: string;
+      source?: string;
+      tags?: string[];
+    },
+  ) {
+    return this.candidatesService.importFromCsv(
+      user.tenantId,
+      user.sub,
+      body.csvData,
+      {
+        skipDuplicates: body.skipDuplicates,
+        updateExisting: body.updateExisting,
+        jobId: body.jobId,
+        source: body.source,
+        tags: body.tags,
+      },
+    );
+  }
+
+  @Post('import/validate')
+  @ApiOperation({ summary: 'Validate CSV before import' })
+  @RequirePermissions(Permission.CANDIDATE_CREATE)
+  validateImport(@Body('csvData') csvData: string) {
+    return this.candidatesService.validateCsvForImport(csvData);
+  }
+
+  @Get('import/template')
+  @ApiOperation({ summary: 'Get CSV import template' })
+  @RequirePermissions(Permission.CANDIDATE_VIEW)
+  getImportTemplate(@Res() res: Response) {
+    const csv = this.candidatesService.getImportTemplate();
+    res.header('Content-Type', 'text/csv');
+    res.header('Content-Disposition', 'attachment; filename=candidate-import-template.csv');
+    res.send(csv);
+  }
+
+  @Post(':id/notes')
+  @ApiOperation({ summary: 'Add a note to a candidate' })
+  @RequirePermissions(Permission.CANDIDATE_CREATE)
+  createNote(
+    @Param('id') id: string,
+    @CurrentUser() user: JwtPayload,
+    @Body() body: { content: string; isPrivate?: boolean; mentionedUserIds?: string[] },
+  ) {
+    return this.candidatesService.createNote(id, user.tenantId, user.sub, body);
+  }
+
+  @Get(':id/notes')
+  @ApiOperation({ summary: 'Get all notes for a candidate' })
+  @RequirePermissions(Permission.CANDIDATE_VIEW)
+  getNotes(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    return this.candidatesService.getNotes(id, user.tenantId, user.sub);
+  }
+
+  @Put(':id/notes/:noteId')
+  @ApiOperation({ summary: 'Update a note' })
+  @RequirePermissions(Permission.CANDIDATE_CREATE)
+  updateNote(
+    @Param('id') id: string,
+    @Param('noteId') noteId: string,
+    @CurrentUser() user: JwtPayload,
+    @Body() body: { content?: string; isPrivate?: boolean },
+  ) {
+    return this.candidatesService.updateNote(id, noteId, user.tenantId, user.sub, body);
+  }
+
+  @Delete(':id/notes/:noteId')
+  @ApiOperation({ summary: 'Delete a note' })
+  @RequirePermissions(Permission.CANDIDATE_CREATE)
+  deleteNote(
+    @Param('id') id: string,
+    @Param('noteId') noteId: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.candidatesService.deleteNote(id, noteId, user.tenantId, user.sub);
+  }
+
+  @Post(':id/notes/:noteId/pin')
+  @ApiOperation({ summary: 'Pin a note' })
+  @RequirePermissions(Permission.CANDIDATE_CREATE)
+  pinNote(
+    @Param('id') id: string,
+    @Param('noteId') noteId: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.candidatesService.pinNote(id, noteId, user.tenantId, user.sub);
+  }
+
+  @Post(':id/notes/:noteId/unpin')
+  @ApiOperation({ summary: 'Unpin a note' })
+  @RequirePermissions(Permission.CANDIDATE_CREATE)
+  unpinNote(
+    @Param('id') id: string,
+    @Param('noteId') noteId: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.candidatesService.unpinNote(id, noteId, user.tenantId, user.sub);
   }
 }

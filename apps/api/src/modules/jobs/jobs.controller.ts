@@ -248,4 +248,126 @@ export class JobsController {
     await this.jobsService.remove(id);
     return ApiResponse.deleted('Job deleted successfully');
   }
+
+  @Post('requisitions')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Create a job requisition' })
+  async createRequisition(
+    @Param('tenantId') tenantId: string,
+    @CurrentUser() user: JwtPayload,
+    @Body() body: {
+      title: string;
+      departmentId?: string;
+      locationId?: string;
+      headcount: number;
+      priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+      targetStartDate?: string;
+      justification: string;
+      budgetApproved?: boolean;
+      salaryRange?: { min: number; max: number; currency: string };
+      skills?: string[];
+      employmentType?: string;
+    },
+  ) {
+    this.validateTenantAccess(user.tenantId, tenantId);
+    const requisition = await this.jobsService.createRequisition(
+      user.tenantId,
+      user.sub,
+      {
+        ...body,
+        targetStartDate: body.targetStartDate ? new Date(body.targetStartDate) : undefined,
+      },
+    );
+    return ApiResponse.created(requisition, 'Requisition created successfully');
+  }
+
+  @Get('requisitions')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Get all job requisitions' })
+  async getRequisitions(
+    @Param('tenantId') tenantId: string,
+    @CurrentUser() user: JwtPayload,
+    @Query('status') status?: string,
+    @Query('departmentId') departmentId?: string,
+    @Query('priority') priority?: string,
+  ) {
+    this.validateTenantAccess(user.tenantId, tenantId);
+    const requisitions = await this.jobsService.getRequisitions(user.tenantId, {
+      status,
+      departmentId,
+      priority,
+    });
+    return ApiResponse.success(requisitions, 'Requisitions retrieved successfully');
+  }
+
+  @Get('requisitions/stats')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Get requisition statistics' })
+  async getRequisitionStats(
+    @Param('tenantId') tenantId: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    this.validateTenantAccess(user.tenantId, tenantId);
+    const stats = await this.jobsService.getRequisitionStats(user.tenantId);
+    return ApiResponse.success(stats, 'Requisition stats retrieved successfully');
+  }
+
+  @Post('requisitions/:requisitionId/approve')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Approve a job requisition' })
+  async approveRequisition(
+    @Param('tenantId') tenantId: string,
+    @Param('requisitionId') requisitionId: string,
+    @CurrentUser() user: JwtPayload,
+    @Body('notes') notes?: string,
+  ) {
+    this.validateTenantAccess(user.tenantId, tenantId);
+    const result = await this.jobsService.updateRequisitionStatus(
+      requisitionId,
+      user.tenantId,
+      user.sub,
+      'APPROVE',
+      notes,
+    );
+    return ApiResponse.success(result, 'Requisition approved successfully');
+  }
+
+  @Post('requisitions/:requisitionId/reject')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Reject a job requisition' })
+  async rejectRequisition(
+    @Param('tenantId') tenantId: string,
+    @Param('requisitionId') requisitionId: string,
+    @CurrentUser() user: JwtPayload,
+    @Body('notes') notes?: string,
+  ) {
+    this.validateTenantAccess(user.tenantId, tenantId);
+    const result = await this.jobsService.updateRequisitionStatus(
+      requisitionId,
+      user.tenantId,
+      user.sub,
+      'REJECT',
+      notes,
+    );
+    return ApiResponse.success(result, 'Requisition rejected successfully');
+  }
+
+  @Post('requisitions/:requisitionId/convert')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Convert requisition to job posting' })
+  async convertRequisitionToJob(
+    @Param('tenantId') tenantId: string,
+    @Param('requisitionId') requisitionId: string,
+    @CurrentUser() user: JwtPayload,
+    @Body() additionalData?: Partial<CreateJobDto>,
+  ) {
+    this.validateTenantAccess(user.tenantId, tenantId);
+    const result = await this.jobsService.convertRequisitionToJob(
+      requisitionId,
+      user.tenantId,
+      user.sub,
+      additionalData,
+    );
+    return ApiResponse.created(result, 'Requisition converted to job successfully');
+  }
 }

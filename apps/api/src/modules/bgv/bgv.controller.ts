@@ -135,6 +135,26 @@ export class BGVController {
         return ApiResponse.success(packages, 'BGV packages retrieved');
     }
 
+    @Post('test-connection')
+    @ApiBearerAuth()
+    @UseGuards(JwtAuthGuard)
+    @ApiOperation({ summary: 'Test BGV provider connection' })
+    async testConnection(@Req() req: any) {
+        const tenantId = req.user.tenantId;
+        const result = await this.bgvService.testConnection(tenantId);
+        return ApiResponse.success(result, 'Connection test completed');
+    }
+
+    @Get('screening-types')
+    @ApiBearerAuth()
+    @UseGuards(JwtAuthGuard)
+    @ApiOperation({ summary: 'Get available screening types' })
+    async getScreeningTypes(@Req() req: any) {
+        const tenantId = req.user.tenantId;
+        const types = await this.bgvService.getScreeningTypes(tenantId);
+        return ApiResponse.success(types, 'Screening types retrieved');
+    }
+
     @Get('dashboard')
     @ApiBearerAuth()
     @UseGuards(JwtAuthGuard)

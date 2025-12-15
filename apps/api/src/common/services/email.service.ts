@@ -326,4 +326,87 @@ export class EmailService {
 
     return this.sendEmail({ to, subject, html, text, tenantId });
   }
+
+  async sendAssessmentInvitationEmail(
+    to: string,
+    candidateName: string,
+    assessmentName: string,
+    assessmentLink: string,
+    expiresAt: string,
+    tenantId?: string,
+  ): Promise<boolean> {
+    const expiryDate = new Date(expiresAt).toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+
+    const subject = `You're invited to complete an assessment: ${assessmentName}`;
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      </head>
+      <body style="margin: 0; padding: 0; background-color: #0a0a0a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0a0a0a; padding: 40px 20px;">
+          <tr>
+            <td align="center">
+              <table width="100%" max-width="480" cellpadding="0" cellspacing="0" style="background-color: #171717; border-radius: 12px; border: 1px solid #262626;">
+                <tr>
+                  <td style="padding: 40px;">
+                    <h1 style="margin: 0 0 8px; font-size: 24px; font-weight: 600; color: #fafafa;">TalentX</h1>
+                    <p style="margin: 0 0 32px; font-size: 14px; color: #a3a3a3;">Skill Assessment Invitation</p>
+                    
+                    <p style="margin: 0 0 24px; font-size: 15px; color: #d4d4d4; line-height: 1.6;">
+                      Hello ${candidateName},
+                    </p>
+                    <p style="margin: 0 0 24px; font-size: 15px; color: #d4d4d4; line-height: 1.6;">
+                      You've been invited to complete the following assessment as part of the application process:
+                    </p>
+                    
+                    <div style="background-color: #262626; border-radius: 8px; padding: 24px; margin-bottom: 24px;">
+                      <h2 style="margin: 0 0 8px; font-size: 18px; font-weight: 600; color: #fafafa;">${assessmentName}</h2>
+                      <p style="margin: 0; font-size: 13px; color: #a3a3a3;">Please complete this assessment before ${expiryDate}</p>
+                    </div>
+                    
+                    <a href="${assessmentLink}" style="display: inline-block; background-color: #3b82f6; color: #ffffff; font-size: 14px; font-weight: 600; text-decoration: none; padding: 12px 32px; border-radius: 8px; margin-bottom: 24px;">
+                      Start Assessment
+                    </a>
+                    
+                    <p style="margin: 24px 0 8px; font-size: 13px; color: #737373;">
+                      <strong>Tips for success:</strong>
+                    </p>
+                    <ul style="margin: 0 0 16px; padding-left: 20px; font-size: 13px; color: #737373; line-height: 1.8;">
+                      <li>Find a quiet place with stable internet connection</li>
+                      <li>Read each question carefully before answering</li>
+                      <li>You can only submit the assessment once</li>
+                    </ul>
+                    
+                    <div style="border-top: 1px solid #262626; padding-top: 16px; margin-top: 16px;">
+                      <p style="margin: 0; font-size: 12px; color: #525252;">
+                        If the button doesn't work, copy and paste this link:<br>
+                        <a href="${assessmentLink}" style="color: #737373; word-break: break-all;">${assessmentLink}</a>
+                      </p>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+              
+              <p style="margin: 24px 0 0; font-size: 12px; color: #525252;">
+                © ${new Date().getFullYear()} TalentX. All rights reserved.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </body>
+      </html>
+    `;
+
+    const text = `Hello ${candidateName},\n\nYou've been invited to complete the following assessment: ${assessmentName}\n\nPlease complete this assessment before ${expiryDate}.\n\nStart the assessment here: ${assessmentLink}\n\nTips for success:\n- Find a quiet place with stable internet connection\n- Read each question carefully before answering\n- You can only submit the assessment once\n\nGood luck!`;
+
+    return this.sendEmail({ to, subject, html, text, tenantId });
+  }
 }

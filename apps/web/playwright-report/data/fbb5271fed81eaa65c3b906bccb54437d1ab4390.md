@@ -1,0 +1,206 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - link "Ayphen TalentX" [ref=e7] [cursor=pointer]:
+        - /url: /e71612ab-f2ca-4798-b598-082e1266ec96/dashboard
+        - img "Ayphen" [ref=e8]
+        - img "TalentX" [ref=e10]
+      - navigation [ref=e11]:
+        - link "Dashboard" [ref=e12] [cursor=pointer]:
+          - /url: /e71612ab-f2ca-4798-b598-082e1266ec96/dashboard
+          - img [ref=e13]
+          - generic [ref=e18]: Dashboard
+        - link "Jobs" [ref=e19] [cursor=pointer]:
+          - /url: /e71612ab-f2ca-4798-b598-082e1266ec96/jobs
+          - img [ref=e20]
+          - generic [ref=e23]: Jobs
+        - link "Pipeline" [ref=e24] [cursor=pointer]:
+          - /url: /e71612ab-f2ca-4798-b598-082e1266ec96/pipeline
+          - img [ref=e25]
+          - generic [ref=e29]: Pipeline
+        - link "Candidates" [ref=e30] [cursor=pointer]:
+          - /url: /e71612ab-f2ca-4798-b598-082e1266ec96/candidates
+          - img [ref=e31]
+          - generic [ref=e36]: Candidates
+        - link "Referrals" [ref=e37] [cursor=pointer]:
+          - /url: /e71612ab-f2ca-4798-b598-082e1266ec96/referrals
+          - img [ref=e38]
+          - generic [ref=e44]: Referrals
+        - link "Sourcing" [ref=e45] [cursor=pointer]:
+          - /url: /e71612ab-f2ca-4798-b598-082e1266ec96/sourcing
+          - img [ref=e46]
+          - generic [ref=e49]: Sourcing
+        - link "Interviews" [ref=e50] [cursor=pointer]:
+          - /url: /e71612ab-f2ca-4798-b598-082e1266ec96/interviews
+          - img [ref=e51]
+          - generic [ref=e53]: Interviews
+        - link "Offers" [ref=e54] [cursor=pointer]:
+          - /url: /e71612ab-f2ca-4798-b598-082e1266ec96/offers
+          - img [ref=e55]
+          - generic [ref=e58]: Offers
+        - link "Onboarding" [ref=e59] [cursor=pointer]:
+          - /url: /e71612ab-f2ca-4798-b598-082e1266ec96/onboarding
+          - img [ref=e60]
+          - generic [ref=e65]: Onboarding
+        - link "Messages" [ref=e66] [cursor=pointer]:
+          - /url: /e71612ab-f2ca-4798-b598-082e1266ec96/inbox
+          - img [ref=e67]
+          - generic [ref=e70]: Messages
+        - link "Reports" [ref=e71] [cursor=pointer]:
+          - /url: /e71612ab-f2ca-4798-b598-082e1266ec96/reports
+          - img [ref=e72]
+          - generic [ref=e73]: Reports
+        - link "Settings" [ref=e74] [cursor=pointer]:
+          - /url: /e71612ab-f2ca-4798-b598-082e1266ec96/settings
+          - img [ref=e75]
+          - generic [ref=e78]: Settings
+      - generic [ref=e80]:
+        - generic [ref=e81]: RR
+        - generic [ref=e82]:
+          - paragraph [ref=e83]: Ravanth Raja
+          - paragraph [ref=e84]: ravanthsri20@gmail.com
+        - button "Logout" [ref=e85] [cursor=pointer]:
+          - img [ref=e86]
+  - generic [ref=e89]:
+    - banner [ref=e90]:
+      - generic [ref=e91]:
+        - generic [ref=e92]:
+          - button "Notifications" [ref=e93] [cursor=pointer]:
+            - img [ref=e94]
+          - generic [ref=e97]:
+            - generic [ref=e98]:
+              - generic [ref=e99]:
+                - img [ref=e100]
+                - heading "Notifications" [level=2] [ref=e103]
+              - button [ref=e104] [cursor=pointer]:
+                - img [ref=e105]
+            - combobox [ref=e109]:
+              - option "All" [selected]
+              - option "Applications"
+              - option "Interviews"
+              - option "Offers"
+              - option "Jobs"
+              - option "SLA Alerts"
+              - option "Approvals"
+              - option "Onboarding"
+              - option "System"
+            - generic [ref=e111]:
+              - img [ref=e112]
+              - paragraph [ref=e115]: No notifications
+        - button "Select language" [ref=e117] [cursor=pointer]:
+          - img [ref=e118]
+        - button "Select theme" [ref=e122] [cursor=pointer]:
+          - img [ref=e123]
+    - main [ref=e129]:
+      - generic [ref=e130]:
+        - generic [ref=e131]:
+          - heading "Settings" [level=1] [ref=e132]
+          - generic [ref=e133]:
+            - img [ref=e134]
+            - textbox "Search settings..." [ref=e137]
+        - generic [ref=e138]:
+          - generic [ref=e140]:
+            - button "General" [ref=e141] [cursor=pointer]:
+              - img [ref=e142]
+              - generic [ref=e145]: General
+            - button "Security" [ref=e146] [cursor=pointer]:
+              - img [ref=e147]
+              - generic [ref=e149]: Security
+            - button "Notifications" [ref=e150] [cursor=pointer]:
+              - img [ref=e151]
+              - generic [ref=e154]: Notifications
+            - button "Appearance" [ref=e155] [cursor=pointer]:
+              - img [ref=e156]
+              - generic [ref=e162]: Appearance
+            - button "Users & Roles" [ref=e163] [cursor=pointer]:
+              - img [ref=e164]
+              - generic [ref=e169]: Users & Roles
+            - button "Hiring Process" [ref=e170] [cursor=pointer]:
+              - img [ref=e171]
+              - generic [ref=e175]: Hiring Process
+            - button "Job Form Customization" [ref=e176] [cursor=pointer]:
+              - img [ref=e177]
+              - generic [ref=e179]: Job Form Customization
+            - button "Automations" [ref=e180] [cursor=pointer]:
+              - img [ref=e181]
+              - generic [ref=e183]: Automations
+            - button "Skills" [ref=e184] [cursor=pointer]:
+              - img [ref=e185]
+              - generic [ref=e188]: Skills
+            - button "Templates" [ref=e189] [cursor=pointer]:
+              - img [ref=e190]
+              - generic [ref=e193]: Templates
+            - button "Integrations" [ref=e194] [cursor=pointer]:
+              - img [ref=e195]
+              - generic [ref=e197]: Integrations
+            - button "Email" [ref=e198] [cursor=pointer]:
+              - img [ref=e199]
+              - generic [ref=e202]: Email
+            - button "Compliance" [ref=e203] [cursor=pointer]:
+              - img [ref=e204]
+              - generic [ref=e206]: Compliance
+            - button "Billing" [ref=e207] [cursor=pointer]:
+              - img [ref=e208]
+              - generic [ref=e210]: Billing
+            - button "Career Site" [ref=e211] [cursor=pointer]:
+              - img [ref=e212]
+              - generic [ref=e215]: Career Site
+            - button "Bulk Import" [ref=e216] [cursor=pointer]:
+              - img [ref=e217]
+              - generic [ref=e220]: Bulk Import
+            - button "Shortcuts" [ref=e221] [cursor=pointer]:
+              - img [ref=e222]
+              - generic [ref=e224]: Shortcuts
+            - button "Audit Logs" [ref=e225] [cursor=pointer]:
+              - img [ref=e226]
+              - generic [ref=e230]: Audit Logs
+            - button "Background Checks" [ref=e231] [cursor=pointer]:
+              - img [ref=e232]
+              - generic [ref=e234]: Background Checks
+          - generic [ref=e236]:
+            - generic [ref=e237]:
+              - generic [ref=e238]:
+                - heading "Background Checks" [level=2] [ref=e239]
+                - paragraph [ref=e240]: Manage candidate background verification with Checkr
+              - button "Configure" [ref=e241] [cursor=pointer]:
+                - img [ref=e242]
+                - text: Configure
+            - generic [ref=e246]:
+              - img [ref=e247]
+              - generic [ref=e249]:
+                - paragraph [ref=e250]: Background check provider not configured
+                - paragraph [ref=e251]: Configure Checkr API credentials to enable background verification.
+              - button "Configure Now" [ref=e252] [cursor=pointer]
+            - generic [ref=e253]:
+              - button "Dashboard" [ref=e254] [cursor=pointer]
+              - button "Checks" [ref=e255] [cursor=pointer]
+              - button "Settings" [ref=e256] [cursor=pointer]
+            - generic [ref=e257]:
+              - generic [ref=e258]:
+                - generic [ref=e260]:
+                  - img [ref=e262]
+                  - generic [ref=e264]:
+                    - paragraph [ref=e265]: "0"
+                    - paragraph [ref=e266]: Total Checks
+                - generic [ref=e268]:
+                  - img [ref=e270]
+                  - generic [ref=e273]:
+                    - paragraph [ref=e274]: "0"
+                    - paragraph [ref=e275]: In Progress
+                - generic [ref=e277]:
+                  - img [ref=e279]
+                  - generic [ref=e282]:
+                    - paragraph [ref=e283]: "0"
+                    - paragraph [ref=e284]: Clear
+                - generic [ref=e286]:
+                  - img [ref=e288]
+                  - generic [ref=e290]:
+                    - paragraph [ref=e291]: "0"
+                    - paragraph [ref=e292]: Consider
+              - generic [ref=e293]:
+                - heading "Clear Rate" [level=3] [ref=e294]
+                - generic [ref=e297]: 0%
+```

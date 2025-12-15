@@ -332,4 +332,48 @@ export class BGVService {
             clearRate: total > 0 ? Math.round((clear / total) * 100) : 0,
         };
     }
+
+    /**
+     * Test connection to BGV provider
+     */
+    async testConnection(tenantId: string) {
+        const settings = await this.prisma.bGVSettings.findUnique({ where: { tenantId } });
+        
+        if (!settings?.apiKey) {
+            return { success: false, message: 'BGV provider not configured' };
+        }
+
+        if (settings.provider === 'CHECKR') {
+            const config = { apiKey: settings.apiKey, sandboxMode: settings.sandboxMode };
+            return this.checkr.testConnection(config);
+        }
+
+        if (settings.provider === 'MANUAL') {
+            return { success: true, message: 'Manual verification mode is active' };
+        }
+
+        return { success: false, message: 'Unknown provider' };
+    }
+
+    /**
+     * Get available screening types
+     */
+    async getScreeningTypes(tenantId: string) {
+        const settings = await this.prisma.bGVSettings.findUnique({ where: { tenantId } });
+
+        if (settings?.provider === 'CHECKR') {
+            return this.checkr.getScreeningTypes();
+        }
+
+        // Default screening types for manual or unconfigured
+        return [
+            { id: 'IDENTITY', name: 'Identity Verification', description: 'Verifies candidate identity documents' },
+            { id: 'CRIMINAL', name: 'Criminal Background', description: 'Checks criminal history records' },
+            { id: 'EMPLOYMENT', name: 'Employment Verification', description: 'Verifies past employment history' },
+            { id: 'EDUCATION', name: 'Education Verification', description: 'Verifies educational credentials' },
+            { id: 'REFERENCE', name: 'Reference Check', description: 'Contacts provided references' },
+            { id: 'CREDIT', name: 'Credit Check', description: 'Checks credit history (where applicable)' },
+            { id: 'DRUG', name: 'Drug Screening', description: 'Pre-employment drug testing' },
+        ];
+    }
 }

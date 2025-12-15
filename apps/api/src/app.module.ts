@@ -38,6 +38,11 @@ import { RolesModule } from './modules/roles/roles.module';
 import { CalendarModule } from './modules/calendar/calendar.module';
 import { ESignatureModule } from './modules/esignature/esignature.module';
 import { BGVModule } from './modules/bgv/bgv.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { AssessmentsModule } from './modules/assessments/assessments.module';
+import { CareerSiteModule } from './modules/career-site/career-site.module';
+import { BulkImportModule } from './modules/bulk-import/bulk-import.module';
+import { AuditModule } from './modules/audit/audit.module';
 
 @Module({
   imports: [
@@ -92,6 +97,11 @@ import { BGVModule } from './modules/bgv/bgv.module';
     CalendarModule,
     ESignatureModule,
     BGVModule,
+    NotificationsModule,
+    AssessmentsModule,
+    CareerSiteModule,
+    BulkImportModule,
+    AuditModule,
 
     // Serve static files (uploads)
     ServeStaticModule.forRoot({

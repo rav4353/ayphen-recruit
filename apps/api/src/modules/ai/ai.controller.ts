@@ -49,4 +49,13 @@ export class AiController {
         const result = await this.aiService.checkBias(dto.text);
         return ApiResponse.success(result, 'Bias check completed successfully');
     }
+
+    @Post('generate-subject-lines')
+    @ApiOperation({ summary: 'Generate AI-powered email subject line suggestions' })
+    async generateSubjectLines(
+        @Body() dto: { context: string; candidateName?: string; jobTitle?: string; companyName?: string },
+    ) {
+        const result = await this.aiService.generateSubjectLines(dto);
+        return ApiResponse.success(result, 'Subject lines generated successfully');
+    }
 }

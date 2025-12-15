@@ -247,6 +247,105 @@ def extract_details_llm(text):
         print(f"LLM Entity Extraction Error: {e}")
         return {}
 
+
+def extract_experience_llm(text):
+    """
+    Use Ollama to extract work experience from resume text.
+    """
+    model_name = os.getenv("OLLAMA_MODEL", "llama3.2")
+    
+    # Use more text for experience section
+    truncated_text = text[:6000]
+    
+    system_prompt = (
+        "You are an expert technical recruiter analyzing a resume. "
+        "Extract ALL work experience entries from the resume. "
+        "Return ONLY a JSON object with a single key 'experience' containing a list of objects. "
+        "Each experience object should have: 'company' (string), 'title' (string), 'startDate' (string like 'Jan 2020' or '2020'), "
+        "'endDate' (string like 'Present' or 'Dec 2023'), 'description' (string - brief summary of responsibilities). "
+        "If a field is not found, use null. Extract as many entries as you can find."
+    )
+    
+    user_prompt = f"Resume Text:\n{truncated_text}\n\nReturn JSON with experience array."
+    
+    payload = {
+        "model": model_name,
+        "stream": False,
+        "format": "json",
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+    }
+    
+    try:
+        req = urllib.request.Request(
+            "http://localhost:11434/api/chat",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=45) as resp:
+            raw = resp.read().decode("utf-8")
+            resp_json = json.loads(raw)
+            
+        content = resp_json.get("message", {}).get("content", "")
+        content = content.replace("```json", "").replace("```", "").strip()
+        parsed = json.loads(content)
+        return parsed.get("experience", [])
+    except Exception as e:
+        print(f"LLM Experience Extraction Error: {e}")
+        return []
+
+
+def extract_education_llm(text):
+    """
+    Use Ollama to extract education from resume text.
+    """
+    model_name = os.getenv("OLLAMA_MODEL", "llama3.2")
+    
+    truncated_text = text[:4000]
+    
+    system_prompt = (
+        "You are an expert technical recruiter analyzing a resume. "
+        "Extract ALL education entries from the resume. "
+        "Return ONLY a JSON object with a single key 'education' containing a list of objects. "
+        "Each education object should have: 'institution' (string - school/university name), 'degree' (string - e.g., 'Bachelor of Science'), "
+        "'field' (string - field of study like 'Computer Science'), 'graduationYear' (string like '2020' or null if not found). "
+        "If a field is not found, use null. Extract as many entries as you can find."
+    )
+    
+    user_prompt = f"Resume Text:\n{truncated_text}\n\nReturn JSON with education array."
+    
+    payload = {
+        "model": model_name,
+        "stream": False,
+        "format": "json",
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+    }
+    
+    try:
+        req = urllib.request.Request(
+            "http://localhost:11434/api/chat",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            raw = resp.read().decode("utf-8")
+            resp_json = json.loads(raw)
+            
+        content = resp_json.get("message", {}).get("content", "")
+        content = content.replace("```json", "").replace("```", "").strip()
+        parsed = json.loads(content)
+        return parsed.get("education", [])
+    except Exception as e:
+        print(f"LLM Education Extraction Error: {e}")
+        return []
+
 # Resume parsing
 @app.post("/parse-resume", response_model=ParsedResume)
 async def parse_resume(file: UploadFile = File(...)):
@@ -321,6 +420,15 @@ async def parse_resume(file: UploadFile = File(...)):
 
     print(f"Final skills: {skills}")
 
+    # Extract experience and education using LLM
+    print("Attempting LLM experience extraction...")
+    experience = extract_experience_llm(text)
+    print(f"Experience entries found: {len(experience)}")
+
+    print("Attempting LLM education extraction...")
+    education = extract_education_llm(text)
+    print(f"Education entries found: {len(education)}")
+
     return ParsedResume(
         firstName=first_name,
         lastName=last_name,
@@ -328,8 +436,8 @@ async def parse_resume(file: UploadFile = File(...)):
         phone=phone,
         summary=summary,
         skills=skills,
-        experience=[], # Placeholder
-        education=[],  # Placeholder
+        experience=experience,
+        education=education,
         rawText=text
     )
 
@@ -817,6 +925,116 @@ async def suggest_seo(request: SeoRequest):
             score=0.0,
             suggestions=["Service unavailable"]
         )
+
+# Email Subject Line Generation
+class SubjectLineRequest(BaseModel):
+    context: str  # e.g., "interview invitation", "offer letter", "rejection"
+    candidateName: Optional[str] = None
+    jobTitle: Optional[str] = None
+    companyName: Optional[str] = None
+
+class SubjectLineResponse(BaseModel):
+    suggestions: List[str]
+
+@app.post("/generate-subject-lines", response_model=SubjectLineResponse)
+async def generate_subject_lines(request: SubjectLineRequest):
+    """
+    Generate AI-powered email subject line suggestions.
+    """
+    model_name = os.getenv("OLLAMA_MODEL", "llama3.2")
+    
+    system_prompt = (
+        "You are an expert recruiter and email copywriter. "
+        "Generate 5 compelling, professional email subject lines for the given context. "
+        "Subject lines should be concise (under 60 characters), engaging, and appropriate for recruitment communication. "
+        "Return ONLY JSON with key 'suggestions' containing a list of 5 strings."
+    )
+    
+    context_details = f"Context: {request.context}"
+    if request.candidateName:
+        context_details += f"\nCandidate Name: {request.candidateName}"
+    if request.jobTitle:
+        context_details += f"\nJob Title: {request.jobTitle}"
+    if request.companyName:
+        context_details += f"\nCompany: {request.companyName}"
+    
+    user_prompt = f"{context_details}\n\nGenerate 5 subject line suggestions. Return JSON."
+    
+    payload = {
+        "model": model_name,
+        "stream": False,
+        "format": "json",
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+    }
+    
+    try:
+        req = urllib.request.Request(
+            "http://localhost:11434/api/chat",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            raw = resp.read().decode("utf-8")
+            resp_json = json.loads(raw)
+            
+        content = resp_json.get("message", {}).get("content", "")
+        content = content.replace("```json", "").replace("```", "").strip()
+        parsed = json.loads(content)
+        
+        return SubjectLineResponse(
+            suggestions=parsed.get("suggestions", [])[:5]
+        )
+    except Exception as e:
+        print(f"Subject Line Generation Error: {e}")
+        # Fallback suggestions based on context
+        fallback = {
+            "interview": [
+                f"Interview Invitation - {request.jobTitle or 'Open Position'}",
+                f"Next Steps: Schedule Your Interview",
+                f"We'd Love to Meet You - Interview Request",
+                f"Your Interview with {request.companyName or 'Our Team'}",
+                f"Exciting Opportunity - Let's Talk!",
+            ],
+            "offer": [
+                f"Congratulations! Your Offer from {request.companyName or 'Us'}",
+                f"Welcome Aboard - Your Offer Letter",
+                f"Great News: Job Offer for {request.jobTitle or 'the Role'}",
+                f"Your Future Awaits - Offer Inside",
+                f"We're Excited to Extend an Offer!",
+            ],
+            "rejection": [
+                f"Update on Your Application",
+                f"Thank You for Your Interest",
+                f"Application Status Update",
+                f"Regarding Your Application",
+                f"Following Up on Your Application",
+            ],
+            "followup": [
+                f"Following Up - {request.jobTitle or 'Your Application'}",
+                f"Quick Update on Your Application",
+                f"Checking In - Next Steps",
+                f"Application Status for {request.jobTitle or 'the Role'}",
+                f"We Haven't Forgotten About You!",
+            ],
+        }
+        
+        context_key = request.context.lower()
+        for key in fallback:
+            if key in context_key:
+                return SubjectLineResponse(suggestions=fallback[key])
+        
+        return SubjectLineResponse(suggestions=[
+            f"Regarding Your Application",
+            f"Important Update from {request.companyName or 'Our Team'}",
+            f"Next Steps in Your Journey",
+            f"We Have News for You",
+            f"Your Application Update",
+        ])
+
 
 if __name__ == "__main__":
     import uvicorn

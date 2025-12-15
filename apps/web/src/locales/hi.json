@@ -63,7 +63,9 @@
     "key": "कुंजी",
     "status": "स्थिति",
     "options": "विकल्प",
-    "confirmDelete": "क्या आप वाकई इस आइटम को हटाना चाहते हैं?"
+    "confirmDelete": "क्या आप वाकई इस आइटम को हटाना चाहते हैं?",
+    "saveChanges": "परिवर्तन सहेजें",
+    "update": "अपडेट करें"
   },
   "permissions": {
     "candidate": {

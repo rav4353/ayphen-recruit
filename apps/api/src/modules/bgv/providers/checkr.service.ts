@@ -191,4 +191,125 @@ export class CheckrService {
         const data = await response.json();
         return data.data || [];
     }
+
+    /**
+     * Test connection to Checkr API
+     */
+    async testConnection(config: CheckrConfig): Promise<{ success: boolean; message: string; accountInfo?: any }> {
+        const baseUrl = this.getBaseUrl(config.sandboxMode || false);
+        
+        try {
+            const response = await fetch(`${baseUrl}/account`, {
+                headers: {
+                    'Authorization': `Basic ${Buffer.from(`${config.apiKey}:`).toString('base64')}`,
+                },
+            });
+
+            if (!response.ok) {
+                const error = await response.text();
+                return { success: false, message: `API authentication failed: ${error}` };
+            }
+
+            const accountInfo = await response.json();
+            return { 
+                success: true, 
+                message: `Connected to Checkr account: ${accountInfo.name || 'Unknown'}`,
+                accountInfo,
+            };
+        } catch (error: any) {
+            return { success: false, message: `Connection failed: ${error.message}` };
+        }
+    }
+
+    /**
+     * Cancel a report/invitation
+     */
+    async cancelInvitation(config: CheckrConfig, invitationId: string): Promise<boolean> {
+        const baseUrl = this.getBaseUrl(config.sandboxMode || false);
+        
+        try {
+            const response = await fetch(`${baseUrl}/invitations/${invitationId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Basic ${Buffer.from(`${config.apiKey}:`).toString('base64')}`,
+                },
+            });
+
+            if (!response.ok) {
+                this.logger.warn(`Failed to cancel Checkr invitation ${invitationId}`);
+                return false;
+            }
+
+            return true;
+        } catch (error: any) {
+            this.logger.error(`Error canceling Checkr invitation: ${error.message}`);
+            return false;
+        }
+    }
+
+    /**
+     * Get invitation details
+     */
+    async getInvitation(config: CheckrConfig, invitationId: string): Promise<CheckrInvitation | null> {
+        const baseUrl = this.getBaseUrl(config.sandboxMode || false);
+        
+        try {
+            const response = await fetch(`${baseUrl}/invitations/${invitationId}`, {
+                headers: {
+                    'Authorization': `Basic ${Buffer.from(`${config.apiKey}:`).toString('base64')}`,
+                },
+            });
+
+            if (!response.ok) {
+                return null;
+            }
+
+            return response.json();
+        } catch (error: any) {
+            this.logger.error(`Error getting Checkr invitation: ${error.message}`);
+            return null;
+        }
+    }
+
+    /**
+     * Get candidate details
+     */
+    async getCandidate(config: CheckrConfig, candidateId: string): Promise<CheckrCandidate | null> {
+        const baseUrl = this.getBaseUrl(config.sandboxMode || false);
+        
+        try {
+            const response = await fetch(`${baseUrl}/candidates/${candidateId}`, {
+                headers: {
+                    'Authorization': `Basic ${Buffer.from(`${config.apiKey}:`).toString('base64')}`,
+                },
+            });
+
+            if (!response.ok) {
+                return null;
+            }
+
+            return response.json();
+        } catch (error: any) {
+            this.logger.error(`Error getting Checkr candidate: ${error.message}`);
+            return null;
+        }
+    }
+
+    /**
+     * List all screenings types available
+     */
+    getScreeningTypes(): { id: string; name: string; description: string }[] {
+        return [
+            { id: 'ssn_trace', name: 'SSN Trace', description: 'Verifies SSN and returns address history' },
+            { id: 'national_criminal_search', name: 'National Criminal Search', description: 'Searches national criminal databases' },
+            { id: 'county_criminal_search', name: 'County Criminal Search', description: 'Searches county court records' },
+            { id: 'federal_criminal_search', name: 'Federal Criminal Search', description: 'Searches federal court records' },
+            { id: 'motor_vehicle_report', name: 'Motor Vehicle Report', description: 'Driving history and license verification' },
+            { id: 'education_verification', name: 'Education Verification', description: 'Verifies degrees and attendance' },
+            { id: 'employment_verification', name: 'Employment Verification', description: 'Verifies past employment' },
+            { id: 'professional_license_verification', name: 'Professional License', description: 'Verifies professional licenses' },
+            { id: 'sex_offender_search', name: 'Sex Offender Search', description: 'Searches sex offender registries' },
+            { id: 'global_watchlist_search', name: 'Global Watchlist', description: 'Searches international watchlists' },
+        ];
+    }
 }

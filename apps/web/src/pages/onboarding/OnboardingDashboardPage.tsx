@@ -120,15 +120,15 @@ export function OnboardingDashboardPage() {
                                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                     <div className="flex items-center gap-3">
                                         <div className="w-10 h-10 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center text-primary-600 dark:text-primary-400 text-sm font-semibold">
-                                            {workflow.application.candidate.firstName[0]}
-                                            {workflow.application.candidate.lastName[0]}
+                                            {workflow.application?.candidate?.firstName?.[0] || '?'}
+                                            {workflow.application?.candidate?.lastName?.[0] || ''}
                                         </div>
                                         <div>
                                             <h4 className="font-medium text-sm text-neutral-900 dark:text-white">
-                                                {workflow.application.candidate.firstName} {workflow.application.candidate.lastName}
+                                                {workflow.application?.candidate?.firstName || ''} {workflow.application?.candidate?.lastName || 'Unknown'}
                                             </h4>
                                             <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                                                {workflow.application.job.title} • Starts {new Date(workflow.startDate).toLocaleDateString()}
+                                                {workflow.application?.job?.title || 'Position'} • Starts {workflow.startDate ? new Date(workflow.startDate).toLocaleDateString() : 'TBD'}
                                             </p>
                                         </div>
                                     </div>

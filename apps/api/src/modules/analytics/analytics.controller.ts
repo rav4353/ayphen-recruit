@@ -26,4 +26,15 @@ export class AnalyticsController {
     async getRecentActivity(@Request() req: any) {
         return this.analyticsService.getRecentActivity(req.user.tenantId);
     }
+
+    @Get('hiring-funnel')
+    async getHiringFunnel(@Request() req: any) {
+        const jobId = req.query.jobId;
+        return this.analyticsService.getHiringFunnel(req.user.tenantId, jobId);
+    }
+
+    @Get('source-effectiveness')
+    async getSourceEffectiveness(@Request() req: any) {
+        return this.analyticsService.getSourceEffectiveness(req.user.tenantId);
+    }
 }

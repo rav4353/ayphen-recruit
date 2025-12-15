@@ -1,4 +1,4 @@
-import { IsString, IsEnum, IsDateString, IsInt, IsOptional, Min } from 'class-validator';
+import { IsString, IsEnum, IsDateString, IsInt, IsOptional, Min, IsBoolean } from 'class-validator';
 import { InterviewType } from '@prisma/client';
 
 export class CreateInterviewDto {
@@ -29,4 +29,8 @@ export class CreateInterviewDto {
     @IsOptional()
     @IsString()
     notes?: string;
+
+    @IsOptional()
+    @IsBoolean()
+    syncToCalendar?: boolean;
 }

@@ -376,8 +376,15 @@ export function JobForm({ initialData, mode, onSubmit, onCancel, isSubmitting = 
     };
 
     const onSubmitForm = async (data: JobFormData) => {
-        await onSubmit(data, false);
+        // Set success flag BEFORE calling onSubmit to prevent unsaved changes warning during navigation
         setIsSubmitSuccess(true);
+        await onSubmit(data, false);
+    };
+
+    const onSubmitWithApproval = async (data: JobFormData) => {
+        // Set success flag BEFORE calling onSubmit to prevent unsaved changes warning during navigation
+        setIsSubmitSuccess(true);
+        await onSubmit(data, true);
     };
 
     if (isDirty && !hasUnsavedChanges) {
@@ -709,13 +716,13 @@ export function JobForm({ initialData, mode, onSubmit, onCancel, isSubmitting = 
                                         }
                                     })}
                                 >
-                                    <option value="new" className="font-medium text-blue-600">+ Create New Template</option>
                                     <option value="">{t('jobs.create.form.selectScorecard', 'Default (Standard Scorecard)')}</option>
                                     {scorecardTemplates.map((template) => (
                                         <option key={template.id} value={template.id}>
                                             {template.name}
                                         </option>
                                     ))}
+                                    <option value="new" className="font-medium text-blue-600">+ Create New Template</option>
                                 </select>
                             </div>
 
@@ -960,22 +967,28 @@ export function JobForm({ initialData, mode, onSubmit, onCancel, isSubmitting = 
                                             )}
                                         </div>
 
-                                        <div>
-                                            <strong>{t('jobs.create.form.description')}:</strong>
-                                            <div className="mt-1 prose prose-sm max-w-none dark:prose-invert" dangerouslySetInnerHTML={{ __html: formData.description }} />
-                                        </div>
-                                        <div>
-                                            <strong>{t('jobs.create.form.requirements')}:</strong>
-                                            <div className="mt-1 prose prose-sm max-w-none dark:prose-invert" dangerouslySetInnerHTML={{ __html: formData.requirements }} />
-                                        </div>
-                                        <div>
-                                            <strong>{t('jobs.create.form.responsibilities')}:</strong>
-                                            <div className="mt-1 prose prose-sm max-w-none dark:prose-invert" dangerouslySetInnerHTML={{ __html: formData.responsibilities }} />
-                                        </div>
+                                        {formData.description && (
+                                            <div>
+                                                <strong>{t('jobs.create.form.description')}:</strong>
+                                                <p className="mt-1 whitespace-pre-wrap">{formData.description}</p>
+                                            </div>
+                                        )}
+                                        {formData.requirements && (
+                                            <div>
+                                                <strong>{t('jobs.create.form.requirements')}:</strong>
+                                                <p className="mt-1 whitespace-pre-wrap">{formData.requirements}</p>
+                                            </div>
+                                        )}
+                                        {formData.responsibilities && (
+                                            <div>
+                                                <strong>{t('jobs.create.form.responsibilities')}:</strong>
+                                                <p className="mt-1 whitespace-pre-wrap">{formData.responsibilities}</p>
+                                            </div>
+                                        )}
                                         {formData.benefits && (
                                             <div>
                                                 <strong>{t('jobs.create.form.benefits')}:</strong>
-                                                <div className="mt-1 prose prose-sm max-w-none dark:prose-invert" dangerouslySetInnerHTML={{ __html: formData.benefits }} />
+                                                <p className="mt-1 whitespace-pre-wrap">{formData.benefits}</p>
                                             </div>
                                         )}
                                     </div>
@@ -1004,23 +1017,27 @@ export function JobForm({ initialData, mode, onSubmit, onCancel, isSubmitting = 
                                     </div>
                                 )}
 
-                                {/* Custom Fields Section */}
-                                {customFieldsConfig.length > 0 && formData.customFields && (
-                                    <div className="border-t border-neutral-200 dark:border-neutral-700 pt-4">
-                                        <h3 className="font-medium text-neutral-900 dark:text-white mb-2">{t('jobs.create.form.additionalInfo')}</h3>
-                                        <div className="text-sm text-neutral-600 dark:text-neutral-400 grid grid-cols-2 gap-x-4 gap-y-2">
-                                            {customFieldsConfig.map((field) => {
-                                                const value = formData.customFields?.[field.key];
-                                                if (!value && value !== false && value !== 0) return null;
-                                                return (
-                                                    <div key={field.key}>
-                                                        <span className="font-medium">{field.label}:</span> {typeof value === 'boolean' ? (value ? t('common.yes') : t('common.no')) : value.toString()}
-                                                    </div>
-                                                );
-                                            })}
+                                {/* Custom Fields Section - only show if at least one field has a value */}
+                                {customFieldsConfig.length > 0 && formData.customFields &&
+                                    customFieldsConfig.some(field => {
+                                        const value = formData.customFields?.[field.key];
+                                        return value || value === false || value === 0;
+                                    }) && (
+                                        <div className="border-t border-neutral-200 dark:border-neutral-700 pt-4">
+                                            <h3 className="font-medium text-neutral-900 dark:text-white mb-2">{t('jobs.create.form.additionalInfo')}</h3>
+                                            <div className="text-sm text-neutral-600 dark:text-neutral-400 grid grid-cols-2 gap-x-4 gap-y-2">
+                                                {customFieldsConfig.map((field) => {
+                                                    const value = formData.customFields?.[field.key];
+                                                    if (!value && value !== false && value !== 0) return null;
+                                                    return (
+                                                        <div key={field.key}>
+                                                            <span className="font-medium">{field.label}:</span> {typeof value === 'boolean' ? (value ? t('common.yes') : t('common.no')) : value.toString()}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
                                         </div>
-                                    </div>
-                                )}
+                                    )}
                             </div>
 
                         </div>
@@ -1055,7 +1072,7 @@ export function JobForm({ initialData, mode, onSubmit, onCancel, isSubmitting = 
                                     type="button"
                                     variant="secondary"
                                     isLoading={isSubmitting}
-                                    onClick={handleSubmit((data) => onSubmit(data, true))}
+                                    onClick={handleSubmit(onSubmitWithApproval)}
                                     className="gap-2"
                                 >
                                     {t('jobs.create.form.submitApproval')}

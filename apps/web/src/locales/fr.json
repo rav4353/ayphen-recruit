@@ -100,6 +100,17 @@
       "view": "Voir les rapports"
     }
   },
+  "campaigns": {
+    "title": "Campagnes",
+    "description": "Gérer les campagnes d'e-mails en masse",
+    "send": "Envoyer la campagne",
+    "create": "Créer une campagne",
+    "subject": "Sujet",
+    "message": "Message",
+    "recipients": "Destinataires",
+    "success": "Campagne envoyée à {{count}} candidats",
+    "error": "Échec de l'envoi de la campagne"
+  },
   "auth": {
     "login": {
       "title": "Bon retour",

@@ -1341,6 +1341,98 @@ export const customReportsApi = {
   deleteReport: (id: string) => api.delete(`/custom-reports/saved/${id}`),
 };
 
+// ==================== CANDIDATE SOURCING ====================
+
+export const sourcingApi = {
+  // Sourced Candidates CRUD
+  create: (data: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone?: string;
+    currentTitle?: string;
+    currentCompany?: string;
+    location?: string;
+    skills?: string[];
+    experience?: string;
+    profileUrl?: string;
+    linkedinUrl?: string;
+    resumeUrl?: string;
+    summary?: string;
+    source?: string;
+    sourceDetails?: string;
+    rating?: number;
+    notes?: string;
+    targetJobId?: string;
+  }) => api.post('/sourcing', data),
+
+  getAll: (params?: {
+    search?: string;
+    status?: string;
+    source?: string;
+    skills?: string[];
+    location?: string;
+    page?: number;
+    take?: number;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
+  }) => api.get('/sourcing', { params }),
+
+  getById: (id: string) => api.get(`/sourcing/${id}`),
+
+  update: (id: string, data: {
+    firstName?: string;
+    lastName?: string;
+    phone?: string;
+    currentTitle?: string;
+    currentCompany?: string;
+    location?: string;
+    skills?: string[];
+    experience?: string;
+    profileUrl?: string;
+    linkedinUrl?: string;
+    resumeUrl?: string;
+    summary?: string;
+    status?: string;
+    rating?: number;
+    notes?: string;
+  }) => api.put(`/sourcing/${id}`, data),
+
+  delete: (id: string) => api.delete(`/sourcing/${id}`),
+
+  // Statistics
+  getStats: () => api.get('/sourcing/stats'),
+
+  // Channels and statuses
+  getChannels: () => api.get('/sourcing/channels'),
+
+  // Suggested candidates for a job
+  getSuggestedCandidates: (jobId: string) => api.get(`/sourcing/suggested/${jobId}`),
+
+  // Outreach
+  recordOutreach: (data: {
+    sourcedCandidateId: string;
+    type: 'EMAIL' | 'LINKEDIN' | 'PHONE' | 'OTHER';
+    subject?: string;
+    message?: string;
+    notes?: string;
+  }) => api.post('/sourcing/outreach', data),
+
+  bulkOutreach: (data: {
+    sourcedCandidateIds: string[];
+    subject: string;
+    message: string;
+    templateId?: string;
+  }) => api.post('/sourcing/bulk-outreach', data),
+
+  // Pipeline
+  addToPipeline: (data: {
+    sourcedCandidateId: string;
+    jobId: string;
+    coverLetter?: string;
+  }) => api.post('/sourcing/add-to-pipeline', data),
+};
+
 // ==================== AUDIT LOGS ====================
 
 export const auditLogApi = {

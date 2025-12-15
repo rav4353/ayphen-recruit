@@ -115,7 +115,9 @@
     "create": "Create Campaign",
     "subject": "Subject",
     "message": "Message",
-    "recipients": "Recipients"
+    "recipients": "Recipients",
+    "success": "Campaign sent to {{count}} candidates",
+    "error": "Failed to send email campaign"
   },
   "auth": {
     "login": {

@@ -43,6 +43,8 @@ import { AssessmentsModule } from './modules/assessments/assessments.module';
 import { CareerSiteModule } from './modules/career-site/career-site.module';
 import { BulkImportModule } from './modules/bulk-import/bulk-import.module';
 import { AuditModule } from './modules/audit/audit.module';
+import { SourcingModule } from './modules/sourcing/sourcing.module';
+import { TalentPoolsModule } from './modules/talent-pools/talent-pools.module';
 
 @Module({
   imports: [
@@ -102,6 +104,8 @@ import { AuditModule } from './modules/audit/audit.module';
     CareerSiteModule,
     BulkImportModule,
     AuditModule,
+    SourcingModule,
+    TalentPoolsModule,
 
     // Serve static files (uploads)
     ServeStaticModule.forRoot({

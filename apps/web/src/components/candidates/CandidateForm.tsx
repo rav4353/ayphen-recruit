@@ -126,19 +126,21 @@ export function CandidateForm({
                                 removeExperience();
                                 data.experience.forEach((exp: any) => {
                                     appendExperience({
-                                        title: exp.title || '',
-                                        company: exp.company || '',
-                                        startDate: exp.startDate || '',
-                                        endDate: exp.endDate || '',
-                                        current: exp.current || false,
-                                        description: exp.description || ''
+                                        title: exp.title || exp.role || '',
+                                        company: exp.company || exp.organization || '',
+                                        startDate: exp.startDate || exp.start_date || '',
+                                        endDate: exp.endDate || exp.end_date || '',
+                                        current: exp.current || (!exp.endDate && !exp.end_date) || false,
+                                        description: exp.description || exp.summary || ''
                                     });
                                 });
 
                                 if (data.experience.length > 0) {
                                     const current = data.experience[0];
-                                    if (current.title) setValue('currentTitle', current.title, options);
-                                    if (current.company) setValue('currentCompany', current.company, options);
+                                    const title = current.title || current.role;
+                                    const company = current.company || current.organization;
+                                    if (title) setValue('currentTitle', title, options);
+                                    if (company) setValue('currentCompany', company, options);
                                     fieldsFound++;
                                 }
                             }
@@ -147,10 +149,16 @@ export function CandidateForm({
                             if (data.education && Array.isArray(data.education)) {
                                 removeEducation();
                                 data.education.forEach((edu: any) => {
+                                    // Combine degree and field (major) if available
+                                    let degree = edu.degree || '';
+                                    if (edu.field && !degree.toLowerCase().includes(edu.field.toLowerCase())) {
+                                        degree = degree ? `${degree} in ${edu.field}` : edu.field;
+                                    }
+
                                     appendEducation({
-                                        degree: edu.degree || '',
-                                        institution: edu.institution || '',
-                                        year: edu.year || ''
+                                        degree: degree,
+                                        institution: edu.institution || edu.school || '',
+                                        year: edu.year || edu.graduationYear || edu.endDate || ''
                                     });
                                 });
                                 if (data.education.length > 0) fieldsFound++;

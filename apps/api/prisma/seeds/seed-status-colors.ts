@@ -10,7 +10,7 @@ const DEFAULT_STATUS_COLORS = {
         ON_HOLD: { bg: '#FEF3C7', text: '#92400E' },
         PENDING_APPROVAL: { bg: '#DBEAFE', text: '#1E40AF' },
         APPROVED: { bg: '#E0E7FF', text: '#3730A3' },
-        CANCELLED: { bg: '#F3F4F6', text: '#374151' },
+        CANCELLED: { bg: '#FEE2E2', text: '#991B1B' },
     },
     application: {
         APPLIED: { bg: '#DBEAFE', text: '#1E40AF' },
@@ -32,30 +32,28 @@ async function main() {
 
     for (const tenant of tenants) {
         // Check if status_colors setting already exists
-        const existing = await prisma.setting.findUnique({
+        // Upsert status colors setting to force update defaults
+        await prisma.setting.upsert({
             where: {
                 tenantId_key: {
                     tenantId: tenant.id,
                     key: 'status_colors',
                 },
             },
+            update: {
+                value: DEFAULT_STATUS_COLORS,
+                category: 'APPEARANCE',
+                isPublic: true,
+            },
+            create: {
+                tenantId: tenant.id,
+                key: 'status_colors',
+                value: DEFAULT_STATUS_COLORS,
+                category: 'APPEARANCE',
+                isPublic: true,
+            },
         });
-
-        if (!existing) {
-            // Create default status colors setting
-            await prisma.setting.create({
-                data: {
-                    tenantId: tenant.id,
-                    key: 'status_colors',
-                    value: DEFAULT_STATUS_COLORS,
-                    category: 'APPEARANCE',
-                    isPublic: true,
-                },
-            });
-            console.log(`✓ Created default status colors for tenant: ${tenant.name}`);
-        } else {
-            console.log(`- Status colors already exist for tenant: ${tenant.name}`);
-        }
+        console.log(`✓ Updated status colors for tenant: ${tenant.name}`);
     }
 
     console.log('Seeding completed!');

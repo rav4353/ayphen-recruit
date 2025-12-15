@@ -65,7 +65,8 @@
     "options": "विकल्प",
     "confirmDelete": "क्या आप वाकई इस आइटम को हटाना चाहते हैं?",
     "saveChanges": "परिवर्तन सहेजें",
-    "update": "अपडेट करें"
+    "update": "अपडेट करें",
+    "select": "चुनें"
   },
   "permissions": {
     "candidate": {
@@ -167,21 +168,21 @@
       "invalidToken": "अमान्य या समाप्त रीसेट लिंक"
     },
     "verifyEmail": {
-      "title": "Verify your email",
-      "description": "Enter the code we sent to your email to verify your account",
-      "email": "Email",
-      "emailPlaceholder": "you@email.com",
-      "code": "Verification code",
-      "verify": "Verify email",
-      "verifying": "Verifying...",
-      "success": "Email verified successfully. You can now sign in.",
-      "invalidCode": "Invalid or expired verification code.",
-      "resend": "Resend code",
-      "resending": "Resending...",
-      "resent": "Verification code resent.",
-      "resendFailed": "Failed to resend verification code. Please try again.",
-      "backToLogin": "Back to login",
-      "alreadyVerified": "Already verified?"
+      "title": "अपना ईमेल सत्यापित करें",
+      "description": "अपने खाते को सत्यापित करने के लिए हमने आपके ईमेल पर भेजा गया कोड दर्ज करें",
+      "email": "ईमेल",
+      "emailPlaceholder": "आप@email.com",
+      "code": "सत्यापन कोड",
+      "verify": "ईमेल सत्यापित करें",
+      "verifying": "सत्यापित हो रहा है...",
+      "success": "ईमेल सफलतापूर्वक सत्यापित। अब आप साइन इन कर सकते हैं।",
+      "invalidCode": "अमान्य या समाप्त सत्यापन कोड।",
+      "resend": "कोड पुनः भेजें",
+      "resending": "पुनः भेजा जा रहा है...",
+      "resent": "सत्यापन कोड पुनः भेजा गया।",
+      "resendFailed": "सत्यापन कोड पुनः भेजने में विफल। कृपया पुनः प्रयास करें।",
+      "backToLogin": "लॉगिन पर वापस जाएं",
+      "alreadyVerified": "पहले से सत्यापित?"
     },
     "magicLink": {
       "title": "मैजिक लिंक लॉगिन",
@@ -243,7 +244,9 @@
       "passwordWeak": "पासवर्ड बहुत कमजोर है",
       "passwordsDoNotMatch": "पासवर्ड मेल नहीं खाते",
       "firstNameRequired": "पहला नाम आवश्यक है",
-      "lastNameRequired": "अंतिम नाम आवश्यक है"
+      "lastNameRequired": "अंतिम नाम आवश्यक है",
+      "required": "आवश्यक",
+      "isRequired": "आवश्यक है"
     }
   },
   "theme": {
@@ -363,7 +366,8 @@
         "suggestedKeywords": "सुझाए गए कीवर्ड:",
         "suggestions": "सुझाव:",
         "submitApproval": "अनुमोदन के लिए जमा करें",
-        "create": "नौकरी बनाएं"
+        "create": "नौकरी बनाएं",
+        "additionalInfo": "अतिरिक्त जानकारी"
       },
       "success": "नौकरी सफलतापूर्वक बनाई गई",
       "error": "नौकरी बनाने में विफल",
@@ -552,7 +556,17 @@
       "linkedinUrl": "लिंक्डइन URL",
       "portfolioUrl": "पोर्टफोलियो URL",
       "skills": "कौशल (अल्पविराम से अलग)",
-      "summary": "सारांश"
+      "summary": "सारांश",
+      "status": "आवेदन स्थिति",
+      "source": "स्रोत",
+      "title": "नौकरी का शीर्षक",
+      "company": "कंपनी",
+      "startDate": "प्रारंभ तिथि",
+      "endDate": "समाप्ति तिथि",
+      "description": "विवरण",
+      "degree": "डिग्री",
+      "institution": "संस्थान",
+      "year": "वर्ष"
     },
     "applicationsCount": "आवेदन",
     "bulkDeleteTitle": "उम्मीदवारों को हटाएं",
@@ -564,7 +578,12 @@
     "merge": "विलय करें",
     "noApplications": "कोई सक्रिय आवेदन नहीं",
     "resume": "रिज्यूमे",
-    "manual": "मैन्युअल प्रविष्टि"
+    "manual": "मैन्युअल प्रविष्टि",
+    "appliedOn": "पर आवेदन किया",
+    "unknownJob": "अज्ञात नौकरी",
+    "match": "मिलान",
+    "aiAnalysis": "AI विश्लेषण",
+    "present": "वर्तमान"
   },
   "pipeline": {
     "title": "पाइपलाइन",
@@ -645,7 +664,10 @@
       "culturalFit": "सांस्कृतिक फिट मूल्यांकन",
       "culturalFitDesc": "कंपनी के मूल्यों के बारे में सभी उम्मीदवारों के लिए मानक प्रश्न।",
       "questions": "प्रश्न",
-      "general": "सामान्य"
+      "general": "सामान्य",
+      "seniorEngineer": "वरिष्ठ इंजीनियर तकनीकी",
+      "seniorEngineerDesc": "सिस्टम डिज़ाइन और कोडिंग मानकों का मूल्यांकन।",
+      "engineering": "इंजीनियरिंग"
     },
     "interviews": {
       "addType": "प्रकार जोड़ें",
@@ -850,7 +872,10 @@
       "fillRequired": "कृपया सभी आवश्यक फ़ील्ड भरें",
       "success": "प्रस्ताव सफलतापूर्वक बनाया गया",
       "error": "प्रस्ताव बनाने में विफल",
-      "loadError": "प्रारंभिक डेटा लोड करने में विफल"
+      "loadError": "प्रारंभिक डेटा लोड करने में विफल",
+      "createNewTemplate": "नया टेम्पलेट बनाएं",
+      "noTemplates": "कोई टेम्पलेट नहीं मिला।",
+      "createTemplate": "सेटिंग्स में एक बनाएं"
     },
     "detail": {
       "loadError": "प्रस्ताव विवरण लोड करने में विफल",
@@ -988,7 +1013,12 @@
     "skills": "कौशल"
   },
   "inbox": {
-    "title": "इनबॉक्स"
+    "title": "संदेश",
+    "noThreads": "कोई संदेश नहीं मिला",
+    "noSubject": "कोई विषय नहीं",
+    "noContent": "कोई सामग्री नहीं",
+    "selectPrompt": "एक वार्तालाप चुनें",
+    "selectPromptDesc": "वार्तालाप इतिहास देखने के लिए बाईं ओर से एक थ्रेड चुनें।"
   },
   "reports": {
     "title": "रिपोर्ट",

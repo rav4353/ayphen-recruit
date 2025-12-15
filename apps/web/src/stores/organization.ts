@@ -10,6 +10,8 @@ interface OrganizationSettings {
   currency: string;
   dateFormat: string;
   language: string;
+  weekStartsOn: string;
+  numberFormat: string;
 }
 
 interface OrganizationState {
@@ -29,6 +31,8 @@ const defaultSettings: OrganizationSettings = {
   currency: 'USD',
   dateFormat: 'MM/DD/YYYY',
   language: 'en',
+  weekStartsOn: 'sunday',
+  numberFormat: 'en-US',
 };
 
 export const useOrganizationStore = create<OrganizationState>()(

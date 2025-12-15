@@ -17,6 +17,13 @@ export class ReferenceController {
         return this.referenceService.getCurrencies();
     }
 
+    @Get('timezones')
+    @ApiOperation({ summary: 'Get list of supported timezones' })
+    @ApiResponse({ status: 200, description: 'Return all timezones.' })
+    getTimezones() {
+        return this.referenceService.getTimezones();
+    }
+
     // Locations CRUD
     @Get('locations')
     @UseGuards(JwtAuthGuard)

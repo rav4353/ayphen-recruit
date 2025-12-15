@@ -65,7 +65,8 @@
     "options": "Options",
     "confirmDelete": "Are you sure you want to delete this item?",
     "saveChanges": "Save Changes",
-    "update": "Update"
+    "update": "Update",
+    "select": "Select"
   },
   "permissions": {
     "candidate": {
@@ -125,6 +126,7 @@
       "accountLocked": "Account locked. Please try again later.",
       "orContinueWith": "Or continue with",
       "otp": "Sign in with OTP",
+      "magicLink": "Sign in with Magic Link",
       "signInWithGoogle": "Sign in with Google"
     },
     "register": {
@@ -189,6 +191,22 @@
       "resendFailed": "Failed to resend verification code. Please try again.",
       "backToLogin": "Back to login",
       "alreadyVerified": "Already verified?"
+    },
+    "magicLink": {
+      "title": "Magic Link Login",
+      "description": "Sign in with a link sent to your email",
+      "email": "Email",
+      "emailPlaceholder": "you@email.com",
+      "sendMagicLink": "Send Magic Link",
+      "sending": "Sending...",
+      "checkEmail": "Check your email",
+      "linkSent": "We sent a magic link to {{email}}. Click the link to sign in.",
+      "sendFailed": "Failed to send magic link. Please try again.",
+      "verifying": "Verifying magic link...",
+      "invalidLink": "Invalid or expired magic link",
+      "signInWithPassword": "Sign in with password",
+      "resendLink": "Resend link",
+      "resendIn": "Resend in {{seconds}}s"
     },
     "otp": {
       "title": "OTP Login",
@@ -546,7 +564,17 @@
       "linkedinUrl": "LinkedIn URL",
       "portfolioUrl": "Portfolio URL",
       "skills": "Skills (comma separated)",
-      "summary": "Summary"
+      "summary": "Summary",
+      "status": "Application Status",
+      "source": "Source",
+      "title": "Job Title",
+      "company": "Company",
+      "startDate": "Start Date",
+      "endDate": "End Date",
+      "description": "Description",
+      "degree": "Degree",
+      "institution": "Institution",
+      "year": "Year"
     },
     "applicationsCount": "Applications",
     "bulkDeleteTitle": "Delete Candidates",
@@ -866,7 +894,10 @@
       "fillRequired": "Please fill in all required fields",
       "success": "Offer created successfully",
       "error": "Failed to create offer",
-      "loadError": "Failed to load initial data"
+      "loadError": "Failed to load initial data",
+      "createNewTemplate": "Create New Template",
+      "noTemplates": "No templates found.",
+      "createTemplate": "Create one in Settings"
     },
     "detail": {
       "loadError": "Failed to load offer details",

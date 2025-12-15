@@ -17,6 +17,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '../ui';
+import { PhoneInput } from '../ui/PhoneInput';
 import { Plus, Trash2, Upload, Building2, Languages, MapPin, Users, Edit } from 'lucide-react';
 import { settingsApi, storageApi, referenceApi } from '../../lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -226,31 +227,6 @@ const localizationSchema = z.object({
 type OrgProfileForm = z.infer<typeof orgProfileSchema>;
 type LocalizationForm = z.infer<typeof localizationSchema>;
 
-const TIMEZONES = [
-    { value: 'UTC', label: 'UTC (Coordinated Universal Time)' },
-    { value: 'America/New_York', label: 'EST (Eastern Standard Time)' },
-    { value: 'America/Chicago', label: 'CST (Central Standard Time)' },
-    { value: 'America/Denver', label: 'MST (Mountain Standard Time)' },
-    { value: 'America/Los_Angeles', label: 'PST (Pacific Standard Time)' },
-    { value: 'Europe/London', label: 'GMT (Greenwich Mean Time)' },
-    { value: 'Europe/Paris', label: 'CET (Central European Time)' },
-    { value: 'Asia/Kolkata', label: 'IST (India Standard Time)' },
-    { value: 'Asia/Tokyo', label: 'JST (Japan Standard Time)' },
-    { value: 'Asia/Shanghai', label: 'CST (China Standard Time)' },
-    { value: 'Australia/Sydney', label: 'AEST (Australian Eastern Time)' },
-];
-
-const CURRENCIES = [
-    { value: 'USD', label: 'USD ($) - US Dollar', symbol: '$' },
-    { value: 'EUR', label: 'EUR (€) - Euro', symbol: '€' },
-    { value: 'GBP', label: 'GBP (£) - British Pound', symbol: '£' },
-    { value: 'INR', label: 'INR (₹) - Indian Rupee', symbol: '₹' },
-    { value: 'JPY', label: 'JPY (¥) - Japanese Yen', symbol: '¥' },
-    { value: 'CNY', label: 'CNY (¥) - Chinese Yuan', symbol: '¥' },
-    { value: 'AUD', label: 'AUD ($) - Australian Dollar', symbol: '$' },
-    { value: 'CAD', label: 'CAD ($) - Canadian Dollar', symbol: '$' },
-];
-
 const DATE_FORMATS = [
     { value: 'MM/DD/YYYY', label: 'MM/DD/YYYY (US)', example: '12/31/2024' },
     { value: 'DD/MM/YYYY', label: 'DD/MM/YYYY (UK/EU)', example: '31/12/2024' },
@@ -261,13 +237,8 @@ const DATE_FORMATS = [
 
 const LANGUAGES = [
     { value: 'en', label: 'English' },
-    { value: 'es', label: 'Español (Spanish)' },
     { value: 'fr', label: 'Français (French)' },
-    { value: 'de', label: 'Deutsch (German)' },
-    { value: 'pt', label: 'Português (Portuguese)' },
     { value: 'hi', label: 'हिन्दी (Hindi)' },
-    { value: 'ja', label: '日本語 (Japanese)' },
-    { value: 'zh', label: '中文 (Chinese)' },
 ];
 
 export function GeneralSettings() {
@@ -278,6 +249,27 @@ export function GeneralSettings() {
     const [isSavingProfile, setIsSavingProfile] = useState(false);
     const [isSavingLocalization, setIsSavingLocalization] = useState(false);
     const { setSettings, setLogoUrl: setStoreLogo } = useOrganizationStore();
+
+    // Fetch Reference Data
+    const { data: currencies = [] } = useQuery({
+        queryKey: ['currencies'],
+        queryFn: async () => {
+            const response = await referenceApi.getCurrencies();
+            const list = Array.isArray(response.data) ? response.data : (response.data?.data || []);
+            return list.map((c: any) => ({
+                value: c.code,
+                label: `${c.code} (${c.symbol}) - ${c.name}`
+            }));
+        }
+    });
+
+    const { data: timezones = [] } = useQuery({
+        queryKey: ['timezones'],
+        queryFn: async () => {
+            const response = await referenceApi.getTimezones();
+            return Array.isArray(response.data) ? response.data : (response.data?.data || []);
+        }
+    });
 
     const orgProfileForm = useForm<OrgProfileForm>({
         resolver: zodResolver(orgProfileSchema),
@@ -311,9 +303,9 @@ export function GeneralSettings() {
                 const response = await settingsApi.getAll();
                 // Handle both wrapped and unwrapped response formats
                 const settings = Array.isArray(response.data) ? response.data : (response.data?.data || response.data || []);
-                
+
                 console.log('Loaded settings:', settings);
-                
+
                 // Find organization profile settings
                 const orgProfile = Array.isArray(settings) ? settings.find((s: any) => s.key === 'organization_profile') : null;
                 if (orgProfile?.value) {
@@ -547,11 +539,11 @@ export function GeneralSettings() {
         <div className="space-y-8 max-w-4xl">
             {/* Organization Profile */}
             <Card className="overflow-hidden">
-                <CardHeader 
-                    title="Organization Profile" 
+                <CardHeader
+                    title="Organization Profile"
                     description="Manage your company details. The logo will be displayed in the application header."
                     icon={<Building2 size={20} className="text-blue-500" />}
-                    className="border-b border-neutral-100 dark:border-neutral-800" 
+                    className="border-b border-neutral-100 dark:border-neutral-800"
                 />
                 <CardContent className="pt-6">
                     <form onSubmit={orgProfileForm.handleSubmit(onSaveOrgProfile)} className="space-y-6">
@@ -560,9 +552,9 @@ export function GeneralSettings() {
                             <div className="relative group">
                                 {logoUrl ? (
                                     <div className="relative">
-                                        <img 
-                                            src={logoUrl} 
-                                            alt="Organization Logo" 
+                                        <img
+                                            src={logoUrl}
+                                            alt="Organization Logo"
                                             className="w-24 h-24 object-contain rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-2"
                                         />
                                         <button
@@ -596,9 +588,9 @@ export function GeneralSettings() {
                                         className="hidden"
                                         id="logo-upload"
                                     />
-                                    <Button 
-                                        type="button" 
-                                        variant="outline" 
+                                    <Button
+                                        type="button"
+                                        variant="outline"
                                         size="sm"
                                         onClick={() => fileInputRef.current?.click()}
                                         isLoading={isUploadingLogo}
@@ -608,9 +600,9 @@ export function GeneralSettings() {
                                         {logoUrl ? 'Change Logo' : 'Upload Logo'}
                                     </Button>
                                     {logoUrl && (
-                                        <Button 
-                                            type="button" 
-                                            variant="ghost" 
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
                                             size="sm"
                                             onClick={handleRemoveLogo}
                                             className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
@@ -638,7 +630,18 @@ export function GeneralSettings() {
                             </div>
                             <div className="space-y-2">
                                 <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Phone</Label>
-                                <Input {...orgProfileForm.register('phone')} placeholder="+1 (555) 000-0000" />
+                                <Controller
+                                    name="phone"
+                                    control={orgProfileForm.control}
+                                    render={({ field }) => (
+                                        <PhoneInput
+                                            value={field.value || ''}
+                                            onChange={field.onChange}
+                                            placeholder="+1 (555) 000-0000"
+                                            error={orgProfileForm.formState.errors.phone?.message}
+                                        />
+                                    )}
+                                />
                             </div>
                             <div className="space-y-2">
                                 <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Email</Label>
@@ -650,8 +653,8 @@ export function GeneralSettings() {
                             </div>
                             <div className="space-y-2 md:col-span-2">
                                 <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Description</Label>
-                                <textarea 
-                                    {...orgProfileForm.register('description')} 
+                                <textarea
+                                    {...orgProfileForm.register('description')}
                                     placeholder="Brief description of your organization..."
                                     className="w-full px-4 py-2.5 rounded-lg bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all resize-none h-24"
                                 />
@@ -666,11 +669,11 @@ export function GeneralSettings() {
 
             {/* Localization */}
             <Card className="overflow-hidden">
-                <CardHeader 
-                    title="Localization" 
+                <CardHeader
+                    title="Localization"
                     description="Configure timezone, currency, date format, and language preferences for your organization."
                     icon={<Languages size={20} className="text-purple-500" />}
-                    className="border-b border-neutral-100 dark:border-neutral-800" 
+                    className="border-b border-neutral-100 dark:border-neutral-800"
                 />
                 <CardContent className="pt-6">
                     <form onSubmit={localizationForm.handleSubmit(onSaveLocalization)} className="space-y-6">
@@ -686,7 +689,7 @@ export function GeneralSettings() {
                                                 <SelectValue placeholder="Select timezone" />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                {TIMEZONES.map((tz) => (
+                                                {timezones.map((tz: any) => (
                                                     <SelectItem key={tz.value} value={tz.value}>
                                                         {tz.label}
                                                     </SelectItem>
@@ -708,7 +711,7 @@ export function GeneralSettings() {
                                                 <SelectValue placeholder="Select currency" />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                {CURRENCIES.map((curr) => (
+                                                {currencies.map((curr: any) => (
                                                     <SelectItem key={curr.value} value={curr.value}>
                                                         {curr.label}
                                                     </SelectItem>
@@ -816,11 +819,11 @@ export function GeneralSettings() {
 
             {/* Locations */}
             <Card className="overflow-hidden">
-                <CardHeader 
-                    title="Locations" 
+                <CardHeader
+                    title="Locations"
                     description="Manage your office locations."
                     icon={<MapPin size={20} className="text-green-500" />}
-                    className="border-b border-neutral-100 dark:border-neutral-800" 
+                    className="border-b border-neutral-100 dark:border-neutral-800"
                 />
                 <CardContent className="pt-6 space-y-4">
                     {locationsLoading ? (
@@ -847,17 +850,17 @@ export function GeneralSettings() {
                                         )}
                                     </div>
                                     <div className="flex items-center gap-1">
-                                        <Button 
-                                            variant="ghost" 
-                                            size="icon" 
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
                                             className="text-neutral-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 h-8 w-8"
                                             onClick={() => { setEditingLocation(loc); setLocationModalOpen(true); }}
                                         >
                                             <Edit size={16} />
                                         </Button>
-                                        <Button 
-                                            variant="ghost" 
-                                            size="icon" 
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
                                             className="text-neutral-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 h-8 w-8"
                                             onClick={() => setDeleteLocationId(loc.id)}
                                         >
@@ -868,8 +871,8 @@ export function GeneralSettings() {
                             ))}
                         </div>
                     )}
-                    <Button 
-                        variant="outline" 
+                    <Button
+                        variant="outline"
                         className="w-full gap-2 border-dashed"
                         onClick={() => { setEditingLocation(null); setLocationModalOpen(true); }}
                     >
@@ -906,11 +909,11 @@ export function GeneralSettings() {
 
             {/* Departments */}
             <Card className="overflow-hidden">
-                <CardHeader 
-                    title="Departments" 
+                <CardHeader
+                    title="Departments"
                     description="Manage your organization's departments."
                     icon={<Users size={20} className="text-orange-500" />}
-                    className="border-b border-neutral-100 dark:border-neutral-800" 
+                    className="border-b border-neutral-100 dark:border-neutral-800"
                 />
                 <CardContent className="pt-6 space-y-4">
                     {departmentsLoading ? (
@@ -934,17 +937,17 @@ export function GeneralSettings() {
                                         )}
                                     </div>
                                     <div className="flex items-center gap-1">
-                                        <Button 
-                                            variant="ghost" 
-                                            size="icon" 
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
                                             className="text-neutral-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 h-8 w-8"
                                             onClick={() => { setEditingDepartment(dept); setDepartmentModalOpen(true); }}
                                         >
                                             <Edit size={16} />
                                         </Button>
-                                        <Button 
-                                            variant="ghost" 
-                                            size="icon" 
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
                                             className="text-neutral-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 h-8 w-8"
                                             onClick={() => setDeleteDepartmentId(dept.id)}
                                         >
@@ -955,8 +958,8 @@ export function GeneralSettings() {
                             ))}
                         </div>
                     )}
-                    <Button 
-                        variant="outline" 
+                    <Button
+                        variant="outline"
                         className="w-full gap-2 border-dashed"
                         onClick={() => { setEditingDepartment(null); setDepartmentModalOpen(true); }}
                     >

@@ -156,14 +156,14 @@ export function LoginPage() {
   };
 
   return (
-    <Card className="w-full max-w-md mx-4 sm:mx-0 shadow-2xl border-0 dark:border dark:border-neutral-800/50 overflow-hidden">
+    <Card className="w-full max-w-md mx-4 sm:mx-0 shadow-2xl border-0 dark:border-0 bg-white dark:bg-white overflow-hidden">
       {/* Header Section with gradient accent */}
       <div className="relative px-8 pt-6 pb-5 text-center">
         <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary-500 via-primary-600 to-primary-500" />
-        <h1 className="text-2xl font-bold text-neutral-900 dark:text-white">
+        <h1 className="text-2xl font-bold text-neutral-900">
           {t('auth.login.title')}
         </h1>
-        <p className="mt-2 text-neutral-500 dark:text-neutral-400 text-sm">
+        <p className="mt-2 text-neutral-500 text-sm">
           {t('auth.login.description')}
         </p>
       </div>
@@ -178,7 +178,7 @@ export function LoginPage() {
 
           {/* Email Field */}
           <div className="space-y-2">
-            <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+            <label className="text-sm font-medium text-neutral-700">
               {t('auth.login.email')}
             </label>
             <div className="relative group">
@@ -191,7 +191,7 @@ export function LoginPage() {
                 placeholder={t('auth.login.emailPlaceholder')}
                 error={errors.email?.message}
                 autoComplete="username"
-                className="pl-11 h-12 text-base"
+                className="pl-11 h-12 text-base bg-white dark:bg-white border-neutral-200 dark:border-neutral-200 text-neutral-900 dark:text-neutral-900 placeholder:text-neutral-400 dark:placeholder:text-neutral-400 focus:border-primary-500 focus:ring-0 dark:focus:border-primary-500 dark:focus:ring-0"
                 {...register('email', {
                   required: t('auth.validation.emailRequired'),
                   pattern: {
@@ -205,7 +205,7 @@ export function LoginPage() {
 
           {/* Password Field */}
           <div className="space-y-2">
-            <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+            <label className="text-sm font-medium text-neutral-700">
               {t('auth.login.password')}
             </label>
             <div className="relative group">
@@ -218,7 +218,7 @@ export function LoginPage() {
                 placeholder={t('auth.login.passwordPlaceholder')}
                 error={errors.password?.message}
                 autoComplete="current-password"
-                className="pl-11 h-12 text-base"
+                className="pl-11 h-12 text-base bg-white dark:bg-white border-neutral-200 dark:border-neutral-200 text-neutral-900 dark:text-neutral-900 placeholder:text-neutral-400 dark:placeholder:text-neutral-400 focus:border-primary-500 focus:ring-0 dark:focus:border-primary-500 dark:focus:ring-0"
                 {...register('password', {
                   required: t('auth.validation.passwordRequired'),
                   minLength: {
@@ -235,18 +235,18 @@ export function LoginPage() {
             <label className="flex items-center gap-2.5 cursor-pointer group">
               <input
                 type="checkbox"
-                className="w-4 h-4 rounded border-neutral-300 dark:border-neutral-600 text-primary-600 focus:ring-primary-500 focus:ring-offset-0 transition-colors"
+                className="w-4 h-4 rounded border-neutral-300 text-primary-600 focus:ring-primary-500 focus:ring-offset-0 transition-colors bg-white dark:bg-white dark:border-neutral-300"
                 checked={rememberMe}
                 onChange={(e) => setRememberMe(e.target.checked)}
               />
-              <span className="text-sm text-neutral-600 dark:text-neutral-400 group-hover:text-neutral-900 dark:group-hover:text-neutral-200 transition-colors">
+              <span className="text-sm text-neutral-600 group-hover:text-neutral-900 transition-colors">
                 {t('auth.login.rememberMe', 'Remember me')}
               </span>
             </label>
 
             <Link
               to="/forgot-password"
-              className="text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
+              className="text-sm font-medium text-primary-600 hover:text-primary-700 transition-colors"
             >
               {t('auth.login.forgotPassword')}
             </Link>
@@ -261,14 +261,17 @@ export function LoginPage() {
             {isLoading ? t('auth.login.signingIn') : t('auth.login.signIn')}
           </Button>
 
-          <Divider text={t('auth.login.orContinueWith')} />
+          <Divider
+            text={t('auth.login.orContinueWith')}
+            className="[&_span]:dark:bg-white [&_div]:dark:border-neutral-200"
+          />
 
           {/* Alternative Sign-in Methods */}
           <div className="grid grid-cols-2 gap-3">
             <Button
               type="button"
               variant="outline"
-              className="h-11 gap-2.5 font-medium hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-colors opacity-60 cursor-not-allowed"
+              className="h-11 gap-2.5 font-medium bg-white dark:bg-white text-neutral-700 dark:text-neutral-700 border-neutral-200 dark:border-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-50 hover:text-neutral-900 dark:hover:text-neutral-900 hover:border-neutral-300 dark:hover:border-neutral-300 transition-colors opacity-60 cursor-not-allowed"
               disabled
               title="Coming soon"
             >
@@ -278,7 +281,7 @@ export function LoginPage() {
             <Link to="/auth/otp" className="w-full">
               <Button
                 variant="outline"
-                className="w-full h-11 gap-2.5 font-medium hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-colors"
+                className="w-full h-11 gap-2.5 font-medium bg-white dark:bg-white text-neutral-700 dark:text-neutral-700 border-neutral-200 dark:border-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-50 hover:text-neutral-900 dark:hover:text-neutral-900 hover:border-neutral-300 dark:hover:border-neutral-300 transition-colors"
               >
                 <KeyRound size={18} />
                 <span className="hidden sm:inline">{t('auth.login.otp')}</span>
@@ -288,11 +291,11 @@ export function LoginPage() {
           </div>
 
           {/* Sign Up Link */}
-          <p className="text-center text-neutral-600 dark:text-neutral-400 text-sm pt-2">
+          <p className="text-center text-neutral-600 text-sm pt-2">
             {t('auth.login.noAccount')}{' '}
             <Link
               to="/register"
-              className="font-semibold text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
+              className="font-semibold text-primary-600 hover:text-primary-700 transition-colors"
             >
               {t('auth.login.signUp')}
             </Link>

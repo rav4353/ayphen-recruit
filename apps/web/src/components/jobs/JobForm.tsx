@@ -7,6 +7,7 @@ import { Button, Input, Card, SkillSelector, Modal } from '../ui';
 import { aiApi, usersApi, referenceApi, pipelinesApi, settingsApi, scorecardTemplatesApi } from '../../lib/api';
 import { useUnsavedChanges } from '../../hooks/useUnsavedChanges';
 import { ScorecardModal } from '../settings/ScorecardModal';
+import { DepartmentModal } from './DepartmentModal';
 
 export type JobFormData = {
     title: string;
@@ -60,6 +61,11 @@ export function JobForm({ initialData, mode, onSubmit, onCancel, isSubmitting = 
     // Scorecard Modal State
     const [isCreateScorecardModalOpen, setIsCreateScorecardModalOpen] = useState(false);
     const [isCreatingScorecard, setIsCreatingScorecard] = useState(false);
+
+    // Department State
+    const [departments, setDepartments] = useState<any[]>([]);
+    const [isCreateDepartmentModalOpen, setIsCreateDepartmentModalOpen] = useState(false);
+    const [isCreatingDepartment, setIsCreatingDepartment] = useState(false);
 
     const STEPS = [
         { id: 'basics', title: t('jobs.create.steps.basics') },
@@ -212,6 +218,45 @@ export function JobForm({ initialData, mode, onSubmit, onCancel, isSubmitting = 
         };
         fetchCustomFields();
     }, []);
+
+    // Fetch departments
+    const fetchDepartments = async () => {
+        try {
+            const res = await referenceApi.getDepartments();
+            const data = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+            setDepartments(data);
+        } catch (err) {
+            console.error('Failed to fetch departments', err);
+        }
+    };
+
+    useEffect(() => {
+        fetchDepartments();
+    }, []);
+
+    const handleCreateDepartment = async (data: any) => {
+        setIsCreatingDepartment(true);
+        try {
+            const res = await referenceApi.createDepartment(data);
+            toast.success(t('settings.departments.createSuccess', 'Department created successfully'));
+            setIsCreateDepartmentModalOpen(false);
+
+            // Refresh list
+            await fetchDepartments();
+
+            // Auto-select the new department
+            const newDept = res.data?.data || res.data;
+            if (newDept && newDept.name) {
+                setValue('department', newDept.name);
+            }
+        } catch (error: any) {
+            console.error('Failed to create department', error);
+            const message = error?.response?.data?.message || t('common.error');
+            toast.error(message);
+        } finally {
+            setIsCreatingDepartment(false);
+        }
+    };
 
     const handleCreatePipeline = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -569,11 +614,32 @@ export function JobForm({ initialData, mode, onSubmit, onCancel, isSubmitting = 
                             />
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <Input
-                                    label={t('jobs.create.form.department')}
-                                    error={errors.department?.message}
-                                    {...register('department', { required: t('jobs.create.validation.departmentRequired') })}
-                                />
+                                <div>
+                                    <label className="label">{t('jobs.create.form.department')}</label>
+                                    <select
+                                        className="input"
+                                        {...register('department', {
+                                            required: t('jobs.create.validation.departmentRequired'),
+                                            onChange: (e) => {
+                                                if (e.target.value === 'new') {
+                                                    setIsCreateDepartmentModalOpen(true);
+                                                    setValue('department', ''); // Reset to empty or previous valid value
+                                                }
+                                            }
+                                        })}
+                                    >
+                                        <option value="">{t('common.select')}...</option>
+                                        <option value="new" className="font-medium text-blue-600">+ {t('settings.departments.add', 'Add New Department')}</option>
+                                        {departments.map((dept) => (
+                                            <option key={dept.id} value={dept.name}>
+                                                {dept.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    {errors.department && (
+                                        <p className="text-error text-sm mt-1">{errors.department.message}</p>
+                                    )}
+                                </div>
 
                                 {mode === 'create' && (
                                     <div>
@@ -738,6 +804,13 @@ export function JobForm({ initialData, mode, onSubmit, onCancel, isSubmitting = 
                         onSubmit={handleCreateScorecard}
                         isLoading={isCreatingScorecard}
                         title="Create New Scorecard Template"
+                    />
+
+                    <DepartmentModal
+                        isOpen={isCreateDepartmentModalOpen}
+                        onClose={() => setIsCreateDepartmentModalOpen(false)}
+                        onSubmit={handleCreateDepartment}
+                        isLoading={isCreatingDepartment}
                     />
 
                     {/* Step 1: Job Details */}

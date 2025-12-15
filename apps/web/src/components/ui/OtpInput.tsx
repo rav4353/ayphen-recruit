@@ -9,6 +9,7 @@ export interface OtpInputProps {
   disabled?: boolean;
   error?: boolean;
   className?: string;
+  inputClassName?: string;
 }
 
 export function OtpInput({
@@ -19,7 +20,9 @@ export function OtpInput({
   disabled = false,
   error = false,
   className,
+  inputClassName,
 }: OtpInputProps) {
+  // ... (existing refs and logic) ...
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const hasCalledComplete = useRef(false);
 
@@ -96,7 +99,8 @@ export function OtpInput({
             'text-neutral-900 dark:text-white',
             'focus:border-neutral-500 focus:ring-1 focus:ring-neutral-500 outline-none',
             'transition-all duration-150 disabled:opacity-50',
-            error && 'border-red-500/50 focus:border-red-500 focus:ring-red-500/50'
+            error && 'border-red-500/50 focus:border-red-500 focus:ring-red-500/50',
+            inputClassName
           )}
         />
       ))}

@@ -23,6 +23,7 @@ import { Card } from '../../components/ui';
 import { interviewsApi } from '../../lib/api';
 import { Interview } from '../../lib/types';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useOrganizationStore } from '../../stores/organization';
 
 type ViewMode = 'month' | 'week' | 'day';
 
@@ -35,9 +36,16 @@ export function CalendarPage() {
     const [interviews, setInterviews] = useState<Interview[]>([]);
     const [isLoading, setIsLoading] = useState(false);
 
+    // Get weekStartsOn setting from store, default to 'sunday'
+    const weekStartsOnSetting = useOrganizationStore(state => state.settings.weekStartsOn) || 'sunday';
+    const weekStartIndex = weekStartsOnSetting === 'monday' ? 1 : 0;
+
+    // date-fns type for weekStartsOn is 0 | 1
+    const weekStartOption = { weekStartsOn: weekStartIndex as 0 | 1 };
+
     useEffect(() => {
         fetchInterviews();
-    }, [currentDate, viewMode]);
+    }, [currentDate, viewMode, weekStartsOnSetting]);
 
     const fetchInterviews = async () => {
         setIsLoading(true);
@@ -45,11 +53,11 @@ export function CalendarPage() {
             let start, end;
 
             if (viewMode === 'month') {
-                start = startOfWeek(startOfMonth(currentDate));
-                end = endOfWeek(endOfMonth(currentDate));
+                start = startOfWeek(startOfMonth(currentDate), weekStartOption);
+                end = endOfWeek(endOfMonth(currentDate), weekStartOption);
             } else if (viewMode === 'week') {
-                start = startOfWeek(currentDate);
-                end = endOfWeek(currentDate);
+                start = startOfWeek(currentDate, weekStartOption);
+                end = endOfWeek(currentDate, weekStartOption);
             } else {
                 start = currentDate;
                 end = currentDate;
@@ -85,12 +93,12 @@ export function CalendarPage() {
 
     const getDays = () => {
         if (viewMode === 'month') {
-            const start = startOfWeek(startOfMonth(currentDate));
-            const end = endOfWeek(endOfMonth(currentDate));
+            const start = startOfWeek(startOfMonth(currentDate), weekStartOption);
+            const end = endOfWeek(endOfMonth(currentDate), weekStartOption);
             return eachDayOfInterval({ start, end });
         } else if (viewMode === 'week') {
-            const start = startOfWeek(currentDate);
-            const end = endOfWeek(currentDate);
+            const start = startOfWeek(currentDate, weekStartOption);
+            const end = endOfWeek(currentDate, weekStartOption);
             return eachDayOfInterval({ start, end });
         }
         return [currentDate];
@@ -111,6 +119,12 @@ export function CalendarPage() {
             default: return 'bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 border-neutral-200 dark:border-neutral-700';
         }
     };
+
+    // Generate day headers based on week start
+    const days = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+    const orderedDays = weekStartIndex === 1
+        ? [...days.slice(1), days[0]]
+        : days;
 
     return (
         <div className="space-y-4 sm:space-y-6 min-h-[calc(100vh-100px)] flex flex-col">
@@ -173,7 +187,7 @@ export function CalendarPage() {
                 {/* Day headers - only show for week/month view */}
                 {viewMode !== 'day' && (
                     <div className="grid grid-cols-7 border-b border-neutral-200 dark:border-neutral-700">
-                        {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, idx) => (
+                        {orderedDays.map((day, idx) => (
                             <div key={idx} className="py-2 sm:py-3 text-center text-xs sm:text-sm font-medium text-neutral-500 dark:text-neutral-400 bg-neutral-50 dark:bg-neutral-800/50">
                                 {day}
                             </div>

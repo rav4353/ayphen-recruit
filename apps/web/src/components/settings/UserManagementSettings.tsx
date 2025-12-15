@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Card, CardHeader, Button, Input, ConfirmationModal } from '../ui';
 import { Plus, Shield, Lock, Ban, CheckCircle, Trash2, MoreVertical, Mail } from 'lucide-react';
@@ -8,19 +9,38 @@ import { Permission } from '../../lib/permissions';
 
 export function UserManagementSettings() {
     const { t } = useTranslation();
-    const [activeTab, setActiveTab] = useState<'users' | 'roles' | 'auth'>('users');
+    const [searchParams, setSearchParams] = useSearchParams();
+    const activeTab = (searchParams.get('view') as 'users' | 'roles' | 'auth') || 'users';
+
+    const setActiveTab = (tab: 'users' | 'roles' | 'auth') => {
+        setSearchParams(prev => {
+            const newParams = new URLSearchParams(prev);
+            newParams.set('view', tab);
+            return newParams;
+        });
+    };
+
+    // Users State
     const [users, setUsers] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
     const [isInviting, setIsInviting] = useState(false);
+
+    // User Action States
     const [userToDelete, setUserToDelete] = useState<string | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [userToToggleStatus, setUserToToggleStatus] = useState<any | null>(null);
+    const [isTogglingStatus, setIsTogglingStatus] = useState(false);
+    const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
+
+    // Invite Form State
     const [inviteForm, setInviteForm] = useState({
         firstName: '',
         lastName: '',
         email: '',
-        role: 'RECRUITER',
+        role: '',
+        employeeId: '',
         password: '',
     });
 
@@ -30,33 +50,121 @@ export function UserManagementSettings() {
     const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
     const [isSavingRole, setIsSavingRole] = useState(false);
     const [editingRole, setEditingRole] = useState<any | null>(null);
+    const [roleToDelete, setRoleToDelete] = useState<string | null>(null);
+    const [isDeletingRole, setIsDeletingRole] = useState(false);
+
+    // Update default role when roles are loaded
+    useEffect(() => {
+        if (rolesList.length > 0 && !inviteForm.role) {
+            setInviteForm(prev => ({ ...prev, role: rolesList[0].id }));
+        }
+    }, [rolesList, inviteForm.role]);
+
     const [roleForm, setRoleForm] = useState({
         name: '',
         description: '',
         permissions: [] as string[]
     });
 
+    // Edit User State
+    const [isEditUserModalOpen, setIsEditUserModalOpen] = useState(false);
+    const [isSavingUser, setIsSavingUser] = useState(false);
+    const [editingUser, setEditingUser] = useState<any | null>(null);
+    const [editUserForm, setEditUserForm] = useState({
+        selectedRoleId: '',
+        customPermissions: [] as string[]
+    });
+
+    useEffect(() => {
+        // Always fetch roles on mount so they are available for invite/edit
+        fetchRoles();
+    }, []);
+
     useEffect(() => {
         if (activeTab === 'users') {
             fetchUsers();
         } else if (activeTab === 'roles') {
+            // Refresh roles when tab becomes active just in case
             fetchRoles();
         }
     }, [activeTab, searchQuery]);
 
     const fetchRoles = async () => {
-        setIsLoadingRoles(true);
         try {
             const res = await rolesApi.getAll();
-            // Handle potentially wrapped response
             const data = Array.isArray(res.data) ? res.data : (res.data?.data || []);
             setRolesList(data);
         } catch (error) {
             console.error('Failed to fetch roles', error);
-            toast.error('Failed to load roles');
-            setRolesList([]);
+            if (activeTab === 'roles') toast.error('Failed to load roles');
         } finally {
             setIsLoadingRoles(false);
+        }
+    };
+
+    const fetchUsers = async () => {
+        setIsLoading(true);
+        try {
+            const res = await usersApi.getAll({ search: searchQuery });
+            const data = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+            setUsers(data);
+        } catch (error) {
+            console.error('Failed to fetch users', error);
+            toast.error('Failed to load users');
+            setUsers([]);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleInviteUser = async () => {
+        if (!inviteForm.email || !inviteForm.firstName || !inviteForm.lastName || !inviteForm.password || !inviteForm.employeeId) {
+            toast.error('Please fill in all fields');
+            return;
+        }
+
+        setIsInviting(true);
+        try {
+            // Find selected role
+            const selectedRole = rolesList.find(r => r.id === inviteForm.role);
+
+            const payload: any = {
+                firstName: inviteForm.firstName,
+                lastName: inviteForm.lastName,
+                email: inviteForm.email,
+                employeeId: inviteForm.employeeId,
+                password: inviteForm.password,
+            };
+
+            if (selectedRole) {
+                if (selectedRole.isSystem) {
+                    payload.role = selectedRole.id.startsWith('SYS_') ? selectedRole.id.replace('SYS_', '') : selectedRole.id;
+                } else {
+                    payload.role = 'RECRUITER';
+                    payload.roleId = selectedRole.id;
+                }
+            } else {
+                payload.role = inviteForm.role;
+            }
+
+            await usersApi.create(payload);
+            toast.success('User invited successfully');
+            setIsInviteModalOpen(false);
+            setInviteForm({
+                firstName: '',
+                lastName: '',
+                email: '',
+                role: rolesList.length > 0 ? rolesList[0].id : '',
+                employeeId: '',
+                password: '',
+            });
+            fetchUsers();
+        } catch (error: any) {
+            console.error('Failed to invite user', error);
+            const msg = error.response?.data?.message || 'Failed to invite user';
+            toast.error(msg);
+        } finally {
+            setIsInviting(false);
         }
     };
 
@@ -85,37 +193,25 @@ export function UserManagementSettings() {
         }
     };
 
-    const handleDeleteRole = async (id: string) => {
-        if (!confirm('Are you sure you want to delete this role?')) return;
+    const handleDeleteRoleClick = (id: string) => {
+        setRoleToDelete(id);
+    };
+
+    const confirmDeleteRole = async () => {
+        if (!roleToDelete) return;
+        setIsDeletingRole(true);
         try {
-            await rolesApi.delete(id);
+            await rolesApi.delete(roleToDelete);
             toast.success('Role deleted successfully');
             fetchRoles();
         } catch (error) {
             console.error('Failed to delete role', error);
             toast.error('Failed to delete role');
-        }
-    };
-
-    const fetchUsers = async () => {
-        setIsLoading(true);
-        try {
-            const res = await usersApi.getAll({ search: searchQuery });
-            // Safely handle response data
-            const data = Array.isArray(res.data) ? res.data : (res.data?.data || []);
-            setUsers(data);
-        } catch (error) {
-            console.error('Failed to fetch users', error);
-            toast.error('Failed to load users');
-            setUsers([]);
         } finally {
-            setIsLoading(false);
+            setIsDeletingRole(false);
+            setRoleToDelete(null);
         }
     };
-
-    const [userToToggleStatus, setUserToToggleStatus] = useState<any | null>(null);
-    const [isTogglingStatus, setIsTogglingStatus] = useState(false);
-    const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
 
     const handleToggleStatusClick = (user: any) => {
         setUserToToggleStatus(user);
@@ -173,57 +269,13 @@ export function UserManagementSettings() {
         }
     };
 
-    const handleInviteUser = async () => {
-        if (!inviteForm.email || !inviteForm.firstName || !inviteForm.lastName || !inviteForm.password) {
-            toast.error('Please fill in all fields');
-            return;
-        }
-
-        setIsInviting(true);
-        try {
-            // Use usersApi.create for internal invites
-            // This endpoint is protected and sets status to ACTIVE
-            await usersApi.create({
-                ...inviteForm,
-            });
-            toast.success('User invited successfully');
-            setIsInviteModalOpen(false);
-            setInviteForm({
-                firstName: '',
-                lastName: '',
-                email: '',
-                role: 'RECRUITER',
-                password: '',
-            });
-            fetchUsers();
-        } catch (error: any) {
-            console.error('Failed to invite user', error);
-            toast.error(error.response?.data?.message || 'Failed to invite user');
-        } finally {
-            setIsInviting(false);
-        }
-    };
-
-
-    // User Edit State
-    const [isEditUserModalOpen, setIsEditUserModalOpen] = useState(false);
-    const [isSavingUser, setIsSavingUser] = useState(false);
-    const [editingUser, setEditingUser] = useState<any | null>(null);
-    const [editUserForm, setEditUserForm] = useState({
-        selectedRoleId: '',
-        customPermissions: [] as string[]
-    });
-
     const handleEditUserClick = async (user: any) => {
         setOpenDropdownId(null);
         setEditingUser(user);
 
-        // Determine role ID (custom role ID or system role key)
         let roleIdToSelect = user.roleId;
 
         if (!roleIdToSelect) {
-            // Priority 2: System enum mapped to role list
-            // We need to ensure rolesList is loaded or load it now
             let roles = rolesList;
             if (roles.length === 0) {
                 try {
@@ -235,8 +287,6 @@ export function UserManagementSettings() {
                 }
             }
 
-            // Try to find matching system role. 
-            // Backend returns system roles with ID "SYS_ROLE_NAME"
             const systemRole = roles.find((r: any) =>
                 r.isSystem && (r.id === user.role || r.id === `SYS_${user.role}`)
             );
@@ -263,15 +313,10 @@ export function UserManagementSettings() {
 
             if (selectedRole) {
                 if (selectedRole.isSystem) {
-                    // Switch to system role (Enum value)
-                    // Remove SYS_ prefix if present to get the raw enum value like 'RECRUITER'
                     payload.role = selectedRole.id.startsWith('SYS_') ? selectedRole.id.replace('SYS_', '') : selectedRole.id;
-                    payload.roleId = null; // Clear custom role link/UUID
+                    payload.roleId = null;
                 } else {
-                    // Switch to custom role
                     payload.roleId = selectedRole.id;
-                    // Default fallback role for schema validity, usually RECRUITER or INTERVIEWER is safe
-                    // Ideally the backend should infer this or we use a 'CUSTOM' enum if available
                     payload.role = 'RECRUITER';
                 }
             }
@@ -287,8 +332,9 @@ export function UserManagementSettings() {
             setIsSavingUser(false);
         }
     };
+
     return (
-        <div className="space-y-6">
+        <div className="h-full min-h-0 flex flex-col gap-6">
             <div className="flex gap-2 border-b border-neutral-200 dark:border-neutral-800 pb-1">
                 <button
                     className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${activeTab === 'users'
@@ -320,7 +366,7 @@ export function UserManagementSettings() {
             </div>
 
             {activeTab === 'users' && (
-                <div className="space-y-6">
+                <div className="flex flex-col flex-1 min-h-0 gap-6">
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                         <div className="relative w-full sm:w-72">
                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -342,15 +388,15 @@ export function UserManagementSettings() {
                         </Button>
                     </div>
 
-                    <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden shadow-sm">
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left text-sm">
-                                <thead className="bg-neutral-50 dark:bg-neutral-800/50">
+                    <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden shadow-sm flex flex-col flex-1 min-h-0">
+                        <div className="flex-1 overflow-auto">
+                            <table className="w-full min-w-[800px]">
+                                <thead className="bg-neutral-50/80 dark:bg-neutral-800/30 border-b border-neutral-200 dark:border-neutral-800">
                                     <tr>
-                                        <th className="px-6 py-4 font-semibold text-xs text-neutral-500 uppercase tracking-wider">User</th>
-                                        <th className="px-6 py-4 font-semibold text-xs text-neutral-500 uppercase tracking-wider">Role</th>
-                                        <th className="px-6 py-4 font-semibold text-xs text-neutral-500 uppercase tracking-wider">Status</th>
-                                        <th className="px-6 py-4 font-semibold text-xs text-neutral-500 uppercase tracking-wider text-right">Actions</th>
+                                        <th className="text-left text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400 px-6 py-3">User</th>
+                                        <th className="text-left text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400 px-6 py-3">Role</th>
+                                        <th className="text-left text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400 px-6 py-3">Status</th>
+                                        <th className="text-right text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400 px-6 py-3">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
@@ -377,7 +423,7 @@ export function UserManagementSettings() {
                                         </tr>
                                     ) : (
                                         users.map((user) => (
-                                            <tr key={user.id} className="group hover:bg-neutral-50/50 dark:hover:bg-neutral-800/50 transition-colors">
+                                            <tr key={user.id} className="group hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-colors border-b border-neutral-100 dark:border-neutral-800 last:border-0">
                                                 <td className="px-6 py-4">
                                                     <div className="flex items-center gap-3">
                                                         <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold shadow-sm ring-2 ring-white dark:ring-neutral-900 ${user.role === 'ADMIN' ? 'bg-purple-100 text-purple-600 dark:bg-purple-900/30' :
@@ -490,83 +536,7 @@ export function UserManagementSettings() {
                 </div>
             )}
 
-            {/* Invite User Modal */}
-            {isInviteModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-                    <div className="bg-white dark:bg-neutral-800 rounded-lg shadow-xl max-w-md w-full p-6 space-y-4">
-                        <h3 className="text-lg font-bold text-neutral-900 dark:text-white">Invite User</h3>
-                        <div className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                                        First Name
-                                    </label>
-                                    <Input
-                                        value={inviteForm.firstName}
-                                        onChange={(e) => setInviteForm({ ...inviteForm, firstName: e.target.value })}
-                                        placeholder="Jane"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                                        Last Name
-                                    </label>
-                                    <Input
-                                        value={inviteForm.lastName}
-                                        onChange={(e) => setInviteForm({ ...inviteForm, lastName: e.target.value })}
-                                        placeholder="Doe"
-                                    />
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                                    Email Address
-                                </label>
-                                <Input
-                                    type="email"
-                                    value={inviteForm.email}
-                                    onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })}
-                                    placeholder="jane@company.com"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                                    Role
-                                </label>
-                                <select
-                                    className="w-full px-3 py-2 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    value={inviteForm.role}
-                                    onChange={(e) => setInviteForm({ ...inviteForm, role: e.target.value })}
-                                >
-                                    <option value="RECRUITER">Recruiter</option>
-                                    <option value="HIRING_MANAGER">Hiring Manager</option>
-                                    <option value="ADMIN">Admin</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                                    Temporary Password
-                                </label>
-                                <Input
-                                    type="password"
-                                    value={inviteForm.password}
-                                    onChange={(e) => setInviteForm({ ...inviteForm, password: e.target.value })}
-                                    placeholder="********"
-                                />
-                            </div>
-                        </div>
-                        <div className="flex justify-end gap-3 pt-4">
-                            <Button variant="ghost" onClick={() => setIsInviteModalOpen(false)}>
-                                Cancel
-                            </Button>
-                            <Button onClick={handleInviteUser} isLoading={isInviting}>
-                                Send Invitation
-                            </Button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
+            {/* Confirmation Modals for Users */}
             <ConfirmationModal
                 isOpen={!!userToDelete}
                 onCancel={() => setUserToDelete(null)}
@@ -606,7 +576,7 @@ export function UserManagementSettings() {
                                 type="text"
                                 className="w-full pl-10 pr-4 py-2 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
                                 placeholder="Search roles..."
-                                disabled // Simple placeholder for now as search logic would need state updates
+                                disabled // Simple placeholder for now
                             />
                         </div>
                     </div>
@@ -636,7 +606,7 @@ export function UserManagementSettings() {
                                             </div>
                                             {role.isSystem && (
                                                 <span className="px-2 py-1 bg-neutral-100 dark:bg-neutral-800 text-neutral-500 text-[10px] uppercase font-bold tracking-wider rounded border border-neutral-200 dark:border-neutral-700">
-                                                    System Default
+                                                    Default
                                                 </span>
                                             )}
                                         </div>
@@ -683,7 +653,7 @@ export function UserManagementSettings() {
                                                 </button>
                                                 {!role.isSystem && (
                                                     <button
-                                                        onClick={() => handleDeleteRole(role.id)}
+                                                        onClick={() => handleDeleteRoleClick(role.id)}
                                                         className="p-2 text-neutral-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                                                         title="Delete Role"
                                                     >
@@ -715,6 +685,188 @@ export function UserManagementSettings() {
                 </div>
             )}
 
+            {/* Confirmation Modal for Role Deletion */}
+            <ConfirmationModal
+                isOpen={!!roleToDelete}
+                onCancel={() => setRoleToDelete(null)}
+                onConfirm={confirmDeleteRole}
+                title="Delete Role"
+                message="Are you sure you want to delete this role? This action cannot be undone."
+                confirmLabel="Delete"
+                cancelLabel="Cancel"
+                isLoading={isDeletingRole}
+                variant="danger"
+            />
+
+            {activeTab === 'auth' && (
+                <div className="space-y-6">
+                    <Card>
+                        <CardHeader title="Single Sign-On (SSO)" description="Configure SSO providers for your organization." />
+                        <div className="p-6 space-y-4">
+                            <div className="flex items-center justify-between p-4 border border-neutral-200 dark:border-neutral-700 rounded-lg">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-10 h-10 bg-white border border-neutral-200 rounded-lg flex items-center justify-center">
+                                        <img src="https://authjs.dev/img/providers/google.svg" alt="Google" className="w-6 h-6" />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-medium text-neutral-900 dark:text-white">Google Workspace</h3>
+                                        <p className="text-sm text-neutral-500">Allow users to sign in with Google</p>
+                                    </div>
+                                </div>
+                                <Button variant="secondary">Configure</Button>
+                            </div>
+
+                            <div className="flex items-center justify-between p-4 border border-neutral-200 dark:border-neutral-700 rounded-lg">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-10 h-10 bg-white border border-neutral-200 rounded-lg flex items-center justify-center">
+                                        <img src="https://authjs.dev/img/providers/azure-ad.svg" alt="Microsoft" className="w-6 h-6" />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-medium text-neutral-900 dark:text-white">Microsoft Azure AD</h3>
+                                        <p className="text-sm text-neutral-500">Allow users to sign in with Microsoft</p>
+                                    </div>
+                                </div>
+                                <Button variant="secondary">Configure</Button>
+                            </div>
+
+                            <div className="flex items-center justify-between p-4 border border-neutral-200 dark:border-neutral-700 rounded-lg">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-10 h-10 bg-white border border-neutral-200 rounded-lg flex items-center justify-center">
+                                        <Lock size={20} className="text-neutral-600" />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-medium text-neutral-900 dark:text-white">SAML 2.0</h3>
+                                        <p className="text-sm text-neutral-500">Configure custom SAML provider (Okta, OneLogin)</p>
+                                    </div>
+                                </div>
+                                <Button variant="secondary">Configure</Button>
+                            </div>
+                        </div>
+                    </Card>
+
+                    <Card>
+                        <CardHeader title="Security Policies" description="Manage password and session policies." />
+                        <div className="p-6 space-y-6">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h3 className="font-medium text-neutral-900 dark:text-white">Enforce MFA</h3>
+                                    <p className="text-sm text-neutral-500">Require all users to set up Two-Factor Authentication</p>
+                                </div>
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" className="sr-only peer" />
+                                    <div className="w-11 h-6 bg-neutral-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-neutral-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-neutral-600 peer-checked:bg-blue-600"></div>
+                                </label>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Session Timeout</label>
+                                <select className="w-full px-3 py-2 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option>30 minutes</option>
+                                    <option>1 hour</option>
+                                    <option>4 hours</option>
+                                    <option>24 hours</option>
+                                    <option>7 days</option>
+                                </select>
+                                <p className="text-xs text-neutral-500 mt-1">Users will be logged out after inactivity.</p>
+                            </div>
+                        </div>
+                    </Card>
+                </div>
+            )}
+
+            {/* Invite User Modal */}
+            {isInviteModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                    <div className="bg-white dark:bg-neutral-800 rounded-lg shadow-xl max-w-md w-full p-6 space-y-4">
+                        <h3 className="text-lg font-bold text-neutral-900 dark:text-white">Invite User</h3>
+                        <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                                        First Name
+                                    </label>
+                                    <Input
+                                        value={inviteForm.firstName}
+                                        onChange={(e) => setInviteForm({ ...inviteForm, firstName: e.target.value })}
+                                        placeholder="Jane"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                                        Last Name
+                                    </label>
+                                    <Input
+                                        value={inviteForm.lastName}
+                                        onChange={(e) => setInviteForm({ ...inviteForm, lastName: e.target.value })}
+                                        placeholder="Doe"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                                    Employee ID / Vendor ID <span className="text-red-500">*</span>
+                                </label>
+                                <Input
+                                    value={inviteForm.employeeId}
+                                    onChange={(e) => setInviteForm({ ...inviteForm, employeeId: e.target.value })}
+                                    placeholder="EMP001"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                                    Email Address
+                                </label>
+                                <Input
+                                    type="email"
+                                    value={inviteForm.email}
+                                    onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })}
+                                    placeholder="jane@company.com"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                                    Role
+                                </label>
+                                <select
+                                    className="w-full px-3 py-2 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    value={inviteForm.role}
+                                    onChange={(e) => setInviteForm({ ...inviteForm, role: e.target.value })}
+                                >
+                                    {rolesList.length > 0 ? (
+                                        rolesList.map(role => (
+                                            <option key={role.id} value={role.id}>
+                                                {role.name}
+                                            </option>
+                                        ))
+                                    ) : (
+                                        <option value="" disabled>Loading roles...</option>
+                                    )}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                                    Temporary Password
+                                </label>
+                                <Input
+                                    type="password"
+                                    value={inviteForm.password}
+                                    onChange={(e) => setInviteForm({ ...inviteForm, password: e.target.value })}
+                                    placeholder="********"
+                                />
+                            </div>
+                        </div>
+                        <div className="flex justify-end gap-3 pt-4">
+                            <Button variant="ghost" onClick={() => setIsInviteModalOpen(false)}>
+                                Cancel
+                            </Button>
+                            <Button onClick={handleInviteUser} isLoading={isInviting}>
+                                Send Invitation
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Role Modal */}
             {isRoleModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -725,7 +877,7 @@ export function UserManagementSettings() {
                             </h3>
                             {editingRole?.isSystem && (
                                 <span className="px-2 py-1 bg-neutral-100 dark:bg-neutral-700 text-neutral-500 dark:text-neutral-300 text-xs font-medium rounded border border-neutral-200 dark:border-neutral-600">
-                                    System Default (Read-only)
+                                    Default (Read-only)
                                 </span>
                             )}
                         </div>
@@ -875,7 +1027,7 @@ export function UserManagementSettings() {
                                         });
                                     }}
                                 >
-                                    <optgroup label="System Roles">
+                                    <optgroup label="Default Roles">
                                         {rolesList.filter(r => r.isSystem).map(role => (
                                             <option key={role.id} value={role.id}>{role.name}</option>
                                         ))}
@@ -953,82 +1105,6 @@ export function UserManagementSettings() {
                             </Button>
                         </div>
                     </div>
-                </div>
-            )}
-
-            {activeTab === 'auth' && (
-                <div className="space-y-6">
-                    <Card>
-                        <CardHeader title="Single Sign-On (SSO)" description="Configure SSO providers for your organization." />
-                        <div className="p-6 space-y-4">
-                            <div className="flex items-center justify-between p-4 border border-neutral-200 dark:border-neutral-700 rounded-lg">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-10 h-10 bg-white border border-neutral-200 rounded-lg flex items-center justify-center">
-                                        <img src="https://authjs.dev/img/providers/google.svg" alt="Google" className="w-6 h-6" />
-                                    </div>
-                                    <div>
-                                        <h3 className="font-medium text-neutral-900 dark:text-white">Google Workspace</h3>
-                                        <p className="text-sm text-neutral-500">Allow users to sign in with Google</p>
-                                    </div>
-                                </div>
-                                <Button variant="secondary">Configure</Button>
-                            </div>
-
-                            <div className="flex items-center justify-between p-4 border border-neutral-200 dark:border-neutral-700 rounded-lg">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-10 h-10 bg-white border border-neutral-200 rounded-lg flex items-center justify-center">
-                                        <img src="https://authjs.dev/img/providers/azure-ad.svg" alt="Microsoft" className="w-6 h-6" />
-                                    </div>
-                                    <div>
-                                        <h3 className="font-medium text-neutral-900 dark:text-white">Microsoft Azure AD</h3>
-                                        <p className="text-sm text-neutral-500">Allow users to sign in with Microsoft</p>
-                                    </div>
-                                </div>
-                                <Button variant="secondary">Configure</Button>
-                            </div>
-
-                            <div className="flex items-center justify-between p-4 border border-neutral-200 dark:border-neutral-700 rounded-lg">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-10 h-10 bg-white border border-neutral-200 rounded-lg flex items-center justify-center">
-                                        <Lock size={20} className="text-neutral-600" />
-                                    </div>
-                                    <div>
-                                        <h3 className="font-medium text-neutral-900 dark:text-white">SAML 2.0</h3>
-                                        <p className="text-sm text-neutral-500">Configure custom SAML provider (Okta, OneLogin)</p>
-                                    </div>
-                                </div>
-                                <Button variant="secondary">Configure</Button>
-                            </div>
-                        </div>
-                    </Card>
-
-                    <Card>
-                        <CardHeader title="Security Policies" description="Manage password and session policies." />
-                        <div className="p-6 space-y-6">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <h3 className="font-medium text-neutral-900 dark:text-white">Enforce MFA</h3>
-                                    <p className="text-sm text-neutral-500">Require all users to set up Two-Factor Authentication</p>
-                                </div>
-                                <label className="relative inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" className="sr-only peer" />
-                                    <div className="w-11 h-6 bg-neutral-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-neutral-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-neutral-600 peer-checked:bg-blue-600"></div>
-                                </label>
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Session Timeout</label>
-                                <select className="w-full px-3 py-2 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                    <option>30 minutes</option>
-                                    <option>1 hour</option>
-                                    <option>4 hours</option>
-                                    <option>24 hours</option>
-                                    <option>7 days</option>
-                                </select>
-                                <p className="text-xs text-neutral-500 mt-1">Users will be logged out after inactivity.</p>
-                            </div>
-                        </div>
-                    </Card>
                 </div>
             )}
         </div>

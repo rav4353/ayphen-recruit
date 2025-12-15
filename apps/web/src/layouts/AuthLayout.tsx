@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../stores/auth';
 
 import lightLogo from '../assets/branding/logo_light_theme.png';
-import darkLogo from '../assets/branding/logo_dark_theme.png';
+// import darkLogo from '../assets/branding/logo_dark_theme.png';
 
 export function AuthLayout() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -26,17 +26,12 @@ export function AuthLayout() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-neutral-50 dark:bg-neutral-950 transition-colors">
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-neutral-50 transition-colors">
       <div className="mb-2 text-center">
         <img
           src={lightLogo}
           alt={t('common.appName')}
-          className="h-48 mx-auto dark:hidden"
-        />
-        <img
-          src={darkLogo}
-          alt={t('common.appName')}
-          className="h-48 mx-auto hidden dark:block"
+          className="h-48 mx-auto"
         />
       </div>
       <Outlet />

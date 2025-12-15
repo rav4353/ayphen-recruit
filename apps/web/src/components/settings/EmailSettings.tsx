@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { Mail, Save, AlertCircle, Send, Users, Search, CheckSquare, Square, Loader2 } from 'lucide-react';
@@ -28,7 +29,16 @@ const DEFAULT_CONFIG: SmtpConfig = {
 
 export function EmailSettings() {
     const { t } = useTranslation();
-    const [activeTab, setActiveTab] = useState<'smtp' | 'templates' | 'campaigns'>('smtp');
+    const [searchParams, setSearchParams] = useSearchParams();
+    const activeTab = (searchParams.get('view') as 'smtp' | 'templates' | 'campaigns') || 'smtp';
+
+    const setActiveTab = (tab: 'smtp' | 'templates' | 'campaigns') => {
+        setSearchParams(prev => {
+            const newParams = new URLSearchParams(prev);
+            newParams.set('view', tab);
+            return newParams;
+        });
+    };
     const [config, setConfig] = useState<SmtpConfig>(DEFAULT_CONFIG);
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -94,7 +104,7 @@ export function EmailSettings() {
                     className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${activeTab === 'smtp'
                         ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50 dark:bg-blue-900/10'
                         : 'text-neutral-500 hover:text-neutral-700 dark:text-neutral-400'
-                    }`}
+                        }`}
                     onClick={() => setActiveTab('smtp')}
                 >
                     SMTP Configuration
@@ -103,7 +113,7 @@ export function EmailSettings() {
                     className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${activeTab === 'templates'
                         ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50 dark:bg-blue-900/10'
                         : 'text-neutral-500 hover:text-neutral-700 dark:text-neutral-400'
-                    }`}
+                        }`}
                     onClick={() => setActiveTab('templates')}
                 >
                     Email Templates
@@ -112,7 +122,7 @@ export function EmailSettings() {
                     className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${activeTab === 'campaigns'
                         ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50 dark:bg-blue-900/10'
                         : 'text-neutral-500 hover:text-neutral-700 dark:text-neutral-400'
-                    }`}
+                        }`}
                     onClick={() => setActiveTab('campaigns')}
                 >
                     <span className="flex items-center gap-1.5">
@@ -126,114 +136,114 @@ export function EmailSettings() {
             {activeTab === 'campaigns' && <BulkEmailCampaigns />}
 
             {activeTab === 'smtp' && (
-            <Card>
-                <CardHeader
-                    title="SMTP Configuration"
-                    icon={<Mail className="text-neutral-500" size={20} />}
-                    align="left"
-                />
-                <div className="p-6 space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                                SMTP Host
-                            </label>
-                            <Input
-                                value={config.host}
-                                onChange={(e) => handleChange('host', e.target.value)}
-                                placeholder="smtp.example.com"
-                            />
+                <Card>
+                    <CardHeader
+                        title="SMTP Configuration"
+                        icon={<Mail className="text-neutral-500" size={20} />}
+                        align="left"
+                    />
+                    <div className="p-6 space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                                    SMTP Host
+                                </label>
+                                <Input
+                                    value={config.host}
+                                    onChange={(e) => handleChange('host', e.target.value)}
+                                    placeholder="smtp.example.com"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                                    SMTP Port
+                                </label>
+                                <Input
+                                    type="number"
+                                    value={config.port}
+                                    onChange={(e) => handleChange('port', parseInt(e.target.value) || 0)}
+                                    placeholder="587"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                                    SMTP User
+                                </label>
+                                <Input
+                                    value={config.user}
+                                    onChange={(e) => handleChange('user', e.target.value)}
+                                    placeholder="user@example.com"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                                    SMTP Password
+                                </label>
+                                <Input
+                                    type="password"
+                                    value={config.pass}
+                                    onChange={(e) => handleChange('pass', e.target.value)}
+                                    placeholder="••••••••"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                                    From Email
+                                </label>
+                                <Input
+                                    value={config.fromEmail}
+                                    onChange={(e) => handleChange('fromEmail', e.target.value)}
+                                    placeholder="noreply@example.com"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                                    From Name
+                                </label>
+                                <Input
+                                    value={config.fromName}
+                                    onChange={(e) => handleChange('fromName', e.target.value)}
+                                    placeholder="TalentX"
+                                />
+                            </div>
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                                SMTP Port
-                            </label>
-                            <Input
-                                type="number"
-                                value={config.port}
-                                onChange={(e) => handleChange('port', parseInt(e.target.value) || 0)}
-                                placeholder="587"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                                SMTP User
-                            </label>
-                            <Input
-                                value={config.user}
-                                onChange={(e) => handleChange('user', e.target.value)}
-                                placeholder="user@example.com"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                                SMTP Password
-                            </label>
-                            <Input
-                                type="password"
-                                value={config.pass}
-                                onChange={(e) => handleChange('pass', e.target.value)}
-                                placeholder="••••••••"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                                From Email
-                            </label>
-                            <Input
-                                value={config.fromEmail}
-                                onChange={(e) => handleChange('fromEmail', e.target.value)}
-                                placeholder="noreply@example.com"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                                From Name
-                            </label>
-                            <Input
-                                value={config.fromName}
-                                onChange={(e) => handleChange('fromName', e.target.value)}
-                                placeholder="TalentX"
-                            />
-                        </div>
-                    </div>
 
-                    <div className="flex items-center gap-2">
-                        <input
-                            type="checkbox"
-                            id="secure"
-                            checked={config.secure}
-                            onChange={(e) => handleChange('secure', e.target.checked)}
-                            className="rounded border-neutral-300 text-blue-600 focus:ring-blue-500"
-                        />
-                        <label htmlFor="secure" className="text-sm text-neutral-700 dark:text-neutral-300">
-                            Use Secure Connection (SSL/TLS)
-                        </label>
-                    </div>
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="checkbox"
+                                id="secure"
+                                checked={config.secure}
+                                onChange={(e) => handleChange('secure', e.target.checked)}
+                                className="rounded border-neutral-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <label htmlFor="secure" className="text-sm text-neutral-700 dark:text-neutral-300">
+                                Use Secure Connection (SSL/TLS)
+                            </label>
+                        </div>
 
-                    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-lg p-4 flex items-start gap-3">
-                        <AlertCircle className="text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" size={18} />
-                        <div className="text-sm text-blue-700 dark:text-blue-300">
-                            <p className="font-medium mb-1">Note on Security</p>
-                            <p>
-                                Your SMTP password is stored securely. Ensure you are using a dedicated app password if you are using services like Gmail.
-                            </p>
+                        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-lg p-4 flex items-start gap-3">
+                            <AlertCircle className="text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" size={18} />
+                            <div className="text-sm text-blue-700 dark:text-blue-300">
+                                <p className="font-medium mb-1">Note on Security</p>
+                                <p>
+                                    Your SMTP password is stored securely. Ensure you are using a dedicated app password if you are using services like Gmail.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end pt-4">
+                            <Button
+                                onClick={handleSave}
+                                isLoading={isSaving}
+                                variant="primary"
+                                className="flex items-center gap-2"
+                            >
+                                <Save size={16} />
+                                Save Configuration
+                            </Button>
                         </div>
                     </div>
-
-                    <div className="flex justify-end pt-4">
-                        <Button
-                            onClick={handleSave}
-                            isLoading={isSaving}
-                            variant="primary"
-                            className="flex items-center gap-2"
-                        >
-                            <Save size={16} />
-                            Save Configuration
-                        </Button>
-                    </div>
-                </div>
-            </Card>
+                </Card>
             )}
         </div>
     );
@@ -379,9 +389,8 @@ function BulkEmailCampaigns() {
                         filteredCandidates.map(candidate => (
                             <div
                                 key={candidate.id}
-                                className={`flex items-center gap-3 p-3 border-b border-neutral-100 dark:border-neutral-800 last:border-b-0 cursor-pointer hover:bg-neutral-50 dark:hover:bg-neutral-800/50 ${
-                                    selectedIds.includes(candidate.id) ? 'bg-blue-50 dark:bg-blue-900/20' : ''
-                                }`}
+                                className={`flex items-center gap-3 p-3 border-b border-neutral-100 dark:border-neutral-800 last:border-b-0 cursor-pointer hover:bg-neutral-50 dark:hover:bg-neutral-800/50 ${selectedIds.includes(candidate.id) ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                                    }`}
                                 onClick={() => toggleSelect(candidate.id)}
                             >
                                 <div className="text-blue-600">

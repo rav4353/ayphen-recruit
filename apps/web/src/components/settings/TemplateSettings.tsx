@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Card, Button, ConfirmationModal } from '../ui';
 import { Plus, Edit2, Trash2, FileText, FileSignature, Mail, Briefcase } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -95,14 +96,14 @@ function JobDescriptionTemplates() {
                 )}
             </div>
 
-            <ConfirmationModal 
-                isOpen={!!deleteId} 
-                onCancel={() => setDeleteId(null)} 
-                onConfirm={() => deleteId && deleteMutation.mutate(deleteId)} 
-                title="Delete Template" 
-                message="Are you sure you want to delete this template?" 
-                confirmLabel="Delete" 
-                variant="danger" 
+            <ConfirmationModal
+                isOpen={!!deleteId}
+                onCancel={() => setDeleteId(null)}
+                onConfirm={() => deleteId && deleteMutation.mutate(deleteId)}
+                title="Delete Template"
+                message="Are you sure you want to delete this template?"
+                confirmLabel="Delete"
+                variant="danger"
             />
         </Card>
     );
@@ -195,14 +196,14 @@ function EmailTemplates() {
                 )}
             </div>
 
-            <ConfirmationModal 
-                isOpen={!!deleteId} 
-                onCancel={() => setDeleteId(null)} 
-                onConfirm={() => deleteId && deleteMutation.mutate(deleteId)} 
-                title="Delete Template" 
-                message="Are you sure you want to delete this template?" 
-                confirmLabel="Delete" 
-                variant="danger" 
+            <ConfirmationModal
+                isOpen={!!deleteId}
+                onCancel={() => setDeleteId(null)}
+                onConfirm={() => deleteId && deleteMutation.mutate(deleteId)}
+                title="Delete Template"
+                message="Are you sure you want to delete this template?"
+                confirmLabel="Delete"
+                variant="danger"
             />
         </Card>
     );
@@ -212,7 +213,16 @@ export function TemplateSettings() {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const { tenantId } = useParams<{ tenantId: string }>();
-    const [activeTab, setActiveTab] = useState<'jobs' | 'emails' | 'offers'>('offers');
+    const [searchParams, setSearchParams] = useSearchParams();
+    const activeTab = (searchParams.get('view') as 'jobs' | 'emails' | 'offers') || 'offers';
+
+    const setActiveTab = (tab: 'jobs' | 'emails' | 'offers') => {
+        setSearchParams(prev => {
+            const newParams = new URLSearchParams(prev);
+            newParams.set('view', tab);
+            return newParams;
+        });
+    };
 
     // Offer Template State
     const [offerTemplates, setOfferTemplates] = useState<any[]>([]);

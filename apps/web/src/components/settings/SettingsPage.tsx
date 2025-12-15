@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../../stores/auth';
-import { Settings, Users, GitBranch, FileText, Plug, Shield, CreditCard, Palette, Mail, Zap, Layout, Bell, Search, X, ChevronRight, Keyboard, Upload, History, Globe } from 'lucide-react';
+import { Settings, Users, GitBranch, FileText, Plug, Shield, CreditCard, Palette, Mail, Zap, Layout, Bell, Search, X, ChevronRight, Keyboard, Upload, History, Globe, ArrowLeft } from 'lucide-react';
 import { GeneralSettings } from './GeneralSettings';
 import { UserManagementSettings } from './UserManagementSettings';
 import { HiringProcessSettings } from './HiringProcessSettings';
@@ -207,8 +207,9 @@ export function SettingsPage() {
     const { t } = useTranslation();
     const [searchParams, setSearchParams] = useSearchParams();
     const [searchQuery, setSearchQuery] = useState('');
+    const [previousSearch, setPreviousSearch] = useState('');
     const { user } = useAuthStore();
-    
+
     // Get active tab from URL, localStorage, or default to 'general'
     const urlTab = searchParams.get('tab');
     const storedTab = localStorage.getItem(`${SETTINGS_TAB_STORAGE_KEY}-${user?.tenantId}`);
@@ -261,9 +262,19 @@ export function SettingsPage() {
                 item.keywords.some(keyword => keyword.toLowerCase().includes(query));
         });
 
-    const handleTabChange = (tabId: string) => {
+    const handleTabChange = (tabId: string, fromSearch: boolean = false) => {
         setSearchParams({ tab: tabId });
+        if (fromSearch) {
+            setPreviousSearch(searchQuery);
+        } else {
+            setPreviousSearch('');
+        }
         setSearchQuery(''); // Clear search when selecting a tab
+    };
+
+    const handleBackToSearch = () => {
+        setSearchQuery(previousSearch);
+        setPreviousSearch('');
     };
 
     const getTabLabel = (tabId: string) => {
@@ -281,7 +292,7 @@ export function SettingsPage() {
         if (!query.trim()) return text;
         const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
         const parts = text.split(regex);
-        return parts.map((part, i) => 
+        return parts.map((part, i) =>
             regex.test(part) ? (
                 <mark key={i} className="bg-yellow-200 dark:bg-yellow-900/50 text-inherit rounded px-0.5">
                     {part}
@@ -291,11 +302,22 @@ export function SettingsPage() {
     };
 
     return (
-        <div className="h-full min-h-0 flex flex-col gap-3 sm:gap-5 overflow-hidden">
+        <div className="h-full min-h-0 flex flex-col gap-3 sm:gap-5">
             <div className="flex items-center justify-between gap-3">
-                <h1 className="text-lg sm:text-xl font-bold text-neutral-900 dark:text-white">
-                    {t('settings.title')}
-                </h1>
+                <div className="flex items-center gap-2">
+                    {previousSearch && (
+                        <button
+                            onClick={handleBackToSearch}
+                            className="p-1 -ml-1 text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-white rounded-md transition-colors"
+                            title="Back to search"
+                        >
+                            <ArrowLeft size={20} />
+                        </button>
+                    )}
+                    <h1 className="text-lg sm:text-xl font-bold text-neutral-900 dark:text-white">
+                        {t('settings.title')}
+                    </h1>
+                </div>
                 {/* Search Input */}
                 <div className="relative w-full max-w-xs">
                     <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
@@ -357,7 +379,7 @@ export function SettingsPage() {
                                 filteredItems.map((item) => (
                                     <button
                                         key={item.id}
-                                        onClick={() => handleTabChange(item.tabId)}
+                                        onClick={() => handleTabChange(item.tabId, true)}
                                         className="w-full text-left p-4 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg hover:border-blue-300 dark:hover:border-blue-600 hover:bg-blue-50/50 dark:hover:bg-blue-900/20 transition-colors group"
                                     >
                                         <div className="flex items-center justify-between">

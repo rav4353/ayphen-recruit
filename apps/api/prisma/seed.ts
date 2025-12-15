@@ -436,6 +436,31 @@ async function main() {
   });
   console.log('✅ Offers created');
 
+  // 13. Create Default Settings (Interview Types, etc.)
+  const defaultInterviewTypes = [
+    { id: '1', name: 'Phone Screen', duration: 30, type: 'remote', description: 'Initial phone screening' },
+    { id: '2', name: 'Technical Interview', duration: 60, type: 'remote', description: 'Technical assessment' },
+    { id: '3', name: 'Onsite Loop', duration: 240, type: 'in-person', description: 'Full day onsite interviews' },
+  ];
+
+  await prisma.setting.upsert({
+    where: {
+      tenantId_key: {
+        tenantId: tenant.id,
+        key: 'interview_types',
+      },
+    },
+    update: {},
+    create: {
+      tenantId: tenant.id,
+      key: 'interview_types',
+      value: defaultInterviewTypes,
+      category: 'HIRING',
+      isPublic: false,
+    },
+  });
+  console.log('✅ Default settings created');
+
   console.log('🎉 Database seeding completed successfully!');
 }
 

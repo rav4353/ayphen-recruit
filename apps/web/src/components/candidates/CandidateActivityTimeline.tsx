@@ -20,6 +20,7 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { candidateActivityApi } from '@/lib/api';
+import { useDateFormatter } from '@/lib/dateUtils';
 
 interface Activity {
   id: string;
@@ -63,6 +64,7 @@ export function CandidateActivityTimeline({ candidateId }: CandidateActivityTime
   const [filterType, setFilterType] = useState<string>('');
   const [showFilters, setShowFilters] = useState(false);
   const [limit, setLimit] = useState(20);
+  const { formatDate: formatAbsDate } = useDateFormatter();
 
   const { data: timeline, isLoading } = useQuery({
     queryKey: ['candidate-activity', candidateId, filterType, limit],
@@ -99,7 +101,7 @@ export function CandidateActivityTimeline({ candidateId }: CandidateActivityTime
     } else if (diffDays < 7) {
       return `${diffDays} days ago`;
     }
-    return date.toLocaleDateString();
+    return formatAbsDate(date);
   };
 
   return (

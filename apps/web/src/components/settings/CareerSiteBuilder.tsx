@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -29,7 +30,16 @@ import { careerSiteApi, customDomainApi, applicationFormApi } from '@/lib/api';
 type TabType = 'branding' | 'layout' | 'company' | 'seo' | 'domain' | 'form' | 'pages';
 
 export function CareerSiteBuilder() {
-  const [activeTab, setActiveTab] = useState<TabType>('branding');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = (searchParams.get('view') as TabType) || 'branding';
+
+  const setActiveTab = (tab: TabType) => {
+    setSearchParams(prev => {
+      const newParams = new URLSearchParams(prev);
+      newParams.set('view', tab);
+      return newParams;
+    });
+  };
 
   const { data: config, isLoading } = useQuery({
     queryKey: ['career-site-config'],

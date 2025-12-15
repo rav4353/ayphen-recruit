@@ -24,6 +24,10 @@ export class CreateUserDto {
   @IsString()
   phone?: string;
 
+  @ApiProperty({ example: 'EMP001' })
+  @IsString()
+  employeeId: string;
+
   @ApiPropertyOptional({ example: 'Senior Recruiter' })
   @IsOptional()
   @IsString()

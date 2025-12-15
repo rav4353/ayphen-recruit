@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { X, Calendar, Clock, MapPin, Link as LinkIcon } from 'lucide-react';
+import { X, Clock, MapPin, Link as LinkIcon } from 'lucide-react';
 import { Button, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui';
 import { interviewsApi, usersApi } from '../../lib/api';
 import { User, InterviewType } from '../../lib/types';
@@ -156,9 +156,19 @@ export function ScheduleInterviewModal({
                     <Input
                         label={t('interviews.scheduledAt', 'Date & Time')}
                         type="datetime-local"
-                        leftIcon={<Calendar size={16} />}
+                        min={new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)}
                         {...register('scheduledAt', { required: t('common.required', 'Required') })}
                         error={errors.scheduledAt?.message}
+                        className="block w-full dark:[color-scheme:dark] cursor-pointer"
+                        onClick={(e) => {
+                            if ('showPicker' in HTMLInputElement.prototype) {
+                                try {
+                                    (e.target as HTMLInputElement).showPicker();
+                                } catch (error) {
+                                    // Ignore error if picker is already shown or not supported
+                                }
+                            }
+                        }}
                     />
 
                     <div>

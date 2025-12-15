@@ -1,17 +1,27 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Card, CardHeader, Button, Modal, ConfirmationModal } from '../ui';
-import { Plus, Clock, Video, CheckSquare, Edit2, Trash2, Users, ArrowRight } from 'lucide-react';
+import { Plus, Clock, Video, CheckSquare, Edit2, Trash2, ArrowRight } from 'lucide-react';
 import { PipelineSettings } from './PipelineSettings';
 import { ScorecardTemplatesSettings } from './ScorecardTemplatesSettings';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { settingsApi, rolesApi, usersApi } from '../../lib/api';
+import { settingsApi, rolesApi, usersApi, extractData } from '../../lib/api';
 import toast from 'react-hot-toast';
 
 export function HiringProcessSettings() {
     const { t } = useTranslation();
     const queryClient = useQueryClient();
-    const [activeTab, setActiveTab] = useState<'pipelines' | 'slas' | 'scorecards' | 'interviews' | 'approvals'>('pipelines');
+    const [searchParams, setSearchParams] = useSearchParams();
+    const activeTab = (searchParams.get('view') as 'pipelines' | 'slas' | 'scorecards' | 'interviews' | 'approvals') || 'pipelines';
+
+    const setActiveTab = (tab: 'pipelines' | 'slas' | 'scorecards' | 'interviews' | 'approvals') => {
+        setSearchParams(prev => {
+            const newParams = new URLSearchParams(prev);
+            newParams.set('view', tab);
+            return newParams;
+        });
+    };
 
     // Interview Types State
     const [interviewModalOpen, setInterviewModalOpen] = useState(false);
@@ -37,22 +47,18 @@ export function HiringProcessSettings() {
     const [savingSla, setSavingSla] = useState(false);
 
     // Interview Types Query
-    const { data: interviewTypes = [] } = useQuery({
+    const { data: interviewTypes = [], isLoading: interviewTypesLoading } = useQuery({
         queryKey: ['interview-types'],
         queryFn: async () => {
             try {
                 const response = await settingsApi.getByKey('interview_types');
-                return response.data?.value || [
-                    { id: '1', name: 'Phone Screen', duration: 30, type: 'remote', description: 'Initial phone screening' },
-                    { id: '2', name: 'Technical Interview', duration: 60, type: 'remote', description: 'Technical assessment' },
-                    { id: '3', name: 'Onsite Loop', duration: 240, type: 'in-person', description: 'Full day onsite interviews' },
-                ];
-            } catch {
-                return [
-                    { id: '1', name: 'Phone Screen', duration: 30, type: 'remote', description: 'Initial phone screening' },
-                    { id: '2', name: 'Technical Interview', duration: 60, type: 'remote', description: 'Technical assessment' },
-                    { id: '3', name: 'Onsite Loop', duration: 240, type: 'in-person', description: 'Full day onsite interviews' },
-                ];
+                console.log('[HiringProcessSettings] interview_types API response:', response);
+                const extracted = extractData(response);
+                console.log('[HiringProcessSettings] extracted data:', extracted);
+                return extracted?.value || [];
+            } catch (error) {
+                console.error('[HiringProcessSettings] Failed to fetch interview_types:', error);
+                return [];
             }
         },
     });
@@ -63,7 +69,7 @@ export function HiringProcessSettings() {
         queryFn: async () => {
             try {
                 const response = await settingsApi.getByKey('approval_workflows');
-                return response.data?.value || [
+                return extractData(response)?.value || [
                     { id: '1', name: 'Job Requisition Approval', description: 'Standard approval chain for new job openings', steps: ['Hiring Manager', 'Finance', 'VP of HR'] },
                     { id: '2', name: 'Offer Approval', description: 'Approval required for offers above budget', steps: ['Recruiter', 'Hiring Manager'] },
                 ];
@@ -110,7 +116,7 @@ export function HiringProcessSettings() {
         queryFn: async () => {
             try {
                 const response = await settingsApi.getByKey('sla_settings');
-                return response.data?.value || null;
+                return extractData(response)?.value || null;
             } catch {
                 return null;
             }
@@ -366,27 +372,37 @@ export function HiringProcessSettings() {
                         </div>
 
                         <div className="space-y-2">
-                            {interviewTypes.map((type: any) => (
-                                <div key={type.id} className="group flex items-center justify-between p-4 border border-neutral-200 dark:border-neutral-700 rounded-lg hover:border-blue-500 transition-colors">
-                                    <div className="flex items-center gap-4">
-                                        <div className={`p-2 rounded-lg ${type.type === 'remote' ? 'bg-green-50 dark:bg-green-900/20 text-green-600' : 'bg-blue-50 dark:bg-blue-900/20 text-blue-600'}`}>
-                                            <Video size={20} />
-                                        </div>
-                                        <div>
-                                            <h3 className="font-medium text-neutral-900 dark:text-white">{type.name}</h3>
-                                            <p className="text-sm text-neutral-500">{formatDuration(type.duration)} • {type.type === 'remote' ? 'Remote' : 'In Person'}</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <Button variant="ghost" size="sm" onClick={() => { setEditingInterview(type); setInterviewModalOpen(true); }}>
-                                            <Edit2 size={14} />
-                                        </Button>
-                                        <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-600" onClick={() => setDeleteInterviewId(type.id)}>
-                                            <Trash2 size={14} />
-                                        </Button>
-                                    </div>
+                            {interviewTypesLoading ? (
+                                <div className="text-center py-8 text-neutral-500">Loading interview types...</div>
+                            ) : interviewTypes.length === 0 ? (
+                                <div className="text-center py-8 border border-dashed border-neutral-300 dark:border-neutral-700 rounded-lg">
+                                    <Video className="mx-auto text-neutral-400 mb-2" size={32} />
+                                    <p className="text-neutral-500">No interview types configured yet.</p>
+                                    <p className="text-sm text-neutral-400">Click "Add Interview Type" to create one.</p>
                                 </div>
-                            ))}
+                            ) : (
+                                interviewTypes.map((type: any) => (
+                                    <div key={type.id} className="group flex items-center justify-between p-4 border border-neutral-200 dark:border-neutral-700 rounded-lg hover:border-blue-500 transition-colors">
+                                        <div className="flex items-center gap-4">
+                                            <div className={`p-2 rounded-lg ${type.type === 'remote' ? 'bg-green-50 dark:bg-green-900/20 text-green-600' : 'bg-blue-50 dark:bg-blue-900/20 text-blue-600'}`}>
+                                                <Video size={20} />
+                                            </div>
+                                            <div>
+                                                <h3 className="font-medium text-neutral-900 dark:text-white">{type.name}</h3>
+                                                <p className="text-sm text-neutral-500">{formatDuration(type.duration)} • {type.type === 'remote' ? 'Remote' : 'In Person'}</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Button variant="ghost" size="sm" onClick={() => { setEditingInterview(type); setInterviewModalOpen(true); }}>
+                                                <Edit2 size={14} />
+                                            </Button>
+                                            <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-600" onClick={() => setDeleteInterviewId(type.id)}>
+                                                <Trash2 size={14} />
+                                            </Button>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
                         </div>
                     </div>
                 </Card>
@@ -408,6 +424,7 @@ export function HiringProcessSettings() {
                 variant="danger"
             />
 
+
             {activeTab === 'approvals' && (
                 <Card>
                     <div className="p-6">
@@ -421,17 +438,49 @@ export function HiringProcessSettings() {
                             </Button>
                         </div>
 
-                        <div className="space-y-4">
-                            {approvalWorkflows.map((workflow: any) => (
-                                <div key={workflow.id} className="group p-4 border border-neutral-200 dark:border-neutral-700 rounded-lg hover:border-blue-500 transition-colors">
-                                    <div className="flex items-center justify-between mb-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-blue-600 dark:text-blue-400">
+                        <div className="space-y-3">
+                            {approvalWorkflows.length === 0 ? (
+                                <div className="text-center py-8 border border-dashed border-neutral-300 dark:border-neutral-700 rounded-lg">
+                                    <CheckSquare className="mx-auto text-neutral-400 mb-2" size={32} />
+                                    <p className="text-neutral-500">No approval workflows configured yet.</p>
+                                    <p className="text-sm text-neutral-400">Click "Create Workflow" to create one.</p>
+                                </div>
+                            ) : (
+                                approvalWorkflows.map((workflow: any) => (
+                                    <div key={workflow.id} className="group flex items-start justify-between p-4 border border-neutral-200 dark:border-neutral-700 rounded-lg hover:border-primary-500 transition-colors">
+                                        <div className="flex items-start gap-4 flex-1">
+                                            <div className="p-2 bg-primary-50 dark:bg-primary-900/20 rounded-lg text-primary-600 dark:text-primary-400">
                                                 <CheckSquare size={20} />
                                             </div>
-                                            <div>
+                                            <div className="flex-1 min-w-0">
                                                 <h3 className="font-medium text-neutral-900 dark:text-white">{workflow.name}</h3>
-                                                <p className="text-sm text-neutral-500">{workflow.description}</p>
+                                                <p className="text-sm text-neutral-500 mb-3">{workflow.description || 'No description'}</p>
+
+                                                {/* Approval Steps */}
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    {workflow.steps?.map((step: any, index: number) => {
+                                                        const isOldFormat = typeof step === 'string';
+                                                        const displayName = isOldFormat ? step : (step.userName || step.roleName || 'Unknown');
+                                                        const roleName = isOldFormat ? null : step.roleName;
+
+                                                        return (
+                                                            <div key={index} className="flex items-center gap-1.5">
+                                                                <div className="flex items-center gap-2 px-2.5 py-1.5 bg-neutral-100 dark:bg-neutral-800 rounded-md text-sm">
+                                                                    <span className="w-5 h-5 bg-primary-500 text-white rounded-full flex items-center justify-center text-xs font-medium">
+                                                                        {index + 1}
+                                                                    </span>
+                                                                    <span className="font-medium text-neutral-700 dark:text-neutral-300">{displayName}</span>
+                                                                    {roleName && (
+                                                                        <span className="text-xs text-neutral-500">({roleName})</span>
+                                                                    )}
+                                                                </div>
+                                                                {index < workflow.steps.length - 1 && (
+                                                                    <ArrowRight size={14} className="text-neutral-400" />
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-2">
@@ -443,33 +492,8 @@ export function HiringProcessSettings() {
                                             </Button>
                                         </div>
                                     </div>
-
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                        {workflow.steps?.map((step: any, index: number) => {
-                                            // Handle both old format (string) and new format (object)
-                                            const isOldFormat = typeof step === 'string';
-                                            const displayName = isOldFormat ? step : (step.userName || step.roleName || 'Unknown');
-                                            const roleName = isOldFormat ? '' : step.roleName;
-                                            return (
-                                                <div key={index} className="flex items-center gap-2">
-                                                    <div className="flex items-center gap-2 px-3 py-1.5 bg-neutral-100 dark:bg-neutral-800 rounded-lg text-sm">
-                                                        <Users size={14} className="text-neutral-500" />
-                                                        <div className="flex flex-col">
-                                                            <span className="font-medium">{index + 1}. {displayName}</span>
-                                                            {!isOldFormat && roleName && (
-                                                                <span className="text-xs text-neutral-500">{roleName}</span>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                    {index < workflow.steps.length - 1 && (
-                                                        <ArrowRight size={14} className="text-neutral-400" />
-                                                    )}
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            ))}
+                                ))
+                            )}
                         </div>
                     </div>
                 </Card>
@@ -517,7 +541,7 @@ function SlaStageCard({ title, description, stage, settings, onUpdate }: {
                 </div>
                 <Clock size={16} className="text-neutral-400 mt-1" />
             </div>
-            
+
             <div className="space-y-3">
                 <div className="flex items-center gap-3">
                     <label className="text-sm text-neutral-600 dark:text-neutral-400 w-24">Target Days</label>
@@ -531,7 +555,7 @@ function SlaStageCard({ title, description, stage, settings, onUpdate }: {
                     />
                     <span className="text-xs text-neutral-500">days</span>
                 </div>
-                
+
                 <div className="flex items-center gap-3">
                     <label className="text-sm text-neutral-600 dark:text-neutral-400 w-24">Send Alerts</label>
                     <label className="relative inline-flex items-center cursor-pointer">
@@ -544,7 +568,7 @@ function SlaStageCard({ title, description, stage, settings, onUpdate }: {
                         <div className="w-9 h-5 bg-neutral-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-neutral-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-neutral-600 peer-checked:bg-blue-600"></div>
                     </label>
                 </div>
-                
+
                 {settings.alertEnabled && (
                     <div className="flex items-center gap-3">
                         <label className="text-sm text-neutral-600 dark:text-neutral-400 w-24">Alert Before</label>
@@ -669,7 +693,12 @@ function ApprovalWorkflowForm({ initialData, onSubmit, onCancel, isLoading }: an
 
     const getUsersByRole = (roleId: string) => {
         if (!roleId) return [];
-        return users.filter((user: any) => user.role === roleId || user.roleId === roleId);
+        const normalizedRole = roleId.startsWith('SYS_') ? roleId.replace('SYS_', '') : roleId;
+        return users.filter((user: any) =>
+            user.role === roleId ||
+            user.role === normalizedRole ||
+            user.roleId === roleId
+        );
     };
 
     const addStep = () => setSteps([...steps, { role: '', roleName: '', userId: '', userName: '' }]);
@@ -753,7 +782,7 @@ function ApprovalWorkflowForm({ initialData, onSubmit, onCancel, isLoading }: an
                                             <option value="">{step.role ? 'Select User' : 'Select role first'}</option>
                                             {getUsersByRole(step.role).map((user: any) => (
                                                 <option key={user.id} value={user.id}>
-                                                    {user.firstName} {user.lastName} ({user.email})
+                                                    {user.firstName} {user.lastName} ({user.employeeId || user.email})
                                                 </option>
                                             ))}
                                         </select>

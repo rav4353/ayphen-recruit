@@ -17,59 +17,76 @@ export class UsersService {
   ) { }
 
   async create(dto: CreateUserDto, tenantId: string) {
-    const { departmentId, role, password, customPermissions, roleId, ...userData } = dto as any; // Cast to any to access password if not in DTO interface
+    try {
+      const { departmentId, role, password, customPermissions, roleId, ...userData } = dto as any;
 
-    // Check if user with this email already exists in this tenant
-    const existingUser = await this.prisma.user.findUnique({
-      where: {
-        email_tenantId: {
-          email: dto.email,
-          tenantId: tenantId,
+      // Check if user with this email or employeeId already exists in this tenant
+      const existingUser = await this.prisma.user.findFirst({
+        where: {
+          tenantId,
+          OR: [
+            { email: dto.email },
+            { employeeId: dto.employeeId }
+          ]
         },
-      },
-    });
+      });
 
-    if (existingUser) {
-      throw new ConflictException(`User with email ${dto.email} already exists in this organization`);
+      if (existingUser) {
+        if (existingUser.email === dto.email) {
+          throw new ConflictException(`User with email ${dto.email} already exists in this organization`);
+        }
+        throw new ConflictException(`User with Employee ID ${dto.employeeId} already exists in this organization`);
+      }
+
+      let passwordHash = undefined;
+      if (password) {
+        const defaultRounds = process.env.NODE_ENV === 'production' ? 12 : 10;
+        const saltRounds = Number(this.configService.get('BCRYPT_ROUNDS')) || defaultRounds;
+        passwordHash = await bcrypt.hash(password, saltRounds);
+      }
+
+      console.log('Creating user with data:', { email: dto.email, employeeId: dto.employeeId, tenantId });
+
+      const user = await this.prisma.user.create({
+        data: {
+          ...userData,
+          employeeId: dto.employeeId || this.generateEmployeeId(),
+          tenantId,
+          ...(passwordHash && { passwordHash }),
+          ...(role && { role }), // Ensure role is valid UserRole enum or ignored
+          ...(departmentId && { departmentId }),
+          ...(roleId && { roleId }),
+          ...(customPermissions && { customPermissions }),
+          status: 'ACTIVE',
+          requirePasswordChange: !!password,
+        },
+      });
+
+      // If a password was provided, it means this is an invite flow where the admin set a temp password
+      if (password) {
+        const frontendUrl = this.configService.get('FRONTEND_URL') || 'http://localhost:3000';
+        const loginUrl = `${frontendUrl}/login`;
+
+        try {
+          await this.emailService.sendInvitationEmail(
+            user.email,
+            user.firstName,
+            password,
+            loginUrl,
+            tenantId
+          );
+        } catch (emailError) {
+          console.error('Failed to send invitation email:', emailError);
+          // Do not fail the request if email sending fails, just log it.
+          // Or maybe we should warn? For now, swallow error to allow user creation.
+        }
+      }
+
+      return user;
+    } catch (error) {
+      console.error('Error in UsersService.create:', error);
+      throw error;
     }
-
-    let passwordHash = undefined;
-    if (password) {
-      const defaultRounds = process.env.NODE_ENV === 'production' ? 12 : 10;
-      const saltRounds = Number(this.configService.get('BCRYPT_ROUNDS')) || defaultRounds;
-      passwordHash = await bcrypt.hash(password, saltRounds);
-    }
-
-    const user = await this.prisma.user.create({
-      data: {
-        ...userData,
-        employeeId: this.generateEmployeeId(),
-        tenantId,
-        ...(passwordHash && { passwordHash }),
-        ...(role && { role }),
-        ...(departmentId && { departmentId }),
-        ...(roleId && { roleId }),
-        ...(customPermissions && { customPermissions }),
-        status: 'ACTIVE', // Invited users are active immediately (password set by admin)
-        requirePasswordChange: !!password, // Force password change if invited with temp password
-      },
-    });
-
-    // If a password was provided, it means this is an invite flow where the admin set a temp password
-    if (password) {
-      const frontendUrl = this.configService.get('FRONTEND_URL') || 'http://localhost:3000';
-      const loginUrl = `${frontendUrl}/login`;
-
-      await this.emailService.sendInvitationEmail(
-        user.email,
-        user.firstName,
-        password,
-        loginUrl,
-        tenantId
-      );
-    }
-
-    return user;
   }
 
   async findAll(tenantId: string, query: UserQueryDto) {

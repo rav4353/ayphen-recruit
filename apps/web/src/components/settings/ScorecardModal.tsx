@@ -22,6 +22,10 @@ const criteriaItemSchema = z.object({
 
 const scorecardSchema = z.object({
     name: z.string().min(1, 'Template name is required'),
+    ratingScale: z.coerce.number().min(3).max(10).default(5),
+    ratingLabelMin: z.string().default('Poor'),
+    ratingLabelMax: z.string().default('Excellent'),
+    recommendationOptions: z.string().default('Strong No, No, Yes, Strong Yes'),
     sections: z.array(criteriaItemSchema),
 });
 
@@ -44,9 +48,13 @@ export const ScorecardModal = ({ isOpen, onClose, initialData, onSubmit, isLoadi
         reset,
         formState: { errors }
     } = useForm<ScorecardFormData>({
-        resolver: zodResolver(scorecardSchema),
+        resolver: zodResolver(scorecardSchema) as any,
         defaultValues: {
             name: '',
+            ratingScale: 5,
+            ratingLabelMin: 'Poor',
+            ratingLabelMax: 'Excellent',
+            recommendationOptions: 'Strong No, No, Yes, Strong Yes',
             sections: []
         }
     });
@@ -60,6 +68,12 @@ export const ScorecardModal = ({ isOpen, onClose, initialData, onSubmit, isLoadi
         if (isOpen) {
             reset({
                 name: initialData?.name || '',
+                ratingScale: initialData?.ratingScale || 5,
+                ratingLabelMin: initialData?.ratingLabelMin || 'Poor',
+                ratingLabelMax: initialData?.ratingLabelMax || 'Excellent',
+                recommendationOptions: Array.isArray(initialData?.recommendationOptions)
+                    ? initialData.recommendationOptions.join(', ')
+                    : 'Strong No, No, Yes, Strong Yes',
                 sections: initialData?.sections || []
             });
         }
@@ -70,8 +84,12 @@ export const ScorecardModal = ({ isOpen, onClose, initialData, onSubmit, isLoadi
     };
 
     const handleFormSubmit = (data: ScorecardFormData) => {
-        const syntheticEvent = { preventDefault: () => {} } as React.FormEvent;
-        onSubmit(syntheticEvent, data);
+        const syntheticEvent = { preventDefault: () => { } } as React.FormEvent;
+        const formattedData = {
+            ...data,
+            recommendationOptions: data.recommendationOptions.split(',').map(s => s.trim()).filter(Boolean)
+        };
+        onSubmit(syntheticEvent, formattedData);
     };
 
     return (
@@ -84,28 +102,76 @@ export const ScorecardModal = ({ isOpen, onClose, initialData, onSubmit, isLoadi
                 </DialogHeader>
                 <form onSubmit={handleSubmit(handleFormSubmit)} className="flex flex-col flex-1 overflow-hidden">
                     <div className="px-6 py-5 space-y-6 overflow-y-auto flex-1">
-                        <div className="space-y-2">
-                            <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                                Template Name
-                            </Label>
-                            <Input
-                                {...register('name')}
-                                placeholder="e.g. Sales Interview Scorecard"
-                                error={errors.name?.message}
-                            />
+                        <div className="space-y-4">
+                            <h3 className="text-sm font-medium text-neutral-900 dark:text-white pb-2 border-b border-neutral-100 dark:border-neutral-800">General Settings</h3>
+                            <div className="space-y-2">
+                                <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                                    Template Name
+                                </Label>
+                                <Input
+                                    {...register('name')}
+                                    placeholder="e.g. Sales Interview Scorecard"
+                                    error={errors.name?.message}
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-4">
+                                <div className="space-y-2">
+                                    <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                                        Rating Scale Max
+                                    </Label>
+                                    <Input
+                                        type="number"
+                                        min={3}
+                                        max={10}
+                                        {...register('ratingScale')}
+                                        error={errors.ratingScale?.message}
+                                    />
+                                    <p className="text-[10px] text-neutral-500">Scale from 1 to N</p>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                                        Min Label
+                                    </Label>
+                                    <Input
+                                        {...register('ratingLabelMin')}
+                                        placeholder="Poor"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                                        Max Label
+                                    </Label>
+                                    <Input
+                                        {...register('ratingLabelMax')}
+                                        placeholder="Excellent"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                                    Recommendation Options
+                                </Label>
+                                <Input
+                                    {...register('recommendationOptions')}
+                                    placeholder="Strong No, No, Yes, Strong Yes"
+                                />
+                                <p className="text-[10px] text-neutral-500">Comma separated values (from negative to positive)</p>
+                            </div>
                         </div>
 
-                        <div className="space-y-3">
-                            <div className="flex justify-between items-center">
-                                <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                        <div className="space-y-3 pt-2">
+                            <div className="flex justify-between items-center pb-2 border-b border-neutral-100 dark:border-neutral-800">
+                                <Label className="text-sm font-medium text-neutral-900 dark:text-white">
                                     Evaluation Criteria
                                 </Label>
-                                <Button type="button" size="sm" variant="outline" onClick={handleAddCriteria} className="gap-1.5">
+                                <Button type="button" size="sm" variant="outline" onClick={handleAddCriteria} className="gap-1.5 h-8">
                                     <Plus size={14} /> Add Criteria
                                 </Button>
                             </div>
 
-                            <div className="space-y-3 max-h-[300px] overflow-y-auto">
+                            <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
                                 {fields.length === 0 && (
                                     <div className="text-sm text-neutral-500 text-center py-8 bg-neutral-50 dark:bg-neutral-900/50 rounded-xl border-2 border-dashed border-neutral-200 dark:border-neutral-800">
                                         <p className="font-medium text-neutral-600 dark:text-neutral-400">No criteria added</p>
@@ -114,14 +180,28 @@ export const ScorecardModal = ({ isOpen, onClose, initialData, onSubmit, isLoadi
                                 )}
                                 {fields.map((field, index) => (
                                     <div key={field.id} className="flex gap-3 items-start p-4 bg-neutral-50 dark:bg-neutral-900/50 rounded-xl border border-neutral-200 dark:border-neutral-800">
-                                        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-sm font-medium text-neutral-500 shrink-0">
+                                        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-sm font-medium text-neutral-500 shrink-0 mt-0.5">
                                             {index + 1}
                                         </div>
                                         <div className="flex-1 space-y-3">
-                                            <Input
-                                                {...register(`sections.${index}.label` as const)}
-                                                placeholder="Criteria Name (e.g. Technical Skills)"
-                                            />
+                                            <div className="flex gap-3">
+                                                <div className="flex-1">
+                                                    <Input
+                                                        {...register(`sections.${index}.label` as const)}
+                                                        placeholder="Criteria Name (e.g. Technical Skills)"
+                                                    />
+                                                </div>
+                                                <div className="w-1/3">
+                                                    <select
+                                                        {...register(`sections.${index}.type` as any)}
+                                                        className="w-full h-10 px-3 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                    >
+                                                        <option value="rating">Stars Only</option>
+                                                        <option value="text">Description Only</option>
+                                                        <option value="both">Stars & Description</option>
+                                                    </select>
+                                                </div>
+                                            </div>
                                             <Input
                                                 {...register(`sections.${index}.description` as const)}
                                                 placeholder="Description (optional)"

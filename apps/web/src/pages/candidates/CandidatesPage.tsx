@@ -181,7 +181,7 @@ export function CandidatesPage() {
   };
 
   return (
-    <div className="space-y-6 relative">
+    <div className="flex flex-col gap-6 relative min-h-full">
       {/* Bulk Actions Toolbar */}
       {selectedIds.length > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 shadow-2xl rounded-2xl px-5 py-3 flex items-center gap-4 animate-in slide-in-from-bottom-4">
@@ -416,7 +416,7 @@ export function CandidatesPage() {
           </div>
 
           {/* Pagination Controls */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-6 border-t border-neutral-200 dark:border-neutral-800">
+          <div className="sticky bottom-0 z-10 bg-neutral-50/95 dark:bg-neutral-950/95 backdrop-blur-sm flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-neutral-200 dark:border-neutral-800 -mx-3 -mb-3 p-3 sm:-mx-4 sm:-mb-4 sm:px-4 sm:py-4 lg:-mx-6 lg:-mb-6 lg:px-6 lg:py-4 mt-auto">
             <span className="text-sm text-neutral-500 dark:text-neutral-400">
               Showing {((page - 1) * LIMIT) + 1} to {Math.min(page * LIMIT, totalCount)} of {totalCount} candidates
             </span>

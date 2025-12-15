@@ -105,7 +105,7 @@ import { AuditModule } from './modules/audit/audit.module';
 
     // Serve static files (uploads)
     ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', 'uploads'),
+      rootPath: join(process.cwd(), 'uploads'),
       serveRoot: '/uploads',
     }),
 
@@ -113,3 +113,4 @@ import { AuditModule } from './modules/audit/audit.module';
   ],
 })
 export class AppModule { }
+// Force rebuild 2025-12-15-16-56

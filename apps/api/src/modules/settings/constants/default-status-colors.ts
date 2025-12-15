@@ -6,7 +6,7 @@ export const DEFAULT_STATUS_COLORS = {
         ON_HOLD: { bg: '#FEF3C7', text: '#92400E' },
         PENDING_APPROVAL: { bg: '#DBEAFE', text: '#1E40AF' },
         APPROVED: { bg: '#E0E7FF', text: '#3730A3' },
-        CANCELLED: { bg: '#F3F4F6', text: '#374151' },
+        CANCELLED: { bg: '#FEE2E2', text: '#991B1B' },
     },
     application: {
         APPLIED: { bg: '#DBEAFE', text: '#1E40AF' },

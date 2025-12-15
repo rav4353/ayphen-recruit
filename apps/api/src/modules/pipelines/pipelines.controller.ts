@@ -11,6 +11,7 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { PipelinesService } from './pipelines.service';
 import { CreatePipelineDto } from './dto/create-pipeline.dto';
+import { AddStageDto, UpdateStageDto } from './dto/update-stage.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -55,7 +56,7 @@ export class PipelinesController {
   @ApiOperation({ summary: 'Add a stage to pipeline' })
   addStage(
     @Param('id') id: string,
-    @Body() stage: { name: string; color?: string; slaDays?: number },
+    @Body() stage: AddStageDto,
   ) {
     return this.pipelinesService.addStage(id, stage);
   }
@@ -82,7 +83,7 @@ export class PipelinesController {
   @ApiOperation({ summary: 'Update pipeline stage' })
   updateStage(
     @Param('stageId') stageId: string,
-    @Body() data: { name?: string; color?: string; slaDays?: number; isTerminal?: boolean },
+    @Body() data: UpdateStageDto,
   ) {
     return this.pipelinesService.updateStage(stageId, data);
   }

@@ -1,10 +1,7 @@
 'use client';
 
 import { useEffect, useCallback, useRef } from 'react';
-// Router hook - use appropriate import based on your Next.js version
-// For Next.js 13+ App Router: import { useRouter } from 'next/navigation'
-// For Pages Router: import { useRouter } from 'next/router'
-declare function useRouter(): { push: (path: string) => void };
+import { useNavigate, useParams } from 'react-router-dom';
 
 export interface KeyboardShortcut {
   key: string;
@@ -26,7 +23,7 @@ const isMac = typeof window !== 'undefined' && navigator.platform.toUpperCase().
 
 export function formatShortcut(shortcut: Omit<KeyboardShortcut, 'action' | 'description' | 'category'>): string {
   const parts: string[] = [];
-  
+
   if (shortcut.ctrl || shortcut.meta) {
     parts.push(isMac ? '⌘' : 'Ctrl');
   }
@@ -36,13 +33,13 @@ export function formatShortcut(shortcut: Omit<KeyboardShortcut, 'action' | 'desc
   if (shortcut.shift) {
     parts.push(isMac ? '⇧' : 'Shift');
   }
-  
-  const keyDisplay = shortcut.key.length === 1 
-    ? shortcut.key.toUpperCase() 
+
+  const keyDisplay = shortcut.key.length === 1
+    ? shortcut.key.toUpperCase()
     : shortcut.key.replace('Arrow', '').replace('Escape', 'Esc');
-  
+
   parts.push(keyDisplay);
-  
+
   return parts.join(isMac ? '' : '+');
 }
 
@@ -59,23 +56,43 @@ export function useKeyboardShortcuts(
 
     // Ignore if typing in an input field
     const target = event.target as HTMLElement;
-    const isInputField = 
-      target.tagName === 'INPUT' || 
-      target.tagName === 'TEXTAREA' || 
+    const isInputField =
+      target.tagName === 'INPUT' ||
+      target.tagName === 'TEXTAREA' ||
       target.isContentEditable;
 
     // Allow some shortcuts even in input fields
-    const allowInInput = event.key === 'Escape' || 
+    const allowInInput = event.key === 'Escape' ||
       ((event.ctrlKey || event.metaKey) && ['k', 's', '/'].includes(event.key.toLowerCase()));
 
     if (isInputField && !allowInInput) return;
 
+    // Debug logging
+    console.log('[Shortcuts] Key pressed:', {
+      key: event.key,
+      code: event.code,
+      altKey: event.altKey,
+      ctrlKey: event.ctrlKey,
+      metaKey: event.metaKey,
+      shiftKey: event.shiftKey
+    });
+
     for (const shortcut of shortcutsRef.current) {
-      const keyMatch = event.key.toLowerCase() === shortcut.key.toLowerCase();
+      // Use event.code for letter keys to handle Mac Option key properly
+      // event.code gives us 'KeyG' for 'g', 'KeyJ' for 'j', etc.
+      const codeKey = event.code.replace('Key', '').replace('Digit', '').toLowerCase();
+      const eventKey = event.key.toLowerCase();
+
+      // Match against either event.key or the extracted code key
+      const keyMatch = eventKey === shortcut.key.toLowerCase() ||
+        codeKey === shortcut.key.toLowerCase();
+
       const ctrlMatch = shortcut.ctrl ? (event.ctrlKey || event.metaKey) : !(event.ctrlKey || event.metaKey);
       const altMatch = shortcut.alt ? event.altKey : !event.altKey;
       const shiftMatch = shortcut.shift ? event.shiftKey : !event.shiftKey;
+
       if (keyMatch && ctrlMatch && altMatch && shiftMatch) {
+        console.log('[Shortcuts] Matched shortcut:', shortcut.description);
         if (preventDefault) {
           event.preventDefault();
           event.stopPropagation();
@@ -87,14 +104,19 @@ export function useKeyboardShortcuts(
   }, [enabled, preventDefault]);
 
   useEffect(() => {
+    console.log('[Shortcuts] Registering keyboard shortcuts');
     document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    return () => {
+      console.log('[Shortcuts] Unregistering keyboard shortcuts');
+      document.removeEventListener('keydown', handleKeyDown);
+    };
   }, [handleKeyDown]);
 }
 
 // Global navigation shortcuts hook
 export function useGlobalShortcuts() {
-  const router = useRouter();
+  const navigate = useNavigate();
+  const { tenantId } = useParams<{ tenantId: string }>();
 
   const shortcuts: KeyboardShortcut[] = [
     // Navigation
@@ -103,49 +125,49 @@ export function useGlobalShortcuts() {
       alt: true,
       description: 'Go to Dashboard',
       category: 'Navigation',
-      action: () => router.push('/dashboard'),
+      action: () => navigate(`/${tenantId}/dashboard`),
     },
     {
       key: 'j',
       alt: true,
       description: 'Go to Jobs',
       category: 'Navigation',
-      action: () => router.push('/jobs'),
+      action: () => navigate(`/${tenantId}/jobs`),
     },
     {
       key: 'c',
       alt: true,
       description: 'Go to Candidates',
       category: 'Navigation',
-      action: () => router.push('/candidates'),
+      action: () => navigate(`/${tenantId}/candidates`),
     },
     {
       key: 'p',
       alt: true,
       description: 'Go to Pipeline',
       category: 'Navigation',
-      action: () => router.push('/pipeline'),
+      action: () => navigate(`/${tenantId}/pipeline`),
     },
     {
       key: 'i',
       alt: true,
       description: 'Go to Interviews',
       category: 'Navigation',
-      action: () => router.push('/interviews'),
+      action: () => navigate(`/${tenantId}/interviews`),
     },
     {
       key: 'r',
       alt: true,
       description: 'Go to Reports',
       category: 'Navigation',
-      action: () => router.push('/reports'),
+      action: () => navigate(`/${tenantId}/reports`),
     },
     {
       key: 's',
       alt: true,
       description: 'Go to Settings',
       category: 'Navigation',
-      action: () => router.push('/settings'),
+      action: () => navigate(`/${tenantId}/settings`),
     },
     // Search
     {

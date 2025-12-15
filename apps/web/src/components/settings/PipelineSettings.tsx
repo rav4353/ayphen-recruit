@@ -246,6 +246,9 @@ export function PipelineSettings() {
             const response = await pipelinesApi.getById(editingPipeline.id);
             setEditingPipeline(response.data.data);
             setIsStageModalOpen(false);
+
+            // Also refresh main list to reflect changes
+            fetchPipelines();
         } catch (error) {
             console.error('Failed to save stage', error);
             toast.error(editingStage ? t('pipelines.updateStageError') : t('pipelines.addStageError'));
@@ -265,6 +268,7 @@ export function PipelineSettings() {
                 });
             }
             toast.success(t('pipelines.removeStageSuccess'));
+            fetchPipelines(); // Refresh main list
         } catch (error) {
             console.error('Failed to remove stage', error);
             toast.error(t('pipelines.removeStageError'));

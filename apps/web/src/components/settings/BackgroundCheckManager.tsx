@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Shield,
@@ -74,7 +75,16 @@ const statusConfig: Record<BGVStatus, { icon: typeof CheckCircle; color: string;
 
 export function BackgroundCheckManager() {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'checks' | 'settings'>('dashboard');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = (searchParams.get('view') as 'dashboard' | 'checks' | 'settings') || 'dashboard';
+
+  const setActiveTab = (tab: 'dashboard' | 'checks' | 'settings') => {
+    setSearchParams(prev => {
+      const newParams = new URLSearchParams(prev);
+      newParams.set('view', tab);
+      return newParams;
+    });
+  };
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [showConfigModal, setShowConfigModal] = useState(false);
@@ -187,11 +197,10 @@ export function BackgroundCheckManager() {
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === tab
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeTab === tab
                 ? 'border-blue-500 text-blue-600 dark:text-blue-400'
                 : 'border-transparent text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
-            }`}
+              }`}
           >
             {tab.charAt(0).toUpperCase() + tab.slice(1)}
           </button>

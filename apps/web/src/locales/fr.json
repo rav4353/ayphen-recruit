@@ -65,7 +65,8 @@
     "options": "Options",
     "confirmDelete": "Êtes-vous sûr de vouloir supprimer cet élément ?",
     "saveChanges": "Enregistrer les modifications",
-    "update": "Mise à jour"
+    "update": "Mise à jour",
+    "select": "Sélectionner"
   },
   "permissions": {
     "candidate": {
@@ -243,7 +244,9 @@
       "passwordWeak": "Le mot de passe est trop faible",
       "passwordsDoNotMatch": "Les mots de passe ne correspondent pas",
       "firstNameRequired": "Le prénom est requis",
-      "lastNameRequired": "Le nom est requis"
+      "lastNameRequired": "Le nom est requis",
+      "required": "Requis",
+      "isRequired": "Est requis"
     }
   },
   "theme": {
@@ -363,7 +366,8 @@
         "suggestedKeywords": "Mots-clés suggérés :",
         "suggestions": "Suggestions :",
         "submitApproval": "Soumettre pour approbation",
-        "create": "Créer un emploi"
+        "create": "Créer un emploi",
+        "additionalInfo": "Informations supplémentaires"
       },
       "success": "Emploi créé avec succès",
       "error": "Échec de la création de l'emploi",
@@ -552,7 +556,17 @@
       "linkedinUrl": "URL LinkedIn",
       "portfolioUrl": "URL Portfolio",
       "skills": "Compétences (séparées par des virgules)",
-      "summary": "Résumé"
+      "summary": "Résumé",
+      "status": "Statut de candidature",
+      "source": "Source",
+      "title": "Titre du poste",
+      "company": "Entreprise",
+      "startDate": "Date de début",
+      "endDate": "Date de fin",
+      "description": "Description",
+      "degree": "Diplôme",
+      "institution": "Établissement",
+      "year": "Année"
     },
     "applicationsCount": "Candidatures",
     "bulkDeleteTitle": "Supprimer les candidats",
@@ -564,7 +578,12 @@
     "merge": "Fusionner",
     "noApplications": "Aucune candidature active",
     "resume": "CV",
-    "manual": "Saisie manuelle"
+    "manual": "Saisie manuelle",
+    "appliedOn": "Postulé le",
+    "unknownJob": "Emploi inconnu",
+    "match": "Correspondance",
+    "aiAnalysis": "Analyse IA",
+    "present": "Présent"
   },
   "pipeline": {
     "title": "Pipeline",
@@ -647,7 +666,7 @@
       "questions": "Questions",
       "general": "Général",
       "seniorEngineer": "Technique Ingénieur Senior",
-      "seniorEngineerDesc": "Évaluation de la conception du système et des normes de codage.",
+      "seniorEngineerDesc": "Évaluation de la conception système et des normes de codage.",
       "engineering": "Ingénierie"
     },
     "interviews": {
@@ -853,7 +872,10 @@
       "fillRequired": "Veuillez remplir tous les champs obligatoires",
       "success": "Offre créée avec succès",
       "error": "Échec de la création de l'offre",
-      "loadError": "Échec du chargement des données initiales"
+      "loadError": "Échec du chargement des données initiales",
+      "createNewTemplate": "Créer un nouveau modèle",
+      "noTemplates": "Aucun modèle trouvé.",
+      "createTemplate": "Créer un dans les paramètres"
     },
     "detail": {
       "loadError": "Échec du chargement des détails de l'offre",
@@ -991,7 +1013,12 @@
     "skills": "Compétences"
   },
   "inbox": {
-    "title": "Boîte de réception"
+    "title": "Messages",
+    "noThreads": "Aucun message trouvé",
+    "noSubject": "Pas de sujet",
+    "noContent": "Pas de contenu",
+    "selectPrompt": "Sélectionnez une conversation",
+    "selectPromptDesc": "Choisissez un fil de discussion sur la gauche pour afficher l'historique de la conversation."
   },
   "reports": {
     "title": "Rapports",

@@ -26,6 +26,7 @@ import { cn } from '../lib/utils';
 import { ErrorBoundary } from '../components/common/ErrorBoundary';
 import { ApiStatusIndicator } from '../components/common/ApiStatusIndicator';
 import { preferencesApi, settingsApi } from '../lib/api';
+import { useGlobalShortcuts } from '../hooks/useKeyboardShortcuts';
 import logoLight from '../assets/branding/logo_light_theme.png';
 import logoDark from '../assets/branding/logo_dark_theme.png';
 import ayphenLogo from '../assets/branding/ayphenLogo.6c65cf0b138677af.png';
@@ -34,11 +35,14 @@ export function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
   const { user, logout, isAuthenticated, requirePasswordChange } = useAuthStore();
-  const { settings: orgSettings, setSettings: setOrgSettings, setLogoUrl } = useOrganizationStore();
+  const { settings: orgSettings, setSettings: setOrgSettings, setLogoUrl, reset } = useOrganizationStore();
   const { setThemeFromApi, resolvedTheme } = useTheme();
   const { i18n, t } = useTranslation();
   const navigate = useNavigate();
   const { tenantId } = useParams<{ tenantId: string }>();
+
+  // Enable global keyboard shortcuts
+  useGlobalShortcuts();
   const allNavigation = [
     { name: 'dashboard.title', href: `/${tenantId}/dashboard`, icon: LayoutDashboard, roles: ['ADMIN', 'RECRUITER', 'HIRING_MANAGER'] },
     { name: 'jobs.title', href: `/${tenantId}/jobs`, icon: Briefcase, roles: ['ADMIN', 'RECRUITER', 'HIRING_MANAGER'] },
@@ -86,13 +90,16 @@ export function DashboardLayout() {
             if (orgProfile.value.logoUrl) {
               setLogoUrl(orgProfile.value.logoUrl);
             }
+          } else {
+            // If organization profile is not found (e.g., db flushed), reset the store
+            reset();
           }
         })
         .catch((error) => {
           console.error('Failed to load organization settings:', error);
         });
     }
-  }, [isAuthenticated, preferencesLoaded, setThemeFromApi, i18n, setOrgSettings, setLogoUrl]);
+  }, [isAuthenticated, preferencesLoaded, setThemeFromApi, i18n, setOrgSettings, setLogoUrl, reset]);
 
   const handleLogout = () => {
     logout();

@@ -3,7 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class ReferenceService {
-    constructor(private readonly prisma: PrismaService) {}
+    constructor(private readonly prisma: PrismaService) { }
 
     private readonly currencies = [
         { code: 'USD', name: 'US Dollar', symbol: '$' },
@@ -169,8 +169,29 @@ export class ReferenceService {
         { code: 'ZWL', name: 'Zimbabwean Dollar', symbol: '$' }
     ];
 
+    private readonly timezones = [
+        { value: 'UTC', label: 'UTC (Coordinated Universal Time)' },
+        { value: 'America/New_York', label: 'Eastern Time (ET)' },
+        { value: 'America/Chicago', label: 'Central Time (CT)' },
+        { value: 'America/Denver', label: 'Mountain Time (MT)' },
+        { value: 'America/Los_Angeles', label: 'Pacific Time (PT)' },
+        { value: 'Europe/London', label: 'Greenwich Mean Time (GMT)' },
+        { value: 'Europe/Paris', label: 'Central European Time (CET)' },
+        { value: 'Asia/Kolkata', label: 'India Standard Time (IST)' },
+        { value: 'Asia/Tokyo', label: 'Japan Standard Time (JST)' },
+        { value: 'Asia/Shanghai', label: 'China Standard Time (CST)' },
+        { value: 'Australia/Sydney', label: 'Australian Eastern Time (AET)' },
+        { value: 'Pacific/Auckland', label: 'New Zealand Standard Time (NZST)' },
+        { value: 'Asia/Dubai', label: 'Gulf Standard Time (GST)' },
+        { value: 'Asia/Singapore', label: 'Singapore Standard Time (SGT)' },
+    ];
+
     getCurrencies() {
         return this.currencies;
+    }
+
+    getTimezones() {
+        return this.timezones;
     }
 
     // Locations CRUD

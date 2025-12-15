@@ -356,12 +356,11 @@ export const slaApi = {
 
 // Workflows API
 export const workflowsApi = {
-  getWorkflowsByStage: (stageId: string) => api.get(`/workflows/stage/${stageId}`),
-  createWorkflow: (data: Record<string, any>) => api.post('/workflows', data),
-  updateWorkflow: (id: string, data: Record<string, any>) => api.put(`/workflows/${id}`, data),
-  deleteWorkflow: (id: string) => api.delete(`/workflows/${id}`),
-  toggleWorkflow: (id: string, isActive: boolean) =>
-    api.patch(`/workflows/${id}/toggle`, { isActive }),
+  getByStage: (stageId: string) => api.get(`/workflows/stage/${stageId}`),
+  create: (data: any) => api.post('/workflows', data),
+  update: (id: string, data: any) => api.put(`/workflows/${id}`, data),
+  delete: (id: string) => api.delete(`/workflows/${id}`),
+  toggle: (id: string, isActive: boolean) => api.patch(`/workflows/${id}/toggle`, { isActive }),
 };
 
 // Disposition API
@@ -391,6 +390,7 @@ export const settingsApi = {
 // Reference API
 export const referenceApi = {
   getCurrencies: () => api.get('/reference/currencies'),
+  getTimezones: () => api.get('/reference/timezones'),
   // Locations
   getLocations: () => api.get('/reference/locations'),
   createLocation: (data: { name: string; address?: string; city?: string; state?: string; country: string; timezone?: string }) =>

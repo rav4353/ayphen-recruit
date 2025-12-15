@@ -27,7 +27,7 @@ export function WorkflowList({ stage }: WorkflowListProps) {
     const fetchWorkflows = async () => {
         setIsLoading(true);
         try {
-            const response = await workflowsApi.getWorkflowsByStage(stage.id);
+            const response = await workflowsApi.getByStage(stage.id);
             setWorkflows(response.data.data || response.data || []);
         } catch (error) {
             console.error('Failed to fetch workflows:', error);
@@ -46,7 +46,7 @@ export function WorkflowList({ stage }: WorkflowListProps) {
 
         setIsDeleting(true);
         try {
-            await workflowsApi.deleteWorkflow(selectedWorkflow.id);
+            await workflowsApi.delete(selectedWorkflow.id);
             toast.success(t('workflows.deleteSuccess', 'Workflow deleted successfully'));
             fetchWorkflows();
         } catch (error) {
@@ -66,7 +66,7 @@ export function WorkflowList({ stage }: WorkflowListProps) {
 
     const handleToggle = async (workflow: WorkflowAutomation) => {
         try {
-            await workflowsApi.toggleWorkflow(workflow.id, !workflow.isActive);
+            await workflowsApi.toggle(workflow.id, !workflow.isActive);
             toast.success(t(workflow.isActive ? 'workflows.deactivated' : 'workflows.activated'));
             fetchWorkflows();
         } catch (error) {

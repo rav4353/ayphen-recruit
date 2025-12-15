@@ -18,7 +18,7 @@ import {
     SelectValue,
 } from '../ui';
 import { PhoneInput } from '../ui/PhoneInput';
-import { Plus, Trash2, Upload, Building2, Languages, MapPin, Users, Edit } from 'lucide-react';
+import { Plus, Trash2, Upload, Building2, Languages, MapPin, Users, Edit, Calendar, Globe } from 'lucide-react';
 import { settingsApi, storageApi, referenceApi } from '../../lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Modal, ConfirmationModal } from '../ui';
@@ -676,140 +676,171 @@ export function GeneralSettings() {
                     className="border-b border-neutral-100 dark:border-neutral-800"
                 />
                 <CardContent className="pt-6">
-                    <form onSubmit={localizationForm.handleSubmit(onSaveLocalization)} className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
-                            <div className="space-y-2">
-                                <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Timezone</Label>
-                                <Controller
-                                    name="timezone"
-                                    control={localizationForm.control}
-                                    render={({ field }) => (
-                                        <Select onValueChange={field.onChange} value={field.value}>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Select timezone" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {timezones.map((tz: any) => (
-                                                    <SelectItem key={tz.value} value={tz.value}>
-                                                        {tz.label}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    )}
-                                />
-                                <p className="text-xs text-neutral-500">Used for scheduling and date/time display</p>
-                            </div>
-                            <div className="space-y-2">
-                                <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Currency</Label>
-                                <Controller
-                                    name="currency"
-                                    control={localizationForm.control}
-                                    render={({ field }) => (
-                                        <Select onValueChange={field.onChange} value={field.value}>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Select currency" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {currencies.map((curr: any) => (
-                                                    <SelectItem key={curr.value} value={curr.value}>
-                                                        {curr.label}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    )}
-                                />
-                                <p className="text-xs text-neutral-500">Default currency for salary and compensation</p>
-                            </div>
-                            <div className="space-y-2">
-                                <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Date Format</Label>
-                                <Controller
-                                    name="dateFormat"
-                                    control={localizationForm.control}
-                                    render={({ field }) => (
-                                        <Select onValueChange={field.onChange} value={field.value}>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Select format" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {DATE_FORMATS.map((fmt) => (
-                                                    <SelectItem key={fmt.value} value={fmt.value}>
-                                                        <span className="flex items-center justify-between w-full gap-3">
-                                                            <span>{fmt.label}</span>
-                                                            <span className="text-neutral-400 text-xs">e.g. {fmt.example}</span>
-                                                        </span>
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    )}
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Language</Label>
-                                <Controller
-                                    name="language"
-                                    control={localizationForm.control}
-                                    render={({ field }) => (
-                                        <Select onValueChange={field.onChange} value={field.value}>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Select language" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {LANGUAGES.map((lang) => (
-                                                    <SelectItem key={lang.value} value={lang.value}>
-                                                        {lang.label}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    )}
-                                />
-                                <p className="text-xs text-neutral-500">Default language for the application</p>
-                            </div>
-                            <div className="space-y-2">
-                                <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Week Starts On</Label>
-                                <Controller
-                                    name="weekStartsOn"
-                                    control={localizationForm.control}
-                                    render={({ field }) => (
-                                        <Select onValueChange={field.onChange} value={field.value}>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Select day" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="sunday">Sunday</SelectItem>
-                                                <SelectItem value="monday">Monday</SelectItem>
-                                                <SelectItem value="saturday">Saturday</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    )}
-                                />
-                                <p className="text-xs text-neutral-500">First day of the week in calendars</p>
-                            </div>
-                            <div className="space-y-2">
-                                <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Number Format</Label>
-                                <Controller
-                                    name="numberFormat"
-                                    control={localizationForm.control}
-                                    render={({ field }) => (
-                                        <Select onValueChange={field.onChange} value={field.value}>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Select format" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="en-US">1,234.56 (US)</SelectItem>
-                                                <SelectItem value="de-DE">1.234,56 (German)</SelectItem>
-                                                <SelectItem value="fr-FR">1 234,56 (French)</SelectItem>
-                                                <SelectItem value="en-IN">1,23,456.78 (Indian)</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    )}
-                                />
-                                <p className="text-xs text-neutral-500">How numbers are displayed</p>
+                    <form onSubmit={localizationForm.handleSubmit(onSaveLocalization)} className="space-y-8">
+
+                        {/* Regional Settings */}
+                        <div className="space-y-4">
+                            <h3 className="text-sm font-medium text-neutral-900 dark:text-white flex items-center gap-2 border-b border-neutral-100 dark:border-neutral-800 pb-2">
+                                <Globe size={16} className="text-blue-500" />
+                                Regional Settings
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-2">
+                                    <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Default Language</Label>
+                                    <Controller
+                                        name="language"
+                                        control={localizationForm.control}
+                                        render={({ field }) => (
+                                            <Select onValueChange={field.onChange} value={field.value}>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Select language" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {LANGUAGES.map((lang) => (
+                                                        <SelectItem key={lang.value} value={lang.value}>
+                                                            {lang.label}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        )}
+                                    />
+                                    <p className="text-xs text-neutral-500">The language used for the system interface.</p>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Number Format</Label>
+                                    <Controller
+                                        name="numberFormat"
+                                        control={localizationForm.control}
+                                        render={({ field }) => (
+                                            <Select onValueChange={field.onChange} value={field.value}>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Select format" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="en-US">1,234.56 (US/UK)</SelectItem>
+                                                    <SelectItem value="de-DE">1.234,56 (EU)</SelectItem>
+                                                    <SelectItem value="fr-FR">1 234,56 (French)</SelectItem>
+                                                    <SelectItem value="en-IN">1,23,456.78 (Indian)</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        )}
+                                    />
+                                    <p className="text-xs text-neutral-500">How numbers and monetary values are displayed.</p>
+                                </div>
                             </div>
                         </div>
+
+                        {/* Date & Time Settings */}
+                        <div className="space-y-4">
+                            <h3 className="text-sm font-medium text-neutral-900 dark:text-white flex items-center gap-2 border-b border-neutral-100 dark:border-neutral-800 pb-2">
+                                <Calendar size={16} className="text-purple-500" />
+                                Date & Time
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-2">
+                                    <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Timezone</Label>
+                                    <Controller
+                                        name="timezone"
+                                        control={localizationForm.control}
+                                        render={({ field }) => (
+                                            <Select onValueChange={field.onChange} value={field.value}>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Select timezone" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {timezones.map((tz: any) => (
+                                                        <SelectItem key={tz.value} value={tz.value}>
+                                                            {tz.label}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        )}
+                                    />
+                                    <p className="text-xs text-neutral-500">Used for interview scheduling and timestamps.</p>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Date Format</Label>
+                                    <Controller
+                                        name="dateFormat"
+                                        control={localizationForm.control}
+                                        render={({ field }) => (
+                                            <Select onValueChange={field.onChange} value={field.value}>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Select format" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {DATE_FORMATS.map((fmt) => (
+                                                        <SelectItem key={fmt.value} value={fmt.value}>
+                                                            <div className="flex justify-between w-full min-w-[200px]">
+                                                                <span>{fmt.label}</span>
+                                                                <span className="text-neutral-400 text-xs ml-4">{fmt.example}</span>
+                                                            </div>
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        )}
+                                    />
+                                    <p className="text-xs text-neutral-500">Format for displaying dates throughout the app.</p>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Week Starts On</Label>
+                                    <Controller
+                                        name="weekStartsOn"
+                                        control={localizationForm.control}
+                                        render={({ field }) => (
+                                            <Select onValueChange={field.onChange} value={field.value}>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Select day" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="sunday">Sunday</SelectItem>
+                                                    <SelectItem value="monday">Monday</SelectItem>
+                                                    <SelectItem value="saturday">Saturday</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        )}
+                                    />
+                                    <p className="text-xs text-neutral-500">First day of the week for calendars.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Financial Settings */}
+                        <div className="space-y-4">
+                            <h3 className="text-sm font-medium text-neutral-900 dark:text-white flex items-center gap-2 border-b border-neutral-100 dark:border-neutral-800 pb-2">
+                                <Building2 size={16} className="text-green-500" />
+                                Financial
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-2">
+                                    <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Default Currency</Label>
+                                    <Controller
+                                        name="currency"
+                                        control={localizationForm.control}
+                                        render={({ field }) => (
+                                            <Select onValueChange={field.onChange} value={field.value}>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Select currency" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {currencies.map((curr: any) => (
+                                                        <SelectItem key={curr.value} value={curr.value}>
+                                                            <span className="font-mono text-xs mr-2 text-neutral-400">[{curr.value}]</span>
+                                                            {curr.label}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        )}
+                                    />
+                                    <p className="text-xs text-neutral-500">Primary currency for job offers and salaries.</p>
+                                </div>
+                            </div>
+                        </div>
+
                         <div className="flex justify-end pt-4 border-t border-neutral-100 dark:border-neutral-800">
                             <Button type="submit" isLoading={isSavingLocalization}>Save Changes</Button>
                         </div>

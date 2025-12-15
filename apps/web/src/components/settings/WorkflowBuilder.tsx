@@ -64,10 +64,10 @@ export function WorkflowBuilder({ stageId, workflow, onClose, onSuccess }: Workf
             };
 
             if (workflow) {
-                await workflowsApi.updateWorkflow(workflow.id, cleanedData);
+                await workflowsApi.update(workflow.id, cleanedData);
                 toast.success(t('workflows.updateSuccess', 'Workflow updated successfully'));
             } else {
-                await workflowsApi.createWorkflow({
+                await workflowsApi.create({
                     ...cleanedData,
                     stageId,
                     conditions: {} // Empty conditions for now
@@ -226,23 +226,100 @@ export function WorkflowBuilder({ stageId, workflow, onClose, onSuccess }: Workf
 
                                         {/* Action Specific Config */}
                                         {watch(`actions.${index}.type`) === 'SEND_EMAIL' && (
-                                            <div className="space-y-3 pl-4 border-l-2 border-neutral-200 dark:border-neutral-700">
+                                            <div className="space-y-4 pl-4 border-l-2 border-neutral-200 dark:border-neutral-700">
+                                                {/* Recipient Selection */}
+                                                <div>
+                                                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                                                        Send To
+                                                    </label>
+                                                    <Controller
+                                                        name={`actions.${index}.config.to`}
+                                                        control={control}
+                                                        defaultValue="candidate"
+                                                        render={({ field }) => (
+                                                            <Select value={field.value || 'candidate'} onValueChange={field.onChange}>
+                                                                <SelectTrigger>
+                                                                    <SelectValue placeholder="Select recipient" />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    <SelectItem value="candidate">Candidate</SelectItem>
+                                                                    <SelectItem value="hiring_manager">Hiring Manager</SelectItem>
+                                                                    <SelectItem value="recruiter">Recruiter</SelectItem>
+                                                                </SelectContent>
+                                                            </Select>
+                                                        )}
+                                                    />
+                                                </div>
+
                                                 <Input
                                                     label={t('workflows.emailSubject', 'Subject')}
                                                     {...register(`actions.${index}.config.subject` as const)}
-                                                    placeholder="e.g. Next steps for your application"
+                                                    placeholder="e.g. Next steps for your application at {{company_name}}"
                                                 />
+
                                                 <div>
                                                     <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
                                                         {t('workflows.emailBody', 'Message Body')}
                                                     </label>
                                                     <textarea
-                                                        className="w-full px-3 py-2 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 outline-none transition-all"
-                                                        rows={3}
+                                                        id={`email-body-${index}`}
+                                                        className="w-full px-3 py-2 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 outline-none transition-all min-h-[120px]"
+                                                        rows={5}
                                                         {...register(`actions.${index}.config.body` as const)}
-                                                        placeholder="Enter email content..."
+                                                        placeholder="Hi {{candidate_name}},
+
+Thank you for applying to the {{job_title}} position at {{company_name}}..."
                                                     />
-                                                    <p className="text-xs text-neutral-500 mt-1">Supports {'{{candidate_name}}'} variable</p>
+                                                </div>
+
+                                                {/* Available Variables - Clickable Chips */}
+                                                <div className="bg-neutral-100 dark:bg-neutral-800 rounded-lg p-3">
+                                                    <p className="text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-2">
+                                                        Click to insert variable:
+                                                    </p>
+                                                    <div className="flex flex-wrap gap-1.5">
+                                                        {[
+                                                            { var: 'candidate_name', label: 'Candidate Name' },
+                                                            { var: 'candidate_email', label: 'Candidate Email' },
+                                                            { var: 'job_title', label: 'Job Title' },
+                                                            { var: 'company_name', label: 'Company Name' },
+                                                            { var: 'stage_name', label: 'Stage Name' },
+                                                            { var: 'recruiter_name', label: 'Recruiter Name' },
+                                                            { var: 'hiring_manager_name', label: 'Hiring Manager' },
+                                                            { var: 'application_date', label: 'Application Date' },
+                                                        ].map((v) => (
+                                                            <button
+                                                                key={v.var}
+                                                                type="button"
+                                                                className="inline-flex items-center gap-1 px-2 py-1 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 text-xs font-medium rounded hover:bg-primary-200 dark:hover:bg-primary-900/50 transition-colors cursor-pointer"
+                                                                onClick={() => {
+                                                                    const textarea = document.getElementById(`email-body-${index}`) as HTMLTextAreaElement;
+                                                                    if (textarea) {
+                                                                        const start = textarea.selectionStart;
+                                                                        const end = textarea.selectionEnd;
+                                                                        const text = textarea.value;
+                                                                        const variable = `{{${v.var}}}`;
+                                                                        const newText = text.substring(0, start) + variable + text.substring(end);
+
+                                                                        // Update the form value
+                                                                        textarea.value = newText;
+                                                                        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+
+                                                                        // Move cursor after inserted variable
+                                                                        setTimeout(() => {
+                                                                            textarea.focus();
+                                                                            textarea.setSelectionRange(start + variable.length, start + variable.length);
+                                                                        }, 0);
+                                                                    }
+                                                                }}
+                                                                title={`Insert {{${v.var}}}`}
+                                                            >
+                                                                <span className="opacity-60">{'{{'}</span>
+                                                                {v.label}
+                                                                <span className="opacity-60">{'}}'}</span>
+                                                            </button>
+                                                        ))}
+                                                    </div>
                                                 </div>
                                             </div>
                                         )}

@@ -1,11 +1,31 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Card, Button, Input } from '../ui';
-import { CheckCircle2, AlertCircle, Calendar, FileSignature, Loader2, ExternalLink, Trash2, Shield, Briefcase, Settings as SettingsIcon, MessageSquare, Send } from 'lucide-react';
-import { calendarApi, esignatureApi, jobBoardsApi, bgvApi, messagingApi } from '../../lib/api';
+import { Card, Button, Input, CardHeader } from '../ui';
+import { CheckCircle2, AlertCircle, Calendar, FileSignature, Loader2, ExternalLink, Trash2, Shield, Briefcase, Settings as SettingsIcon, MessageSquare, Send, Mail, Save } from 'lucide-react';
+import { calendarApi, esignatureApi, jobBoardsApi, bgvApi, messagingApi, settingsApi } from '../../lib/api';
 import toast from 'react-hot-toast';
 
-type TabType = 'calendar' | 'esignature' | 'jobBoards' | 'bgv' | 'messaging';
+type TabType = 'smtp' | 'calendar' | 'esignature' | 'jobBoards' | 'bgv' | 'messaging';
+
+interface SmtpConfig {
+    host: string;
+    port: number;
+    user: string;
+    pass: string;
+    fromEmail: string;
+    fromName: string;
+    secure: boolean;
+}
+
+const DEFAULT_SMTP_CONFIG: SmtpConfig = {
+    host: '',
+    port: 587,
+    user: '',
+    pass: '',
+    fromEmail: '',
+    fromName: '',
+    secure: false,
+};
 
 interface CalendarConnection {
     id: string;
@@ -46,7 +66,7 @@ interface JobBoardInfo {
 
 export function IntegrationSettings() {
     const [searchParams, setSearchParams] = useSearchParams();
-    const activeTab = (searchParams.get('view') as TabType) || 'calendar';
+    const activeTab = (searchParams.get('view') as TabType) || 'smtp';
 
     const setActiveTab = (tab: TabType) => {
         setSearchParams(prev => {
@@ -55,6 +75,11 @@ export function IntegrationSettings() {
             return newParams;
         });
     };
+
+    // SMTP State
+    const [smtpConfig, setSmtpConfig] = useState<SmtpConfig>(DEFAULT_SMTP_CONFIG);
+    const [smtpLoading, setSmtpLoading] = useState(false);
+    const [smtpSaving, setSmtpSaving] = useState(false);
 
     // Job Boards State
     const [jobBoardSettings, setJobBoardSettings] = useState<JobBoardSettings>({});
@@ -117,7 +142,9 @@ export function IntegrationSettings() {
 
     // Fetch data when tabs change
     useEffect(() => {
-        if (activeTab === 'calendar') {
+        if (activeTab === 'smtp') {
+            fetchSmtpSettings();
+        } else if (activeTab === 'calendar') {
             fetchCalendarSettings();
             fetchCalendarConnections();
         } else if (activeTab === 'esignature') {
@@ -131,6 +158,41 @@ export function IntegrationSettings() {
             fetchMessagingSettings();
         }
     }, [activeTab]);
+
+    const fetchSmtpSettings = async () => {
+        setSmtpLoading(true);
+        try {
+            const response = await settingsApi.getByKey('smtp_config');
+            if (response.data && response.data.value) {
+                setSmtpConfig({ ...DEFAULT_SMTP_CONFIG, ...response.data.value });
+            }
+        } catch (error) {
+            console.error('Failed to fetch SMTP settings', error);
+        } finally {
+            setSmtpLoading(false);
+        }
+    };
+
+    const handleSaveSmtp = async () => {
+        setSmtpSaving(true);
+        try {
+            await settingsApi.update('smtp_config', {
+                value: smtpConfig,
+                category: 'INTEGRATION',
+                isPublic: false,
+            });
+            toast.success('SMTP configuration saved successfully');
+        } catch (error) {
+            console.error('Failed to save SMTP settings', error);
+            toast.error('Failed to save SMTP configuration');
+        } finally {
+            setSmtpSaving(false);
+        }
+    };
+
+    const handleSmtpChange = (key: keyof SmtpConfig, value: any) => {
+        setSmtpConfig((prev) => ({ ...prev, [key]: value }));
+    };
 
     const fetchMessagingSettings = async () => {
         setMessagingLoading(true);
@@ -504,6 +566,7 @@ export function IntegrationSettings() {
     };
 
     const tabs = [
+        { id: 'smtp' as TabType, label: 'Email Configuration', icon: Mail },
         { id: 'calendar' as TabType, label: 'Calendar', icon: Calendar },
         { id: 'esignature' as TabType, label: 'E-Signature', icon: FileSignature },
         { id: 'jobBoards' as TabType, label: 'Job Boards', icon: Briefcase },
@@ -528,6 +591,127 @@ export function IntegrationSettings() {
                     </button>
                 ))}
             </div>
+
+            {/* SMTP Integration Tab */}
+            {activeTab === 'smtp' && (
+                <Card>
+                    <CardHeader
+                        title="SMTP Configuration"
+                        icon={<Mail className="text-neutral-500" size={20} />}
+                        align="left"
+                    />
+                    <div className="p-6 space-y-6">
+                        {smtpLoading ? (
+                            <div className="p-8 text-center text-neutral-500">
+                                <Loader2 size={24} className="animate-spin mx-auto mb-2" />
+                                Loading settings...
+                            </div>
+                        ) : (
+                            <>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                                            SMTP Host
+                                        </label>
+                                        <Input
+                                            value={smtpConfig.host}
+                                            onChange={(e) => handleSmtpChange('host', e.target.value)}
+                                            placeholder="smtp.example.com"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                                            SMTP Port
+                                        </label>
+                                        <Input
+                                            type="number"
+                                            value={smtpConfig.port}
+                                            onChange={(e) => handleSmtpChange('port', parseInt(e.target.value) || 0)}
+                                            placeholder="587"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                                            SMTP User
+                                        </label>
+                                        <Input
+                                            value={smtpConfig.user}
+                                            onChange={(e) => handleSmtpChange('user', e.target.value)}
+                                            placeholder="user@example.com"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                                            SMTP Password
+                                        </label>
+                                        <Input
+                                            type="password"
+                                            value={smtpConfig.pass}
+                                            onChange={(e) => handleSmtpChange('pass', e.target.value)}
+                                            placeholder="••••••••"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                                            From Email
+                                        </label>
+                                        <Input
+                                            value={smtpConfig.fromEmail}
+                                            onChange={(e) => handleSmtpChange('fromEmail', e.target.value)}
+                                            placeholder="noreply@example.com"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                                            From Name
+                                        </label>
+                                        <Input
+                                            value={smtpConfig.fromName}
+                                            onChange={(e) => handleSmtpChange('fromName', e.target.value)}
+                                            placeholder="TalentX"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="checkbox"
+                                        id="secure"
+                                        checked={smtpConfig.secure}
+                                        onChange={(e) => handleSmtpChange('secure', e.target.checked)}
+                                        className="rounded border-neutral-300 text-blue-600 focus:ring-blue-500"
+                                    />
+                                    <label htmlFor="secure" className="text-sm text-neutral-700 dark:text-neutral-300">
+                                        Use Secure Connection (SSL/TLS)
+                                    </label>
+                                </div>
+
+                                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-lg p-4 flex items-start gap-3">
+                                    <AlertCircle className="text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" size={18} />
+                                    <div className="text-sm text-blue-700 dark:text-blue-300">
+                                        <p className="font-medium mb-1">Note on Security</p>
+                                        <p>
+                                            Your SMTP password is stored securely. Ensure you are using a dedicated app password if you are using services like Gmail.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="flex justify-end pt-4">
+                                    <Button
+                                        onClick={handleSaveSmtp}
+                                        isLoading={smtpSaving}
+                                        variant="primary"
+                                        className="flex items-center gap-2"
+                                    >
+                                        <Save size={16} />
+                                        Save Configuration
+                                    </Button>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </Card>
+            )}
 
             {/* Calendar Integration Tab */}
             {activeTab === 'calendar' && (

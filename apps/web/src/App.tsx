@@ -52,6 +52,7 @@ import { CandidateOfferPage } from './pages/offers/CandidateOfferPage';
 import { OnboardingDashboardPage } from './pages/onboarding/OnboardingDashboardPage';
 import { OnboardingDetailPage } from './pages/onboarding/OnboardingDetailPage';
 import { SourcingPage } from './pages/sourcing/SourcingPage';
+import { CampaignsPage } from './pages/marketing/CampaignsPage';
 
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -76,78 +77,79 @@ function App() {
       <ConfirmationProvider>
         <StatusColorProvider>
           <UnsavedChangesProvider>
-          <Routes>
-            {/* Auth routes */}
-            <Route element={<AuthLayout />}>
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/register" element={<RegisterPage />} />
-              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-              <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
-              <Route path="/auth/verify-email" element={<VerifyEmailPage />} />
-              <Route path="/auth/otp" element={<OtpLoginPage />} />
-              <Route path="/auth/mfa" element={<MfaVerifyPage />} />
-              <Route path="/auth/mfa-setup" element={<MfaSetupPage />} />
-              <Route path="/change-password" element={<ChangePasswordPage />} />
-            </Route>
-
-            {/* Public Career Routes */}
-            <Route path="/careers/:tenantId" element={<CareerPage />} />
-            <Route path="/careers/:tenantId/jobs/:jobId" element={<JobApplicationPage />} />
-
-            {/* Protected routes */}
-            <Route
-              element={
-                <ProtectedRoute>
-                  <DashboardLayout />
-                </ProtectedRoute>
-              }
-            >
-              <Route path="/" element={<RedirectToDashboard />} />
-              <Route path="/dashboard" element={<RedirectToDashboard />} />
-
-              <Route path="/:tenantId">
-                <Route path="dashboard" element={<DashboardPage />} />
-                <Route path="jobs" element={<JobsPage />} />
-                <Route path="jobs/new" element={<CreateJobPage />} />
-                <Route path="jobs/:id/edit" element={<EditJobPage />} />
-                <Route path="jobs/:id" element={<JobDetailPage />} />
-                <Route path="candidates" element={<CandidatesPage />} />
-                <Route path="candidates/new" element={<AddCandidatePage />} />
-                <Route path="candidates/:id" element={<CandidateDetailPage />} />
-                <Route path="candidates/:id/edit" element={<EditCandidatePage />} />
-                <Route path="referrals" element={<ReferralsPage />} />
-                <Route path="pipeline/:jobId?" element={<PipelinePage />} />
-                <Route path="interviews" element={<CalendarPage />} />
-                <Route path="inbox" element={<InboxPage />} />
-                <Route path="reports" element={<ReportsPage />} />
-                <Route path="offers" element={<OffersPage />} />
-                <Route path="offers/new" element={<CreateOfferPage />} />
-                <Route path="offers/:id" element={<OfferDetailPage />} />
-                <Route path="offers/templates" element={<OfferTemplatesPage />} />
-                <Route path="offers/templates/new" element={<OfferTemplateEditor />} />
-                <Route path="offers/templates/:templateId/edit" element={<OfferTemplateEditor />} />
-                <Route path="templates/job-descriptions/new" element={<JobDescriptionTemplateEditor />} />
-                <Route path="templates/job-descriptions/:templateId/edit" element={<JobDescriptionTemplateEditor />} />
-                <Route path="templates/emails/new" element={<EmailTemplateEditor />} />
-                <Route path="templates/emails/:templateId/edit" element={<EmailTemplateEditor />} />
-                <Route path="templates/onboarding/new" element={<OnboardingTemplateEditor />} />
-                <Route path="templates/onboarding/:templateId/edit" element={<OnboardingTemplateEditor />} />
-                <Route path="settings" element={<SettingsPage />} />
-                <Route path="onboarding" element={<OnboardingDashboardPage />} />
-                <Route path="onboarding/:id" element={<OnboardingDetailPage />} />
-                <Route path="sourcing" element={<SourcingPage />} />
+            <Routes>
+              {/* Auth routes */}
+              <Route element={<AuthLayout />}>
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/register" element={<RegisterPage />} />
+                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
+                <Route path="/auth/verify-email" element={<VerifyEmailPage />} />
+                <Route path="/auth/otp" element={<OtpLoginPage />} />
+                <Route path="/auth/mfa" element={<MfaVerifyPage />} />
+                <Route path="/auth/mfa-setup" element={<MfaSetupPage />} />
+                <Route path="/change-password" element={<ChangePasswordPage />} />
               </Route>
-            </Route>
 
-            {/* Public Routes */}
-            <Route path="/:tenantId/jobs/:id/public" element={<PublicJobPage />} />
-            {/* <Route path="/jobs/public/:tenantId" element={<PublicJobBoard />} /> */}
-            <Route path="/offers/public/:token" element={<CandidateOfferPage />} />
-            <Route path="/schedule/:token" element={<InterviewSchedulePage />} />
+              {/* Public Career Routes */}
+              <Route path="/careers/:tenantId" element={<CareerPage />} />
+              <Route path="/careers/:tenantId/jobs/:jobId" element={<JobApplicationPage />} />
 
-            {/* Catch all */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
+              {/* Protected routes */}
+              <Route
+                element={
+                  <ProtectedRoute>
+                    <DashboardLayout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route path="/" element={<RedirectToDashboard />} />
+                <Route path="/dashboard" element={<RedirectToDashboard />} />
+
+                <Route path="/:tenantId">
+                  <Route path="dashboard" element={<DashboardPage />} />
+                  <Route path="jobs" element={<JobsPage />} />
+                  <Route path="jobs/new" element={<CreateJobPage />} />
+                  <Route path="jobs/:id/edit" element={<EditJobPage />} />
+                  <Route path="jobs/:id" element={<JobDetailPage />} />
+                  <Route path="candidates" element={<CandidatesPage />} />
+                  <Route path="candidates/new" element={<AddCandidatePage />} />
+                  <Route path="candidates/:id" element={<CandidateDetailPage />} />
+                  <Route path="candidates/:id/edit" element={<EditCandidatePage />} />
+                  <Route path="referrals" element={<ReferralsPage />} />
+                  <Route path="pipeline/:jobId?" element={<PipelinePage />} />
+                  <Route path="interviews" element={<CalendarPage />} />
+                  <Route path="inbox" element={<InboxPage />} />
+                  <Route path="campaigns" element={<CampaignsPage />} />
+                  <Route path="reports" element={<ReportsPage />} />
+                  <Route path="offers" element={<OffersPage />} />
+                  <Route path="offers/new" element={<CreateOfferPage />} />
+                  <Route path="offers/:id" element={<OfferDetailPage />} />
+                  <Route path="offers/templates" element={<OfferTemplatesPage />} />
+                  <Route path="offers/templates/new" element={<OfferTemplateEditor />} />
+                  <Route path="offers/templates/:templateId/edit" element={<OfferTemplateEditor />} />
+                  <Route path="templates/job-descriptions/new" element={<JobDescriptionTemplateEditor />} />
+                  <Route path="templates/job-descriptions/:templateId/edit" element={<JobDescriptionTemplateEditor />} />
+                  <Route path="templates/emails/new" element={<EmailTemplateEditor />} />
+                  <Route path="templates/emails/:templateId/edit" element={<EmailTemplateEditor />} />
+                  <Route path="templates/onboarding/new" element={<OnboardingTemplateEditor />} />
+                  <Route path="templates/onboarding/:templateId/edit" element={<OnboardingTemplateEditor />} />
+                  <Route path="settings" element={<SettingsPage />} />
+                  <Route path="onboarding" element={<OnboardingDashboardPage />} />
+                  <Route path="onboarding/:id" element={<OnboardingDetailPage />} />
+                  <Route path="sourcing" element={<SourcingPage />} />
+                </Route>
+              </Route>
+
+              {/* Public Routes */}
+              <Route path="/:tenantId/jobs/:id/public" element={<PublicJobPage />} />
+              {/* <Route path="/jobs/public/:tenantId" element={<PublicJobBoard />} /> */}
+              <Route path="/offers/public/:token" element={<CandidateOfferPage />} />
+              <Route path="/schedule/:token" element={<InterviewSchedulePage />} />
+
+              {/* Catch all */}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
           </UnsavedChangesProvider>
         </StatusColorProvider>
       </ConfirmationProvider>

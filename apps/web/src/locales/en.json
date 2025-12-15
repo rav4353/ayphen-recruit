@@ -108,6 +108,15 @@
     "selectPrompt": "Select a conversation",
     "selectPromptDesc": "Choose a thread from the left to view the conversation history."
   },
+  "campaigns": {
+    "title": "Campaigns",
+    "description": "Manage bulk email campaigns",
+    "send": "Send Campaign",
+    "create": "Create Campaign",
+    "subject": "Subject",
+    "message": "Message",
+    "recipients": "Recipients"
+  },
   "auth": {
     "login": {
       "title": "Welcome back",

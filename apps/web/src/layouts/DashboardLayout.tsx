@@ -14,6 +14,7 @@ import {
   GitBranch,
   Share2,
   FileSignature,
+  Send,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -54,6 +55,7 @@ export function DashboardLayout() {
     { name: 'offers.title', href: `/${tenantId}/offers`, icon: FileSignature, roles: ['ADMIN', 'RECRUITER', 'HIRING_MANAGER'] },
     { name: 'onboarding.title', href: `/${tenantId}/onboarding`, icon: Users, roles: ['ADMIN', 'RECRUITER', 'HR'] }, // Story 9.1
     { name: 'inbox.title', href: `/${tenantId}/inbox`, icon: Mail, roles: ['ADMIN', 'RECRUITER'] },
+    { name: 'campaigns.title', href: `/${tenantId}/campaigns`, icon: Send, roles: ['ADMIN', 'RECRUITER'] },
     { name: 'reports.title', href: `/${tenantId}/reports`, icon: BarChart, roles: ['ADMIN', 'RECRUITER'] },
     { name: 'settings.title', href: `/${tenantId}/settings`, icon: Settings, roles: ['ADMIN'] },
   ];

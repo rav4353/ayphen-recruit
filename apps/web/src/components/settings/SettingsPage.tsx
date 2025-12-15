@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../../stores/auth';
-import { Settings, Users, GitBranch, FileText, Plug, Shield, CreditCard, Palette, Mail, Zap, Layout, Bell, Search, X, ChevronRight, Keyboard, Upload, History, Globe, ArrowLeft } from 'lucide-react';
+import { Settings, Users, GitBranch, FileText, Plug, Shield, CreditCard, Palette, Zap, Layout, Bell, Search, X, ChevronRight, Keyboard, Upload, History, Globe, ArrowLeft } from 'lucide-react';
 import { GeneralSettings } from './GeneralSettings';
 import { UserManagementSettings } from './UserManagementSettings';
 import { HiringProcessSettings } from './HiringProcessSettings';
@@ -11,7 +11,6 @@ import { IntegrationSettings } from './IntegrationSettings';
 import { ComplianceSettings } from './ComplianceSettings';
 import { BillingSettings } from './BillingSettings';
 import { StatusSettings } from './StatusSettings';
-import { EmailSettings } from './EmailSettings';
 import { VendorSettings } from './VendorSettings';
 import { NotificationSettings } from './NotificationSettings';
 import { SkillsSettings } from './SkillsSettings';
@@ -38,7 +37,6 @@ const settingsItems = [
     { id: 'tab-skills', label: 'Skills', description: 'Skills taxonomy management', tabId: 'skills', keywords: ['skills', 'competencies', 'taxonomy'] },
     { id: 'tab-templates', label: 'Templates', description: 'Email, offer, and scorecard templates', tabId: 'templates', keywords: ['templates', 'email templates', 'offer templates'] },
     { id: 'tab-integrations', label: 'Integrations', description: 'Third-party integrations', tabId: 'integrations', keywords: ['integrations', 'connect', 'api'] },
-    { id: 'tab-email', label: 'Email', description: 'Email configuration and SMTP settings', tabId: 'email', keywords: ['email', 'smtp', 'mail server'] },
     { id: 'tab-compliance', label: 'Compliance', description: 'GDPR, EEOC, and data retention', tabId: 'compliance', keywords: ['compliance', 'gdpr', 'privacy', 'legal'] },
     { id: 'tab-billing', label: 'Billing', description: 'Subscription and payment settings', tabId: 'billing', keywords: ['billing', 'payment', 'subscription'] },
     { id: 'tab-shortcuts', label: 'Keyboard Shortcuts', description: 'View and customize keyboard shortcuts', tabId: 'shortcuts', keywords: ['keyboard', 'shortcuts', 'hotkeys', 'keys'] },
@@ -171,15 +169,6 @@ const settingsItems = [
     { id: 'bgv-integration', label: 'Background Verification', description: 'Background check providers', tabId: 'integrations', keywords: ['bgv', 'background', 'verification', 'check', 'checkr'] },
     { id: 'api-settings', label: 'API Settings', description: 'API keys and access', tabId: 'integrations', keywords: ['api', 'key', 'token', 'access', 'developer'] },
 
-    // === EMAIL SETTINGS ===
-    { id: 'email-settings', label: 'Email Settings', description: 'Configure email sending', tabId: 'email', keywords: ['email', 'settings', 'configuration'] },
-    { id: 'smtp-config', label: 'SMTP Configuration', description: 'Set up SMTP server', tabId: 'email', keywords: ['smtp', 'server', 'host', 'port'] },
-    { id: 'smtp-host', label: 'SMTP Host', description: 'Mail server hostname', tabId: 'email', keywords: ['host', 'server', 'smtp'] },
-    { id: 'smtp-port', label: 'SMTP Port', description: 'Mail server port number', tabId: 'email', keywords: ['port', 'smtp', '587', '465'] },
-    { id: 'smtp-username', label: 'SMTP Username', description: 'Mail server username', tabId: 'email', keywords: ['username', 'user', 'login'] },
-    { id: 'smtp-password', label: 'SMTP Password', description: 'Mail server password', tabId: 'email', keywords: ['password', 'credentials'] },
-    { id: 'sender-email', label: 'Sender Email', description: 'From email address', tabId: 'email', keywords: ['sender', 'from', 'email'] },
-    { id: 'sender-name', label: 'Sender Name', description: 'From name for emails', tabId: 'email', keywords: ['sender', 'from', 'name'] },
 
     // === COMPLIANCE SETTINGS ===
     { id: 'compliance-settings', label: 'Compliance Settings', description: 'Data privacy and legal compliance', tabId: 'compliance', keywords: ['compliance', 'settings', 'legal', 'privacy'] },
@@ -242,7 +231,6 @@ export function SettingsPage() {
         { id: 'skills', label: t('settings.tabs.skills'), icon: <FileText size={18} /> },
         { id: 'templates', label: t('settings.tabs.templates', 'Templates'), icon: <FileText size={18} /> },
         { id: 'integrations', label: t('settings.tabs.integrations'), icon: <Plug size={18} /> },
-        { id: 'email', label: t('settings.tabs.email'), icon: <Mail size={18} /> },
         { id: 'compliance', label: t('settings.tabs.compliance'), icon: <Shield size={18} /> },
         { id: 'billing', label: t('settings.tabs.billing'), icon: <CreditCard size={18} /> },
         { id: 'careerSite', label: t('settings.tabs.careerSite', 'Career Site'), icon: <Globe size={18} /> },
@@ -417,7 +405,6 @@ export function SettingsPage() {
                             {activeTab === 'skills' && <SkillsSettings />}
                             {activeTab === 'templates' && <TemplateSettings />}
                             {activeTab === 'integrations' && <IntegrationSettings />}
-                            {activeTab === 'email' && <EmailSettings />}
                             {activeTab === 'compliance' && <ComplianceSettings />}
                             {activeTab === 'billing' && <BillingSettings />}
                             {activeTab === 'vendors' && <VendorSettings />}

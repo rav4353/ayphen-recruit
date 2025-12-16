@@ -6,6 +6,7 @@ import { JobQueryDto } from './dto/job-query.dto';
 
 import { JobBoardsService } from '../integrations/job-boards.service';
 import { SettingsService } from '../settings/settings.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class JobsService {
@@ -13,7 +14,12 @@ export class JobsService {
     private readonly prisma: PrismaService,
     private readonly jobBoardsService: JobBoardsService,
     private readonly settingsService: SettingsService,
+    private readonly notificationsService: NotificationsService,
   ) { }
+
+  private uniqueIds(ids: Array<string | null | undefined>) {
+    return Array.from(new Set(ids.filter(Boolean) as string[]));
+  }
 
   async create(dto: CreateJobDto, tenantId: string, recruiterId: string) {
     const {
@@ -438,6 +444,21 @@ export class JobsService {
       throw error;
     }
 
+    try {
+      const finalApproverIds = (await this.prisma.jobApproval.findMany({
+        where: { jobId: id, status: 'PENDING' },
+        select: { approverId: true },
+      })).map(a => a.approverId);
+
+      await Promise.all(
+        finalApproverIds.map((approverId) =>
+          this.notificationsService.notifyApprovalRequest('job', job, approverId, job.tenantId)
+        )
+      );
+    } catch (error) {
+      console.error('[JobsService] Failed to notify job approvers:', error);
+    }
+
     return this.prisma.job.update({
       where: { id },
       data: { status: 'PENDING_APPROVAL' },
@@ -446,6 +467,7 @@ export class JobsService {
   }
 
   async approve(id: string, userId: string, comment?: string) {
+    const job = await this.findById(id);
     const approval = await this.prisma.jobApproval.findFirst({
       where: { jobId: id, approverId: userId, status: 'PENDING' }
     });
@@ -470,10 +492,29 @@ export class JobsService {
       });
     }
 
+    try {
+      const recipientIds = this.uniqueIds([
+        job.recruiterId,
+        job.hiringManagerId,
+      ]).filter((rid) => rid !== userId);
+
+      if (recipientIds.length > 0) {
+        await this.notificationsService.notifyJobStatusChange(
+          job,
+          pendingCount === 0 ? 'APPROVED' : 'PENDING_APPROVAL',
+          recipientIds,
+          job.tenantId,
+        );
+      }
+    } catch (error) {
+      console.error('[JobsService] Failed to notify job approval status:', error);
+    }
+
     return this.findById(id);
   }
 
   async reject(id: string, userId: string, reason: string) {
+    const job = await this.findById(id);
     const approval = await this.prisma.jobApproval.findFirst({
       where: { jobId: id, approverId: userId, status: 'PENDING' }
     });
@@ -487,10 +528,30 @@ export class JobsService {
       data: { status: 'REJECTED', approvedAt: new Date(), comment: reason }
     });
 
-    return this.prisma.job.update({
+    const updatedJob = await this.prisma.job.update({
       where: { id },
       data: { status: 'DRAFT' }
     });
+
+    try {
+      const recipientIds = this.uniqueIds([
+        job.recruiterId,
+        job.hiringManagerId,
+      ]).filter((rid) => rid !== userId);
+
+      if (recipientIds.length > 0) {
+        await this.notificationsService.notifyJobStatusChange(
+          job,
+          'REJECTED',
+          recipientIds,
+          job.tenantId,
+        );
+      }
+    } catch (error) {
+      console.error('[JobsService] Failed to notify job rejection:', error);
+    }
+
+    return updatedJob;
   }
 
   async publish(id: string, channels: string[]) {
@@ -519,6 +580,19 @@ export class JobsService {
         publishedAt: new Date(),
       }
     });
+
+    try {
+      const recipientIds = this.uniqueIds([
+        job.recruiterId,
+        job.hiringManagerId,
+      ]);
+
+      if (recipientIds.length > 0) {
+        await this.notificationsService.notifyJobStatusChange(job, 'OPEN', recipientIds, job.tenantId);
+      }
+    } catch (error) {
+      console.error('[JobsService] Failed to notify job publish:', error);
+    }
 
     return { job: await this.findById(id), results };
   }

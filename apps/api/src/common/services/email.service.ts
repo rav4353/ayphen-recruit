@@ -5,6 +5,8 @@ import type { Transporter } from 'nodemailer';
 import { PrismaService } from '../../prisma/prisma.service';
 import * as aws from '@aws-sdk/client-ses';
 
+export type EmailPurpose = 'notifications' | 'interviews' | 'offers' | 'rejections' | 'bulkEmails' | 'default';
+
 export interface EmailOptions {
   to: string | string[];
   subject: string;
@@ -12,6 +14,7 @@ export interface EmailOptions {
   text?: string;
   tenantId?: string;
   bcc?: string | string[];
+  purpose?: EmailPurpose; // Which from address alias to use
 }
 
 @Injectable()
@@ -82,7 +85,7 @@ export class EmailService {
     }
   }
 
-  private async getTransporter(tenantId?: string): Promise<{ transporter: Transporter; from: string } | null> {
+  private async getTransporter(tenantId?: string, purpose: EmailPurpose = 'default'): Promise<{ transporter: Transporter; from: string } | null> {
     // 1. Try tenant specific config
     if (tenantId) {
       if (this.transporters.has(tenantId)) {
@@ -106,9 +109,22 @@ export class EmailService {
             secure: config.secure || false,
             auth: { user: config.user, pass: config.pass },
           });
+
+          // Check for purpose-specific alias
+          let fromEmail = config.fromEmail || config.user;
+          let fromName = config.fromName || this.fromName;
+
+          if (purpose !== 'default' && config.fromAliases?.[purpose]) {
+            const alias = config.fromAliases[purpose];
+            if (alias.email) {
+              fromEmail = alias.email;
+              fromName = alias.name || fromName;
+            }
+          }
+
           return {
             transporter,
-            from: `"${config.fromName || this.fromName}" <${config.fromEmail || config.user}>`
+            from: `"${fromName}" <${fromEmail}>`
           };
         }
       }
@@ -126,20 +142,20 @@ export class EmailService {
   }
 
   async sendEmail(options: EmailOptions): Promise<boolean> {
-    const { to, subject, html, text, tenantId, bcc } = options;
+    const { to, subject, html, text, tenantId, bcc, purpose = 'default' } = options;
 
-    const transportInfo = await this.getTransporter(tenantId);
+    const transportInfo = await this.getTransporter(tenantId, purpose);
 
     if (!transportInfo) {
       // When SMTP is not configured, just log the email
-      this.logger.log(`[SMTP NOT CONFIGURED] Email to ${to} (Tenant: ${tenantId || 'Global'}):`);
+      this.logger.log(`[SMTP NOT CONFIGURED] Email to ${to} (Tenant: ${tenantId || 'Global'}, Purpose: ${purpose}):`);
       this.logger.log(`Subject: ${subject}`);
       this.logger.log(`Content: ${text || html}`);
       return true;
     }
 
     try {
-      this.logger.log(`Sending email from ${transportInfo.from} to ${to}`);
+      this.logger.log(`Sending email from ${transportInfo.from} to ${to} (purpose: ${purpose})`);
 
       const info = await transportInfo.transporter.sendMail({
         from: transportInfo.from,
@@ -210,7 +226,7 @@ export class EmailService {
 
     const text = `Your TalentX verification code is: ${otp}\n\nThis code expires in 10 minutes.\n\nIf you didn't request this code, please ignore this email.`;
 
-    return this.sendEmail({ to, subject, html, text, tenantId });
+    return this.sendEmail({ to, subject, html, text, tenantId, purpose: 'notifications' });
   }
 
   async sendPasswordResetEmail(to: string, resetLink: string, tenantId?: string): Promise<boolean> {
@@ -269,7 +285,7 @@ export class EmailService {
 
     const text = `Reset your TalentX password\n\nClick this link to reset your password: ${resetLink}\n\nThis link expires in 1 hour.\n\nIf you didn't request a password reset, please ignore this email.`;
 
-    return this.sendEmail({ to, subject, html, text, tenantId });
+    return this.sendEmail({ to, subject, html, text, tenantId, purpose: 'notifications' });
   }
   async sendInvitationEmail(to: string, name: string, tempPass: string, loginUrl: string, tenantId?: string): Promise<boolean> {
     const subject = 'You have been invited to join TalentX';
@@ -324,7 +340,7 @@ export class EmailService {
 
     const text = `Hello ${name},\n\nYou have been invited to join TalentX.\n\nYour temporary password is: ${tempPass}\n\nPlease log in at: ${loginUrl}\n\nChange your password immediately after logging in. This temporary password is valid for 2 days.`;
 
-    return this.sendEmail({ to, subject, html, text, tenantId });
+    return this.sendEmail({ to, subject, html, text, tenantId, purpose: 'notifications' });
   }
 
   async sendAssessmentInvitationEmail(
@@ -407,6 +423,6 @@ export class EmailService {
 
     const text = `Hello ${candidateName},\n\nYou've been invited to complete the following assessment: ${assessmentName}\n\nPlease complete this assessment before ${expiryDate}.\n\nStart the assessment here: ${assessmentLink}\n\nTips for success:\n- Find a quiet place with stable internet connection\n- Read each question carefully before answering\n- You can only submit the assessment once\n\nGood luck!`;
 
-    return this.sendEmail({ to, subject, html, text, tenantId });
+    return this.sendEmail({ to, subject, html, text, tenantId, purpose: 'interviews' });
   }
 }

@@ -17,6 +17,10 @@ export class ApplicationsService {
     private readonly notificationsService: NotificationsService,
   ) { }
 
+  private uniqueIds(ids: Array<string | null | undefined>) {
+    return Array.from(new Set(ids.filter(Boolean) as string[]));
+  }
+
   async create(dto: CreateApplicationDto) {
     // Check for duplicate application
     const existing = await this.prisma.application.findUnique({
@@ -350,6 +354,8 @@ export class ApplicationsService {
     const application = await this.findById(id);
     const oldStageId = application.currentStageId;
 
+    const fromStageName = application.currentStage?.name;
+
     const updated = await this.prisma.application.update({
       where: { id },
       data: { currentStageId: stageId },
@@ -378,10 +384,38 @@ export class ApplicationsService {
       // Don't fail the stage move if workflows fail
     }
 
+    try {
+      const toStageName = updated.currentStage?.name;
+      const recipientIds = this.uniqueIds([
+        application.job?.recruiterId,
+        application.job?.hiringManagerId,
+        application.assignedToId,
+      ]).filter((rid) => (userId ? rid !== userId : true));
+
+      if (recipientIds.length > 0) {
+        await this.notificationsService.createMany(
+          recipientIds.map((rid) => ({
+            type: 'APPLICATION',
+            title: 'Stage Changed',
+            message: `${application.candidate?.firstName || 'Candidate'} moved from ${fromStageName || 'a stage'} to ${toStageName || 'a stage'} for ${application.job?.title || 'a job'}`,
+            link: `/candidates/${application.candidateId}`,
+            metadata: { applicationId: id, fromStageId: oldStageId, toStageId: stageId },
+            userId: rid,
+            tenantId: application.job?.tenantId,
+          })) as any,
+        );
+      }
+    } catch (error) {
+      console.error('Failed to send stage change notification:', error);
+    }
+
     return updated;
   }
 
-  async updateStatus(id: string, status: string, reason?: string) {
+  async updateStatus(id: string, status: string, reason?: string, userId?: string) {
+    const application = await this.findById(id);
+    const previousStatus = application.status;
+
     const data: Record<string, unknown> = { status };
 
     if (status === 'REJECTED') {
@@ -390,17 +424,110 @@ export class ApplicationsService {
       data.withdrawalReason = reason;
     }
 
-    return this.prisma.application.update({
+    const updated = await this.prisma.application.update({
       where: { id },
       data,
     });
+
+    try {
+      await this.prisma.activityLog.create({
+        data: {
+          action: 'APPLICATION_STATUS_CHANGED',
+          description: `Status changed to ${status}${reason ? `: ${reason}` : ''}`,
+          applicationId: id,
+          candidateId: application.candidateId,
+          userId,
+          metadata: {
+            previousStatus,
+            newStatus: status,
+            reason,
+          },
+        },
+      });
+    } catch (error) {
+      console.error('Failed to log application status change:', error);
+    }
+
+    try {
+      const recipientIds = this.uniqueIds([
+        application.job?.recruiterId,
+        application.job?.hiringManagerId,
+        application.assignedToId,
+      ]).filter((rid) => (userId ? rid !== userId : true));
+
+      if (recipientIds.length > 0) {
+        await this.notificationsService.createMany(
+          recipientIds.map((rid) => ({
+            type: 'APPLICATION',
+            title: 'Application Status Updated',
+            message: `${application.candidate?.firstName || 'Candidate'} status changed from ${previousStatus} to ${status} for ${application.job?.title || 'a job'}`,
+            link: `/candidates/${application.candidateId}`,
+            metadata: { applicationId: id, previousStatus, newStatus: status, reason },
+            userId: rid,
+            tenantId: application.job?.tenantId,
+          })) as any,
+        );
+      }
+    } catch (error) {
+      console.error('Failed to send application status notification:', error);
+    }
+
+    return updated;
   }
 
-  async assignTo(id: string, userId: string) {
-    return this.prisma.application.update({
+  async assignTo(id: string, assigneeId: string, userId?: string) {
+    const application = await this.findById(id);
+    const previousAssigneeId = application.assignedToId;
+
+    const updated = await this.prisma.application.update({
       where: { id },
-      data: { assignedToId: userId },
+      data: { assignedToId: assigneeId },
     });
+
+    try {
+      await this.prisma.activityLog.create({
+        data: {
+          action: 'APPLICATION_ASSIGNED',
+          description: `Assigned to user ${assigneeId}`,
+          applicationId: id,
+          candidateId: application.candidateId,
+          userId,
+          metadata: {
+            previousAssigneeId,
+            newAssigneeId: assigneeId,
+          },
+        },
+      });
+    } catch (error) {
+      console.error('Failed to log application assignment:', error);
+    }
+
+    try {
+      const notifyAssigneeIds = this.uniqueIds([
+        assigneeId,
+        previousAssigneeId && previousAssigneeId !== assigneeId ? previousAssigneeId : undefined,
+        application.job?.recruiterId,
+        application.job?.hiringManagerId,
+      ]).filter((rid) => (userId ? rid !== userId : true));
+
+      if (notifyAssigneeIds.length > 0) {
+        await this.notificationsService.createMany(
+          notifyAssigneeIds.map((rid) => ({
+            type: 'APPLICATION',
+            title: 'Assignment Updated',
+            message: `${application.candidate?.firstName || 'Candidate'} assignment updated for ${application.job?.title || 'a job'}`,
+            link: `/candidates/${application.candidateId}`,
+            metadata: { applicationId: id, previousAssigneeId, newAssigneeId: assigneeId },
+            userId: rid,
+            tenantId: application.job?.tenantId,
+          })) as any,
+        );
+      }
+    } catch (error) {
+      console.error('Failed to send assignment notification:', error);
+    }
+
+    return updated;
   }
 
   async calculateMatch(applicationId: string) {

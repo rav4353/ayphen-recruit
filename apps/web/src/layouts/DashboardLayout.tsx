@@ -116,14 +116,14 @@ export function DashboardLayout() {
   };
 
   return (
-    <div className="h-screen overflow-hidden flex bg-neutral-50 dark:bg-neutral-950">
+    <div className="h-screen overflow-hidden flex bg-neutral-50 dark:bg-neutral-950 transition-colors duration-150">
       {/* Forced Password Change Modal */}
       <ForcedPasswordChangeModal isOpen={requirePasswordChange} />
 
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden transition-opacity duration-200"
           onClick={() => setSidebarOpen(false)}
         />
       )}
@@ -131,14 +131,14 @@ export function DashboardLayout() {
       {/* Sidebar */}
       <aside
         className={cn(
-          'fixed lg:sticky lg:top-0 lg:h-screen inset-y-0 left-0 z-50 w-64 bg-white dark:bg-neutral-900 border-r border-neutral-200 dark:border-neutral-800 overflow-hidden',
-          'transform transition-transform duration-200 ease-in-out',
+          'fixed lg:sticky lg:top-0 lg:h-screen inset-y-0 left-0 z-50 w-64 bg-white dark:bg-neutral-900 border-r border-neutral-200/60 dark:border-neutral-800/60 overflow-hidden',
+          'transform transition-transform duration-200 ease-in-out shadow-soft-lg lg:shadow-none',
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         )}
       >
         <div className="flex flex-col h-full">
           {/* Logo */}
-          <div className="relative flex items-center h-16 px-6 border-b border-neutral-200 dark:border-neutral-800">
+          <div className="relative flex items-center h-16 px-6 border-b border-neutral-200/60 dark:border-neutral-800/60">
             <Link to={`/${tenantId}/dashboard`} className="mx-auto flex items-center gap-3">
               {/* Organization Logo - show uploaded logo or default Ayphen logo */}
               {orgSettings.logoUrl ? (
@@ -170,30 +170,30 @@ export function DashboardLayout() {
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto overscroll-contain scrollbar-hidden">
+          <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto overscroll-contain scrollbar-thin">
             {navigation.map((item) => (
               <NavLink
                 key={item.name}
                 to={item.href}
                 className={({ isActive }) =>
                   cn(
-                    'flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 group',
+                    'flex items-center gap-3 px-3.5 py-2.5 rounded-lg transition-all duration-150 group',
                     isActive
-                      ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-medium shadow-sm'
+                      ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 font-medium shadow-soft'
                       : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-50 dark:hover:bg-neutral-800/50'
                   )
                 }
               >
-                <item.icon size={20} className="transition-transform group-hover:scale-110" />
-                <span className="font-medium">{t(item.name)}</span>
+                <item.icon size={18} className="transition-transform group-hover:scale-110" />
+                <span className="text-sm font-medium">{t(item.name)}</span>
               </NavLink>
             ))}
           </nav>
 
           {/* User section */}
-          <div className="p-4 border-t border-neutral-200 dark:border-neutral-800">
-            <div className="flex items-center gap-3 px-4 py-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center text-white font-semibold">
+          <div className="p-4 border-t border-neutral-200/60 dark:border-neutral-800/60">
+            <div className="flex items-center gap-3 px-3 py-2.5">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-600 to-primary-400 flex items-center justify-center text-white font-semibold shadow-soft">
                 {user?.firstName?.[0]}
                 {user?.lastName?.[0]}
               </div>
@@ -210,7 +210,7 @@ export function DashboardLayout() {
               </div>
               <button
                 onClick={handleLogout}
-                className="p-2 text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors"
+                className="p-2 rounded-lg text-neutral-500 dark:text-neutral-400 hover:text-danger-600 dark:hover:text-danger-400 hover:bg-danger-50 dark:hover:bg-danger-950/30 transition-all duration-150"
                 title={t('common.logout')}
               >
                 <LogOut size={18} />
@@ -223,12 +223,13 @@ export function DashboardLayout() {
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top bar */}
-        <header className="h-14 sm:h-16 flex items-center justify-between px-3 sm:px-6 border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-sm flex-shrink-0">
+        <header className="h-14 sm:h-16 flex items-center justify-between px-3 sm:px-6 border-b border-neutral-200/60 dark:border-neutral-800/60 bg-white dark:bg-neutral-900 shadow-soft flex-shrink-0">
           <button
-            className="lg:hidden p-2 text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+            className="lg:hidden p-2 text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-all duration-150"
             onClick={() => setSidebarOpen(true)}
+            aria-label="Open menu"
           >
-            <Menu size={24} />
+            <Menu size={22} />
           </button>
 
           {/* Right side controls */}
@@ -241,7 +242,7 @@ export function DashboardLayout() {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 p-3 sm:p-4 lg:p-6 overflow-auto bg-neutral-50 dark:bg-neutral-950 scroll-smooth-mobile">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-auto bg-neutral-50 dark:bg-neutral-950 scroll-smooth-mobile">
           <ErrorBoundary>
             <Outlet />
           </ErrorBoundary>

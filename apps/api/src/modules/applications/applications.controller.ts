@@ -75,14 +75,19 @@ export class ApplicationsController {
     @Param('id') id: string,
     @Body('status') status: string,
     @Body('reason') reason?: string,
+    @CurrentUser() user?: JwtPayload,
   ) {
-    return this.applicationsService.updateStatus(id, status, reason);
+    return this.applicationsService.updateStatus(id, status, reason, user?.sub);
   }
 
   @Patch(':id/assign')
   @ApiOperation({ summary: 'Assign application to a user' })
-  assignTo(@Param('id') id: string, @Body('userId') userId: string) {
-    return this.applicationsService.assignTo(id, userId);
+  assignTo(
+    @Param('id') id: string,
+    @Body('userId') userId: string,
+    @CurrentUser() user?: JwtPayload,
+  ) {
+    return this.applicationsService.assignTo(id, userId, user?.sub);
   }
 
   @Post(':id/match')

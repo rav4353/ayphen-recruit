@@ -8,6 +8,11 @@ import { PasswordConfirmModal } from '../modals/PasswordConfirmModal';
 
 type TabType = 'smtp' | 'calendar' | 'esignature' | 'jobBoards' | 'bgv' | 'messaging';
 
+interface EmailAlias {
+    email: string;
+    name: string;
+}
+
 interface SmtpConfig {
     host: string;
     port: number;
@@ -16,6 +21,14 @@ interface SmtpConfig {
     fromEmail: string;
     fromName: string;
     secure: boolean;
+    // Purpose-specific from addresses (optional overrides)
+    fromAliases?: {
+        notifications?: EmailAlias;
+        interviews?: EmailAlias;
+        offers?: EmailAlias;
+        rejections?: EmailAlias;
+        bulkEmails?: EmailAlias;
+    };
 }
 
 const DEFAULT_SMTP_CONFIG: SmtpConfig = {
@@ -26,6 +39,13 @@ const DEFAULT_SMTP_CONFIG: SmtpConfig = {
     fromEmail: '',
     fromName: '',
     secure: false,
+    fromAliases: {
+        notifications: { email: '', name: '' },
+        interviews: { email: '', name: '' },
+        offers: { email: '', name: '' },
+        rejections: { email: '', name: '' },
+        bulkEmails: { email: '', name: '' },
+    },
 };
 
 interface CalendarConnection {
@@ -294,6 +314,19 @@ export function IntegrationSettings() {
 
     const handleSmtpChange = (key: keyof SmtpConfig, value: any) => {
         setSmtpConfig((prev) => ({ ...prev, [key]: value }));
+    };
+
+    const handleSmtpAliasChange = (purpose: keyof NonNullable<SmtpConfig['fromAliases']>, field: 'email' | 'name', value: string) => {
+        setSmtpConfig((prev) => ({
+            ...prev,
+            fromAliases: {
+                ...prev.fromAliases,
+                [purpose]: {
+                    ...prev.fromAliases?.[purpose],
+                    [field]: value,
+                },
+            },
+        }));
     };
 
     const fetchMessagingSettings = async () => {
@@ -817,6 +850,48 @@ export function IntegrationSettings() {
                                             <label htmlFor="secure" className="text-sm text-neutral-700 dark:text-neutral-300">
                                                 Use Secure Connection (SSL/TLS)
                                             </label>
+                                        </div>
+
+                                        {/* Purpose-specific From Addresses */}
+                                        <div className="border-t border-neutral-200 dark:border-neutral-700 pt-6 mt-6">
+                                            <div className="mb-4">
+                                                <h4 className="text-sm font-semibold text-neutral-900 dark:text-white flex items-center gap-2">
+                                                    <Mail size={16} />
+                                                    Purpose-Specific From Addresses
+                                                </h4>
+                                                <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
+                                                    Override the default "From" address for specific email types. Leave blank to use the default from address above.
+                                                </p>
+                                            </div>
+
+                                            <div className="space-y-4">
+                                                {[
+                                                    { key: 'notifications', label: 'Notifications', description: 'System notifications, alerts', placeholder: 'notifications@' },
+                                                    { key: 'interviews', label: 'Interview Invites', description: 'Interview scheduling emails', placeholder: 'interviews@' },
+                                                    { key: 'offers', label: 'Offer Letters', description: 'Offer and contract emails', placeholder: 'offers@' },
+                                                    { key: 'rejections', label: 'Rejection Emails', description: 'Candidate rejection notices', placeholder: 'no-reply@' },
+                                                    { key: 'bulkEmails', label: 'Bulk/Campaign Emails', description: 'Mass email campaigns', placeholder: 'recruiting@' },
+                                                ].map((alias) => (
+                                                    <div key={alias.key} className="p-4 bg-neutral-50 dark:bg-neutral-800/50 rounded-lg border border-neutral-200 dark:border-neutral-700">
+                                                        <div className="flex items-center gap-2 mb-2">
+                                                            <span className="text-sm font-medium text-neutral-900 dark:text-white">{alias.label}</span>
+                                                            <span className="text-xs text-neutral-500 dark:text-neutral-400">— {alias.description}</span>
+                                                        </div>
+                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                            <Input
+                                                                value={smtpConfig.fromAliases?.[alias.key as keyof NonNullable<SmtpConfig['fromAliases']>]?.email || ''}
+                                                                onChange={(e) => handleSmtpAliasChange(alias.key as keyof NonNullable<SmtpConfig['fromAliases']>, 'email', e.target.value)}
+                                                                placeholder={`${alias.placeholder}yourdomain.com`}
+                                                            />
+                                                            <Input
+                                                                value={smtpConfig.fromAliases?.[alias.key as keyof NonNullable<SmtpConfig['fromAliases']>]?.name || ''}
+                                                                onChange={(e) => handleSmtpAliasChange(alias.key as keyof NonNullable<SmtpConfig['fromAliases']>, 'name', e.target.value)}
+                                                                placeholder={`Display Name (e.g. ${alias.label})`}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
 
                                         <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-lg p-4 flex items-start gap-3">

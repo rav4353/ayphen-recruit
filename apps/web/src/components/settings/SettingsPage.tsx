@@ -344,7 +344,7 @@ export function SettingsPage() {
                 {/* Sidebar Navigation - Hide when searching */}
                 {!searchQuery && (
                     <div className="w-full lg:w-64 lg:sticky lg:top-6 lg:self-start overflow-x-auto lg:overflow-x-visible lg:overflow-y-auto lg:max-h-[calc(100vh-10rem)] pb-2 lg:pb-0 scrollbar-hidden">
-                        <div className="flex lg:flex-col gap-1 min-w-max lg:min-w-0">
+                        <div className="flex lg:flex-col gap-1 min-w-max lg:min-w-0 pr-4 lg:pr-0 lg:pb-4">
                             {tabs.map((tab) => (
                                 <button
                                     key={tab.id}

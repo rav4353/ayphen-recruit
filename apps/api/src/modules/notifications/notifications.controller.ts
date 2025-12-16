@@ -12,11 +12,39 @@ import {
 } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { NotificationType } from '@prisma/client';
 
 @Controller('notifications')
 @UseGuards(JwtAuthGuard)
 export class NotificationsController {
     constructor(private readonly notificationsService: NotificationsService) { }
+
+    private getAllowedTypesForRole(role?: string): NotificationType[] {
+        // Default: safest minimal set
+        if (!role) return ['SYSTEM'];
+
+        switch (role) {
+            case 'SUPER_ADMIN':
+            case 'ADMIN':
+                return ['APPLICATION', 'INTERVIEW', 'OFFER', 'JOB', 'SLA', 'APPROVAL', 'ONBOARDING', 'BGV', 'SYSTEM', 'MESSAGE'];
+            case 'RECRUITER':
+                return ['APPLICATION', 'INTERVIEW', 'OFFER', 'JOB', 'SLA', 'APPROVAL', 'SYSTEM', 'MESSAGE'];
+            case 'HIRING_MANAGER':
+                return ['APPLICATION', 'INTERVIEW', 'OFFER', 'JOB', 'SLA', 'APPROVAL', 'SYSTEM', 'MESSAGE'];
+            case 'INTERVIEWER':
+                return ['INTERVIEW', 'SYSTEM', 'MESSAGE'];
+            case 'HR':
+                return ['ONBOARDING', 'BGV', 'SYSTEM', 'MESSAGE'];
+            case 'EMPLOYEE':
+                return ['SYSTEM', 'MESSAGE'];
+            case 'CANDIDATE':
+                return ['SYSTEM', 'MESSAGE'];
+            case 'VENDOR':
+                return ['SYSTEM', 'MESSAGE'];
+            default:
+                return ['SYSTEM'];
+        }
+    }
 
     /**
      * Get all notifications for the current user
@@ -31,8 +59,14 @@ export class NotificationsController {
         if (read !== undefined) {
             filters.read = read === 'true';
         }
+        const allowedTypes = this.getAllowedTypesForRole(req.user?.role);
+        filters.allowedTypes = allowedTypes;
+
         if (type) {
-            filters.type = type;
+            // Only allow filtering by types this role is allowed to see
+            if (allowedTypes.includes(type as NotificationType)) {
+                filters.type = type as NotificationType;
+            }
         }
 
         const userId = req.user.sub || req.user.id;
@@ -53,7 +87,8 @@ export class NotificationsController {
     @Get('count')
     async getUnreadCount(@Request() req) {
         const userId = req.user.sub || req.user.id;
-        const count = await this.notificationsService.getUnreadCount(userId);
+        const allowedTypes = this.getAllowedTypesForRole(req.user?.role);
+        const count = await this.notificationsService.getUnreadCount(userId, allowedTypes);
         return {
             success: true,
             data: { count },

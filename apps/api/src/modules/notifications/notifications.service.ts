@@ -15,6 +15,7 @@ export interface CreateNotificationDto {
 export interface NotificationFilters {
     read?: boolean;
     type?: NotificationType;
+    allowedTypes?: NotificationType[];
 }
 
 @Injectable()
@@ -79,6 +80,12 @@ export class NotificationsService {
             where.type = filters.type;
         }
 
+        if (filters?.allowedTypes?.length) {
+            where.type = where.type
+                ? where.type
+                : { in: filters.allowedTypes };
+        }
+
         return this.prisma.notification.findMany({
             where,
             orderBy: { createdAt: 'desc' },
@@ -89,9 +96,13 @@ export class NotificationsService {
     /**
      * Get unread count for a user
      */
-    async getUnreadCount(userId: string) {
+    async getUnreadCount(userId: string, allowedTypes?: NotificationType[]) {
         return this.prisma.notification.count({
-            where: { userId, read: false },
+            where: {
+                userId,
+                read: false,
+                ...(allowedTypes?.length ? { type: { in: allowedTypes } } : {}),
+            },
         });
     }
 

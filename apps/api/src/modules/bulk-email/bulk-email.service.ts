@@ -35,7 +35,7 @@ export class BulkEmailService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly emailService: EmailService,
-  ) {}
+  ) { }
 
   private newId(prefix: string) {
     return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -269,6 +269,7 @@ export class BulkEmailService {
           html,
           text: this.personalize(campaign.body, c),
           tenantId,
+          purpose: 'bulkEmails',
         });
 
         if (ok) sent++;

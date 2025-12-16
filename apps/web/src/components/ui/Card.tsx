@@ -11,8 +11,9 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
       <div
         ref={ref}
         className={cn(
-          'bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm dark:shadow-none',
-          padding && 'p-6 sm:p-8',
+          'bg-white dark:bg-neutral-900 border border-neutral-200/60 dark:border-neutral-800/60 rounded-xl',
+          'shadow-soft hover:shadow-soft-lg transition-all duration-200',
+          padding && 'p-5 sm:p-6 lg:p-8',
           className
         )}
         {...props}
@@ -39,7 +40,7 @@ export const CardHeader = forwardRef<HTMLDivElement, CardHeaderProps>(
       <div
         ref={ref}
         className={cn(
-          'mb-6',
+          'mb-6 pb-4 border-b border-neutral-200/60 dark:border-neutral-800/60',
           align === 'center' ? 'text-center' : 'flex items-center justify-between',
           className
         )}
@@ -48,16 +49,16 @@ export const CardHeader = forwardRef<HTMLDivElement, CardHeaderProps>(
         <div className={cn(align === 'center' ? 'w-full' : 'flex-1')}>
           {icon && (
             <div className={cn(
-              "w-12 h-12 rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center",
+              "w-12 h-12 rounded-xl bg-primary-50 dark:bg-primary-950/30 flex items-center justify-center text-primary-600 dark:text-primary-400",
               align === 'center' ? "mx-auto mb-4" : "mr-4 inline-flex"
             )}>
               {icon}
             </div>
           )}
           <div>
-            <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">{title}</h3>
+            <h3 className="text-lg font-semibold text-neutral-900 dark:text-white tracking-tight">{title}</h3>
             {description && (
-              <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">{description}</p>
+              <p className="text-sm text-neutral-600 dark:text-neutral-400 mt-1.5">{description}</p>
             )}
           </div>
         </div>

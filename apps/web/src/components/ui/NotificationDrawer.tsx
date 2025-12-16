@@ -6,6 +6,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { cn } from '../../lib/utils';
 import { notificationsApi } from '../../lib/api';
 import { formatDistanceToNow } from 'date-fns';
+import { useAuthStore } from '../../stores/auth';
 
 export interface Notification {
   id: string;
@@ -67,23 +68,40 @@ export function NotificationDrawer({ className }: NotificationDrawerProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { tenantId } = useParams<{ tenantId: string }>();
+  const { user } = useAuthStore();
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
   const [filterType, setFilterType] = useState<string>('all');
   const drawerRef = useRef<HTMLDivElement>(null);
 
-  // Filter options
+  const allowedTypesByRole: Record<string, string[]> = {
+    SUPER_ADMIN: ['APPLICATION', 'INTERVIEW', 'OFFER', 'JOB', 'SLA', 'APPROVAL', 'ONBOARDING', 'BGV', 'SYSTEM', 'MESSAGE'],
+    ADMIN: ['APPLICATION', 'INTERVIEW', 'OFFER', 'JOB', 'SLA', 'APPROVAL', 'ONBOARDING', 'BGV', 'SYSTEM', 'MESSAGE'],
+    RECRUITER: ['APPLICATION', 'INTERVIEW', 'OFFER', 'JOB', 'SLA', 'APPROVAL', 'SYSTEM', 'MESSAGE'],
+    HIRING_MANAGER: ['APPLICATION', 'INTERVIEW', 'OFFER', 'JOB', 'SLA', 'APPROVAL', 'SYSTEM', 'MESSAGE'],
+    INTERVIEWER: ['INTERVIEW', 'SYSTEM', 'MESSAGE'],
+    HR: ['ONBOARDING', 'BGV', 'SYSTEM', 'MESSAGE'],
+    EMPLOYEE: ['SYSTEM', 'MESSAGE'],
+    CANDIDATE: ['SYSTEM', 'MESSAGE'],
+    VENDOR: ['SYSTEM', 'MESSAGE'],
+  };
+
+  const allowedTypes = user?.role ? (allowedTypesByRole[user.role] || ['SYSTEM']) : ['SYSTEM'];
+
+  // Filter options (role-based)
   const filterOptions = [
     { value: 'all', label: 'All' },
-    { value: 'APPLICATION', label: 'Applications' },
-    { value: 'INTERVIEW', label: 'Interviews' },
-    { value: 'OFFER', label: 'Offers' },
-    { value: 'JOB', label: 'Jobs' },
-    { value: 'SLA', label: 'SLA Alerts' },
-    { value: 'APPROVAL', label: 'Approvals' },
-    { value: 'ONBOARDING', label: 'Onboarding' },
-    { value: 'SYSTEM', label: 'System' },
+    ...(allowedTypes.includes('APPLICATION') ? [{ value: 'APPLICATION', label: 'Applications' }] : []),
+    ...(allowedTypes.includes('INTERVIEW') ? [{ value: 'INTERVIEW', label: 'Interviews' }] : []),
+    ...(allowedTypes.includes('OFFER') ? [{ value: 'OFFER', label: 'Offers' }] : []),
+    ...(allowedTypes.includes('JOB') ? [{ value: 'JOB', label: 'Jobs' }] : []),
+    ...(allowedTypes.includes('SLA') ? [{ value: 'SLA', label: 'SLA Alerts' }] : []),
+    ...(allowedTypes.includes('APPROVAL') ? [{ value: 'APPROVAL', label: 'Approvals' }] : []),
+    ...(allowedTypes.includes('ONBOARDING') ? [{ value: 'ONBOARDING', label: 'Onboarding' }] : []),
+    ...(allowedTypes.includes('BGV') ? [{ value: 'BGV', label: 'Background Checks' }] : []),
+    ...(allowedTypes.includes('MESSAGE') ? [{ value: 'MESSAGE', label: 'Messages' }] : []),
+    ...(allowedTypes.includes('SYSTEM') ? [{ value: 'SYSTEM', label: 'System' }] : []),
   ];
 
   // Filter notifications based on selected type

@@ -26,15 +26,17 @@ export function AuthLayout() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-neutral-50 transition-colors">
-      <div className="mb-2 text-center">
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-br from-neutral-50 via-primary-50/20 to-neutral-50 dark:from-neutral-950 dark:via-primary-950/10 dark:to-neutral-950 transition-colors duration-300">
+      <div className="mb-8 text-center animate-fade-in">
         <img
           src={lightLogo}
           alt={t('common.appName')}
-          className="h-48 mx-auto"
+          className="h-40 mx-auto"
         />
       </div>
-      <Outlet />
+      <div className="w-full animate-slide-up">
+        <Outlet />
+      </div>
     </div>
   );
 }

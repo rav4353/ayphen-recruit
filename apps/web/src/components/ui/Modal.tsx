@@ -42,36 +42,40 @@ export function Modal({
                 "fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 transition-opacity duration-200",
                 isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
             )}
+            role="dialog"
+            aria-modal="true"
         >
             {/* Backdrop */}
             <div
-                className="absolute inset-0 bg-black/40 backdrop-blur-[2px] transition-opacity"
+                className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
                 onClick={onClose}
+                aria-hidden="true"
             />
 
             {/* Modal */}
             <div
                 className={cn(
-                    "relative w-full max-w-lg bg-white dark:bg-neutral-900 rounded-xl shadow-2xl transform transition-all duration-200 scale-100 border border-neutral-100 dark:border-neutral-800 max-h-[90vh] flex flex-col",
-                    isOpen ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0",
+                    "relative w-full max-w-lg bg-white dark:bg-neutral-900 rounded-xl shadow-soft-xl transform transition-all duration-200 scale-100 border border-neutral-200/60 dark:border-neutral-800/60 max-h-[90vh] flex flex-col",
+                    isOpen ? "translate-y-0 opacity-100 scale-100" : "translate-y-4 opacity-0 scale-95",
                     className
                 )}
             >
                 {/* Header */}
-                <div className="flex items-center justify-between p-6 border-b border-neutral-100 dark:border-neutral-800 shrink-0">
-                    <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
+                <div className="flex items-center justify-between p-6 border-b border-neutral-200/60 dark:border-neutral-800/60 shrink-0">
+                    <h3 className="text-lg font-semibold text-neutral-900 dark:text-white tracking-tight">
                         {title}
                     </h3>
                     <button
                         onClick={onClose}
-                        className="p-2 -mr-2 rounded-full text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+                        className="p-2 -mr-2 rounded-lg text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-all duration-150"
+                        aria-label="Close modal"
                     >
                         <X size={18} />
                     </button>
                 </div>
 
                 {/* Content */}
-                <div className="p-6 overflow-y-auto">
+                <div className="p-6 overflow-y-auto scrollbar-thin">
                     {children}
                 </div>
             </div>

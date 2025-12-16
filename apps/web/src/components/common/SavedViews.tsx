@@ -31,6 +31,7 @@ export function SavedViews({ entity, currentFilters, onApplyView, onReset, class
 
     const [viewToDelete, setViewToDelete] = useState<string | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
         fetchViews();
@@ -46,8 +47,9 @@ export function SavedViews({ entity, currentFilters, onApplyView, onReset, class
     };
 
     const handleCreateView = async () => {
-        if (!newViewName.trim()) return;
+        if (!newViewName.trim() || isSaving) return;
 
+        setIsSaving(true);
         try {
             const response = await savedViewsApi.create({
                 name: newViewName,
@@ -64,6 +66,8 @@ export function SavedViews({ entity, currentFilters, onApplyView, onReset, class
         } catch (error) {
             console.error('Failed to create saved view', error);
             toast.error('Failed to save view');
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -234,7 +238,8 @@ export function SavedViews({ entity, currentFilters, onApplyView, onReset, class
                         </Button>
                         <Button
                             onClick={handleCreateView}
-                            disabled={!newViewName.trim()}
+                            disabled={!newViewName.trim() || isSaving}
+                            isLoading={isSaving}
                         >
                             Save View
                         </Button>

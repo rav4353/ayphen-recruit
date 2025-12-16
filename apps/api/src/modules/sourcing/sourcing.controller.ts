@@ -12,8 +12,11 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { SourcingService } from './sourcing.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/auth.service';
+import { RequirePermissions } from '../auth/decorators/permissions.decorator';
+import { Permission } from '../../common/constants/permissions';
 import {
   CreateSourcedCandidateDto,
   UpdateSourcedCandidateDto,
@@ -27,13 +30,14 @@ import {
 
 @ApiTags('sourcing')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('sourcing')
 export class SourcingController {
   constructor(private readonly sourcingService: SourcingService) {}
 
   @Post()
   @ApiOperation({ summary: 'Create a sourced candidate' })
+  @RequirePermissions(Permission.CANDIDATE_EDIT)
   create(
     @CurrentUser() user: JwtPayload,
     @Body() dto: CreateSourcedCandidateDto,
@@ -43,6 +47,7 @@ export class SourcingController {
 
   @Get()
   @ApiOperation({ summary: 'Get all sourced candidates with filters' })
+  @RequirePermissions(Permission.CANDIDATE_VIEW)
   @ApiQuery({ name: 'search', required: false })
   @ApiQuery({ name: 'status', required: false, enum: SourcingStatus })
   @ApiQuery({ name: 'source', required: false, enum: SourcingChannel })
@@ -61,12 +66,14 @@ export class SourcingController {
 
   @Get('stats')
   @ApiOperation({ summary: 'Get sourcing statistics' })
+  @RequirePermissions(Permission.CANDIDATE_VIEW)
   getStats(@CurrentUser() user: JwtPayload) {
     return this.sourcingService.getStats(user.tenantId);
   }
 
   @Get('channels')
   @ApiOperation({ summary: 'Get available sourcing channels' })
+  @RequirePermissions(Permission.CANDIDATE_VIEW)
   getChannels() {
     return {
       channels: Object.values(SourcingChannel).map(channel => ({
@@ -82,6 +89,7 @@ export class SourcingController {
 
   @Get('suggested/:jobId')
   @ApiOperation({ summary: 'Get suggested candidates for a job from internal database' })
+  @RequirePermissions(Permission.CANDIDATE_VIEW)
   getSuggestedCandidates(
     @Param('jobId') jobId: string,
     @CurrentUser() user: JwtPayload,
@@ -91,6 +99,7 @@ export class SourcingController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get a sourced candidate by ID' })
+  @RequirePermissions(Permission.CANDIDATE_VIEW)
   findOne(
     @Param('id') id: string,
     @CurrentUser() user: JwtPayload,
@@ -100,6 +109,7 @@ export class SourcingController {
 
   @Put(':id')
   @ApiOperation({ summary: 'Update a sourced candidate' })
+  @RequirePermissions(Permission.CANDIDATE_EDIT)
   update(
     @Param('id') id: string,
     @CurrentUser() user: JwtPayload,
@@ -110,6 +120,7 @@ export class SourcingController {
 
   @Delete(':id')
   @ApiOperation({ summary: 'Delete a sourced candidate' })
+  @RequirePermissions(Permission.CANDIDATE_DELETE)
   delete(
     @Param('id') id: string,
     @CurrentUser() user: JwtPayload,
@@ -119,6 +130,7 @@ export class SourcingController {
 
   @Post('outreach')
   @ApiOperation({ summary: 'Record an outreach attempt' })
+  @RequirePermissions(Permission.EMAIL_SEND)
   recordOutreach(
     @CurrentUser() user: JwtPayload,
     @Body() dto: RecordOutreachDto,
@@ -128,6 +140,7 @@ export class SourcingController {
 
   @Post('bulk-outreach')
   @ApiOperation({ summary: 'Send bulk outreach to multiple candidates' })
+  @RequirePermissions(Permission.EMAIL_SEND)
   bulkOutreach(
     @CurrentUser() user: JwtPayload,
     @Body() dto: BulkOutreachDto,
@@ -137,6 +150,7 @@ export class SourcingController {
 
   @Post('add-to-pipeline')
   @ApiOperation({ summary: 'Add a sourced candidate to job pipeline' })
+  @RequirePermissions(Permission.CANDIDATE_EDIT)
   addToPipeline(
     @CurrentUser() user: JwtPayload,
     @Body() dto: AddToPipelineDto,

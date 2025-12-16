@@ -48,6 +48,7 @@ export function JobFormSettings() {
     const [config, setConfig] = useState<JobFormConfig>({ customFields: [] });
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingField, setEditingField] = useState<CustomField | null>(null);
+    const [isSaving, setIsSaving] = useState(false);
 
     const { register, handleSubmit, reset, watch, setValue, setError, formState: { errors } } = useForm<CustomField>();
 
@@ -136,6 +137,8 @@ export function JobFormSettings() {
     };
 
     const onSubmit = async (data: CustomField) => {
+        if (isSaving) return;
+
         // Generate key if not provided (camelCase from label)
         if (!data.key) {
             data.key = data.label.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -177,8 +180,13 @@ export function JobFormSettings() {
             newFields.push(sanitizedData);
         }
 
-        await saveSettings({ ...config, customFields: newFields });
-        setIsModalOpen(false);
+        setIsSaving(true);
+        try {
+            await saveSettings({ ...config, customFields: newFields });
+            setIsModalOpen(false);
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     return (
@@ -378,10 +386,10 @@ export function JobFormSettings() {
                     </div>
 
                     <div className="flex justify-end gap-3 mt-6">
-                        <Button type="button" variant="secondary" onClick={() => setIsModalOpen(false)}>
+                        <Button type="button" variant="secondary" onClick={() => setIsModalOpen(false)} disabled={isSaving}>
                             {t('common.cancel')}
                         </Button>
-                        <Button type="submit">
+                        <Button type="submit" isLoading={isSaving}>
                             {t('common.save')}
                         </Button>
                     </div>

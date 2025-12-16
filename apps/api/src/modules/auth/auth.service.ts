@@ -319,4 +319,17 @@ export class AuthService {
 
     return permissions;
   }
+
+  async verifyUserPassword(userId: string, password: string): Promise<boolean> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { passwordHash: true },
+    });
+
+    if (!user || !user.passwordHash) {
+      return false;
+    }
+
+    return bcrypt.compare(password, user.passwordHash);
+  }
 }

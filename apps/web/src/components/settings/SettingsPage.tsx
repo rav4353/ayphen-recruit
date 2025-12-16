@@ -214,7 +214,11 @@ export function SettingsPage() {
     // If no tab in URL but we have a stored tab, update URL to match
     useEffect(() => {
         if (!urlTab && storedTab) {
-            setSearchParams({ tab: storedTab }, { replace: true });
+            setSearchParams(prev => {
+                const newParams = new URLSearchParams(prev);
+                newParams.set('tab', storedTab);
+                return newParams;
+            }, { replace: true });
         }
     }, [urlTab, storedTab, setSearchParams]);
 
@@ -251,7 +255,16 @@ export function SettingsPage() {
         });
 
     const handleTabChange = (tabId: string, fromSearch: boolean = false) => {
-        setSearchParams({ tab: tabId });
+        setSearchParams(prev => {
+            const newParams = new URLSearchParams();
+            newParams.set('tab', tabId);
+            // Keep the 'view' param only if staying on the same main tab
+            const currentTab = prev.get('tab');
+            if (currentTab === tabId && prev.has('view')) {
+                newParams.set('view', prev.get('view')!);
+            }
+            return newParams;
+        });
         if (fromSearch) {
             setPreviousSearch(searchQuery);
         } else {

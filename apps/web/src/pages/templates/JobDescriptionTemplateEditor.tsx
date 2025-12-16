@@ -93,7 +93,7 @@ export function JobDescriptionTemplateEditor() {
             const value = response.data?.data?.value || response.data?.value || response.data || [];
             const data = Array.isArray(value) ? value : [];
             setTemplates(data);
-            
+
             if (isEditMode) {
                 const template = data.find((t: any) => t.id === templateId);
                 if (template) {
@@ -139,7 +139,7 @@ export function JobDescriptionTemplateEditor() {
 
             await settingsApi.update('job_description_templates', { value: newTemplates, category: 'TEMPLATES' });
             toast.success(isEditMode ? 'Template updated' : 'Template created');
-            navigate(`/${tenantId}/settings?tab=templates`);
+            navigate(`/${tenantId}/settings?tab=templates&view=jobs`);
         } catch (error) {
             console.error('Failed to save template', error);
             toast.error('Failed to save template');
@@ -173,7 +173,7 @@ export function JobDescriptionTemplateEditor() {
         <div className="space-y-6 h-[calc(100vh-100px)] flex flex-col">
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                    <Button variant="ghost" onClick={() => navigate(`/${tenantId}/settings?tab=templates`)}>
+                    <Button variant="ghost" onClick={() => navigate(`/${tenantId}/settings?tab=templates&view=jobs`)}>
                         <ArrowLeft size={16} className="mr-2" />
                         Back
                     </Button>

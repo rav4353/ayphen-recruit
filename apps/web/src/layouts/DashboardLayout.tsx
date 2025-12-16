@@ -51,11 +51,12 @@ export function DashboardLayout() {
     { name: 'candidates.title', href: `/${tenantId}/candidates`, icon: Users, roles: ['ADMIN', 'RECRUITER', 'HIRING_MANAGER'] },
     { name: 'referrals.title', href: `/${tenantId}/referrals`, icon: Share2, roles: ['ADMIN', 'RECRUITER', 'HIRING_MANAGER', 'EMPLOYEE'] },
     { name: 'sourcing.title', href: `/${tenantId}/sourcing`, icon: Search, roles: ['ADMIN', 'RECRUITER'] },
+    { name: 'talentPools.title', href: `/${tenantId}/talent-pools`, icon: Users, roles: ['ADMIN', 'RECRUITER'] },
     { name: 'interviews.title', href: `/${tenantId}/interviews`, icon: Calendar, roles: ['ADMIN', 'RECRUITER', 'HIRING_MANAGER'] },
     { name: 'offers.title', href: `/${tenantId}/offers`, icon: FileSignature, roles: ['ADMIN', 'RECRUITER', 'HIRING_MANAGER'] },
     { name: 'onboarding.title', href: `/${tenantId}/onboarding`, icon: Users, roles: ['ADMIN', 'RECRUITER', 'HR'] }, // Story 9.1
     { name: 'inbox.title', href: `/${tenantId}/inbox`, icon: Mail, roles: ['ADMIN', 'RECRUITER'] },
-    { name: 'campaigns.title', href: `/${tenantId}/campaigns`, icon: Send, roles: ['ADMIN', 'RECRUITER'] },
+    { name: 'campaigns.title', href: `/${tenantId}/campaigns`, icon: Send, roles: ['ADMIN', 'RECRUITER', 'HR'] },
     { name: 'reports.title', href: `/${tenantId}/reports`, icon: BarChart, roles: ['ADMIN', 'RECRUITER'] },
     { name: 'settings.title', href: `/${tenantId}/settings`, icon: Settings, roles: ['ADMIN'] },
   ];
@@ -85,8 +86,12 @@ export function DashboardLayout() {
       // Load organization settings (including logo)
       settingsApi.getAll()
         .then((response) => {
-          const settings = response.data || [];
-          const orgProfile = settings.find((s: any) => s.key === 'organization_profile');
+          // Safely extract data handling both wrapped and unwrapped scenarios if needed,
+          // but assuming response.data.data based on earlier findings + fix.
+          const settings = response.data?.data || [];
+
+          const orgProfile = Array.isArray(settings) ? settings.find((s: any) => s.key === 'organization_profile') : null;
+
           if (orgProfile?.value) {
             setOrgSettings(orgProfile.value);
             if (orgProfile.value.logoUrl) {

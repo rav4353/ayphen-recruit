@@ -17,7 +17,8 @@ import { Plus, X } from 'lucide-react';
 const criteriaItemSchema = z.object({
     key: z.string(),
     label: z.string().min(1, 'Label is required'),
-    description: z.string(),
+    description: z.string().optional(),
+    type: z.enum(['rating', 'text', 'both']).default('rating'),
 });
 
 const scorecardSchema = z.object({
@@ -80,7 +81,7 @@ export const ScorecardModal = ({ isOpen, onClose, initialData, onSubmit, isLoadi
     }, [isOpen, initialData, reset]);
 
     const handleAddCriteria = () => {
-        append({ key: `criteria_${Date.now()}`, label: '', description: '' });
+        append({ key: `criteria_${Date.now()}`, label: '', description: '', type: 'rating' });
     };
 
     const handleFormSubmit = (data: ScorecardFormData) => {
@@ -193,7 +194,7 @@ export const ScorecardModal = ({ isOpen, onClose, initialData, onSubmit, isLoadi
                                                 </div>
                                                 <div className="w-1/3">
                                                     <select
-                                                        {...register(`sections.${index}.type` as any)}
+                                                        {...register(`sections.${index}.type`)}
                                                         className="w-full h-10 px-3 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                                                     >
                                                         <option value="rating">Stars Only</option>
@@ -221,11 +222,11 @@ export const ScorecardModal = ({ isOpen, onClose, initialData, onSubmit, isLoadi
                     </div>
 
                     <DialogFooter className="flex flex-col-reverse sm:flex-row gap-3 px-6 py-4 border-t border-neutral-200 dark:border-neutral-800 shrink-0">
-                        <Button variant="outline" onClick={onClose} type="button" className="w-full sm:w-auto">
+                        <Button variant="outline" onClick={onClose} type="button" className="w-full sm:w-auto" disabled={isLoading}>
                             Cancel
                         </Button>
-                        <Button type="submit" disabled={isLoading} className="w-full sm:w-auto">
-                            {isLoading ? 'Saving...' : 'Save Template'}
+                        <Button type="submit" isLoading={isLoading} className="w-full sm:w-auto">
+                            Save Template
                         </Button>
                     </DialogFooter>
                 </form>

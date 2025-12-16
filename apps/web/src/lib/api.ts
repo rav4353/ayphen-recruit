@@ -93,6 +93,8 @@ export const authApi = {
     api.post('/auth/reset-password', data),
   changePassword: (data: { currentPassword: string; newPassword: string }) =>
     api.post('/auth/change-password', data),
+  verifyPassword: (password: string) =>
+    api.post('/auth/verify-password', { password }),
 
   // Magic link (for candidates)
   requestMagicLink: (data: { email: string; tenantId: string }) =>

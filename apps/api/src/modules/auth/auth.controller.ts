@@ -11,6 +11,7 @@ import {
   Request,
   Headers,
   Ip,
+  UnauthorizedException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -186,6 +187,24 @@ export class AuthController {
     @Body() dto: ChangePasswordDto,
   ) {
     return this.passwordService.changePassword(req.user.sub, dto);
+  }
+
+  @Post('verify-password')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Verify password for sensitive actions' })
+  @ApiResponse({ status: 200, description: 'Password verified successfully' })
+  @ApiResponse({ status: 401, description: 'Password incorrect' })
+  async verifyPassword(
+    @Request() req: AuthenticatedRequest,
+    @Body() dto: { password: string },
+  ) {
+    const isValid = await this.authService.verifyUserPassword(req.user.sub, dto.password);
+    if (!isValid) {
+      throw new UnauthorizedException('Invalid password');
+    }
+    return { verified: true, message: 'Password verified successfully' };
   }
 
   // ==================== OTP (Candidate) ====================

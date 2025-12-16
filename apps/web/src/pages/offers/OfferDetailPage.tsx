@@ -151,11 +151,11 @@ export function OfferDetailPage() {
                 <div className="flex gap-3">
                     {offer.status === 'DRAFT' && (
                         <>
-                            <Button variant="danger" onClick={handleDeleteClick}>
+                            <Button variant="danger" onClick={handleDeleteClick} disabled={isDeleting || isSubmitting}>
                                 <Trash2 size={16} className="mr-2" />
                                 {t('common.delete')}
                             </Button>
-                            <Button onClick={handleSubmitClick}>
+                            <Button onClick={handleSubmitClick} disabled={isDeleting || isSubmitting}>
                                 <Send size={16} className="mr-2" />
                                 {t('offers.detail.submitForApproval')}
                             </Button>
@@ -163,18 +163,18 @@ export function OfferDetailPage() {
                     )}
                     {canApprove && (
                         <>
-                            <Button variant="danger" onClick={handleRejectClick}>
+                            <Button variant="danger" onClick={handleRejectClick} disabled={isApproving || isRejecting}>
                                 <XCircle size={16} className="mr-2" />
                                 {t('offers.detail.reject')}
                             </Button>
-                            <Button variant="success" onClick={handleApproveClick}>
+                            <Button variant="success" onClick={handleApproveClick} disabled={isApproving || isRejecting}>
                                 <CheckCircle size={16} className="mr-2" />
                                 {t('offers.detail.approve')}
                             </Button>
                         </>
                     )}
                     {offer.status === 'APPROVED' && (
-                        <Button variant="secondary" onClick={handleSendClick}>
+                        <Button variant="secondary" onClick={handleSendClick} disabled={isSending}>
                             <Send size={16} className="mr-2" />
                             {t('offers.detail.sendToCandidate')}
                         </Button>

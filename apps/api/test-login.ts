@@ -30,6 +30,8 @@ async function main() {
     console.log(`User ID: ${user.id}`);
     console.log(`Tenant ID: ${user.tenantId}`);
     console.log(`Password Hash: ${user.passwordHash}`);
+    console.log(`Status: ${user.status}`);
+    console.log(`Temp Password Expires At: ${user.tempPasswordExpiresAt}`);
 
     if (!user.passwordHash) {
         console.log('No password hash stored');

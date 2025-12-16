@@ -1,14 +1,32 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { IsEmail, IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
 import { PrismaService } from '../../prisma/prisma.service';
 import { EmailService } from '../../common/services/email.service';
 import { EmailDirection, EmailStatus, Prisma } from '@prisma/client';
 
 export class SendEmailDto {
+    @IsEmail()
+    @IsNotEmpty()
     to: string;
+
+    @IsString()
+    @IsNotEmpty()
     subject: string;
+
+    @IsString()
+    @IsNotEmpty()
     body: string;
+
+    @IsUUID()
+    @IsNotEmpty()
     candidateId: string;
+
+    @IsOptional()
+    @IsString()
     cc?: string;
+
+    @IsOptional()
+    @IsString()
     bcc?: string;
 }
 
@@ -42,11 +60,11 @@ export class CommunicationEmailsService {
                 body,
                 direction: EmailDirection.OUTBOUND,
                 status: EmailStatus.DRAFT,
-                candidateId,
-                userId,
                 cc,
                 bcc,
                 tenant: { connect: { id: tenantId } },
+                candidate: { connect: { id: candidateId } },
+                ...(userId ? { user: { connect: { id: userId } } } : {}),
             } as any,
         });
 

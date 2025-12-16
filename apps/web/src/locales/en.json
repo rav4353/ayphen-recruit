@@ -823,6 +823,9 @@
   "sourcing": {
     "title": "Sourcing"
   },
+  "talentPools": {
+    "title": "Talent Pools"
+  },
   "interviews": {
     "title": "Interviews",
     "schedule": "Schedule Interview",

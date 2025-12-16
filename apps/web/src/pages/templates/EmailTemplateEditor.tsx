@@ -124,7 +124,7 @@ export function EmailTemplateEditor() {
             const value = response.data?.data?.value || response.data?.value || response.data || [];
             const data = Array.isArray(value) ? value : [];
             setTemplates(data);
-            
+
             if (isEditMode) {
                 const template = data.find((t: any) => t.id === templateId);
                 if (template) {
@@ -168,7 +168,7 @@ export function EmailTemplateEditor() {
 
             await settingsApi.update('email_templates', { value: newTemplates, category: 'TEMPLATES' });
             toast.success(isEditMode ? 'Template updated' : 'Template created');
-            navigate(`/${tenantId}/settings?tab=templates`);
+            navigate(`/${tenantId}/settings?tab=templates&view=emails`);
         } catch (error) {
             console.error('Failed to save template', error);
             toast.error('Failed to save template');
@@ -202,7 +202,7 @@ export function EmailTemplateEditor() {
         <div className="space-y-6 h-[calc(100vh-100px)] flex flex-col">
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                    <Button variant="ghost" onClick={() => navigate(`/${tenantId}/settings?tab=templates`)}>
+                    <Button variant="ghost" onClick={() => navigate(`/${tenantId}/settings?tab=templates&view=emails`)}>
                         <ArrowLeft size={16} className="mr-2" />
                         Back
                     </Button>
@@ -363,7 +363,7 @@ export function EmailTemplateEditor() {
                     <div className="bg-white dark:bg-neutral-900 rounded-xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
                         <div className="flex items-center justify-between p-4 border-b border-neutral-200 dark:border-neutral-700">
                             <h3 className="font-semibold text-lg text-neutral-900 dark:text-white">Email Preview</h3>
-                            <button 
+                            <button
                                 onClick={() => setShowPreview(false)}
                                 className="p-2 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg"
                             >
@@ -390,7 +390,7 @@ export function EmailTemplateEditor() {
                                 </div>
                                 {/* Email Body */}
                                 <div className="p-6 bg-white dark:bg-neutral-900">
-                                    <div 
+                                    <div
                                         className="prose prose-sm dark:prose-invert max-w-none"
                                         dangerouslySetInnerHTML={{ __html: body || '<p class="text-neutral-400">No content yet...</p>' }}
                                     />

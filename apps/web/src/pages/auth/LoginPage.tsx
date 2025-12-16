@@ -80,6 +80,12 @@ export function LoginPage() {
       // API returns { success, data: { accessToken, refreshToken } }
       const responseData = response.data.data || response.data;
       console.log('Extracted responseData:', responseData);
+
+      // Check for functional errors (like account locked) returned with 200 OK
+      if (responseData.error) {
+        throw { response: { data: responseData } };
+      }
+
       console.log('responseData.requirePasswordChange:', responseData.requirePasswordChange);
 
       if (responseData.requiresMfa) {
@@ -89,6 +95,11 @@ export function LoginPage() {
 
       const { accessToken, refreshToken, requirePasswordChange } = responseData;
       console.log('Destructured requirePasswordChange:', requirePasswordChange);
+
+      if (!accessToken) {
+        // Fallback if no token and no explicit error
+        throw new Error('No access token received');
+      }
 
       const payload = JSON.parse(atob(accessToken.split('.')[1]));
 

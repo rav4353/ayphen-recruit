@@ -96,7 +96,12 @@ const EmailComposer: React.FC<EmailComposerProps> = ({
             onSent();
         } catch (error) {
             console.error('Failed to send email:', error);
-            toast.error('Failed to send email');
+            const message =
+                (error as any)?.response?.data?.message ||
+                (error as any)?.response?.data?.error ||
+                (error as any)?.message ||
+                'Failed to send email';
+            toast.error(message);
         } finally {
             setIsSending(false);
         }

@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Card, Button, Input, CardHeader } from '../ui';
-import { CheckCircle2, AlertCircle, Calendar, FileSignature, Loader2, ExternalLink, Trash2, Shield, Briefcase, Settings as SettingsIcon, MessageSquare, Send, Mail, Save } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Calendar, FileSignature, Loader2, ExternalLink, Trash2, Shield, Briefcase, MessageSquare, Send, Mail, Save, Edit } from 'lucide-react';
 import { calendarApi, esignatureApi, jobBoardsApi, bgvApi, messagingApi, settingsApi } from '../../lib/api';
 import toast from 'react-hot-toast';
+import { PasswordConfirmModal } from '../modals/PasswordConfirmModal';
 
 type TabType = 'smtp' | 'calendar' | 'esignature' | 'jobBoards' | 'bgv' | 'messaging';
 
@@ -140,6 +141,105 @@ export function IntegrationSettings() {
     const [configuringSlack, setConfiguringSlack] = useState(false);
     const [configuringTeams, setConfiguringTeams] = useState(false);
 
+    // Password Confirmation State
+    const [showPasswordModal, setShowPasswordModal] = useState(false);
+    const [pendingEditAction, setPendingEditAction] = useState<{
+        type: 'smtp' | 'calendar_google' | 'calendar_outlook' | 'esignature' | 'job_board' | 'bgv' | 'slack' | 'teams';
+        provider?: string;
+    } | null>(null);
+    const [editModes, setEditModes] = useState<{
+        smtp: boolean;
+        calendar_google: boolean;
+        calendar_outlook: boolean;
+        esignature: boolean;
+        job_board: Record<string, boolean>;
+        bgv: boolean;
+        slack: boolean;
+        teams: boolean;
+    }>({
+        smtp: false,
+        calendar_google: false,
+        calendar_outlook: false,
+        esignature: false,
+        job_board: {},
+        bgv: false,
+        slack: false,
+        teams: false,
+    });
+
+    type EditActionType = 'smtp' | 'calendar_google' | 'calendar_outlook' | 'esignature' | 'job_board' | 'bgv' | 'slack' | 'teams';
+
+    // Request password confirmation before editing
+    const requestEditAccess = (type: EditActionType, provider?: string) => {
+        // Check if the integration is already configured
+        let isConfigured = false;
+        switch (type) {
+            case 'smtp':
+                isConfigured = !!smtpConfig.host && smtpConfig.host !== '';
+                break;
+            case 'calendar_google':
+                isConfigured = !!calendarSettings?.google?.isConfigured;
+                break;
+            case 'calendar_outlook':
+                isConfigured = !!calendarSettings?.outlook?.isConfigured;
+                break;
+            case 'esignature':
+                isConfigured = !!esignSettings?.isConfigured;
+                break;
+            case 'job_board':
+                isConfigured = provider ? !!jobBoardSettings[provider]?.isConfigured : false;
+                break;
+            case 'bgv':
+                isConfigured = !!bgvSettings?.isConfigured;
+                break;
+            case 'slack':
+                isConfigured = !!slackConfig?.isConfigured;
+                break;
+            case 'teams':
+                isConfigured = !!teamsConfig?.isConfigured;
+                break;
+        }
+
+        if (isConfigured) {
+            setPendingEditAction({ type, provider });
+            setShowPasswordModal(true);
+        } else {
+            // Not configured, allow direct access
+            enableEditMode(type, provider);
+        }
+    };
+
+    const enableEditMode = (type: EditActionType, provider?: string) => {
+        if (type === 'job_board' && provider) {
+            setEditModes(prev => ({
+                ...prev,
+                job_board: { ...prev.job_board, [provider]: true },
+            }));
+        } else {
+            setEditModes(prev => ({ ...prev, [type]: true }));
+        }
+    };
+
+    const handlePasswordConfirmed = () => {
+        if (pendingEditAction) {
+            enableEditMode(pendingEditAction.type, pendingEditAction.provider);
+            setPendingEditAction(null);
+        }
+        setShowPasswordModal(false);
+        toast.success('Identity verified. You can now edit the settings.');
+    };
+
+    const resetEditMode = (type: EditActionType, provider?: string) => {
+        if (type === 'job_board' && provider) {
+            setEditModes(prev => ({
+                ...prev,
+                job_board: { ...prev.job_board, [provider]: false },
+            }));
+        } else {
+            setEditModes(prev => ({ ...prev, [type]: false }));
+        }
+    };
+
     // Fetch data when tabs change
     useEffect(() => {
         if (activeTab === 'smtp') {
@@ -163,8 +263,10 @@ export function IntegrationSettings() {
         setSmtpLoading(true);
         try {
             const response = await settingsApi.getByKey('smtp_config');
-            if (response.data && response.data.value) {
-                setSmtpConfig({ ...DEFAULT_SMTP_CONFIG, ...response.data.value });
+            // Handle nested API response structure: response.data.data.value or response.data.value
+            const settingData = response.data?.data || response.data;
+            if (settingData && settingData.value) {
+                setSmtpConfig({ ...DEFAULT_SMTP_CONFIG, ...settingData.value });
             }
         } catch (error) {
             console.error('Failed to fetch SMTP settings', error);
@@ -608,105 +710,149 @@ export function IntegrationSettings() {
                             </div>
                         ) : (
                             <>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div>
-                                        <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                                            SMTP Host
-                                        </label>
-                                        <Input
-                                            value={smtpConfig.host}
-                                            onChange={(e) => handleSmtpChange('host', e.target.value)}
-                                            placeholder="smtp.example.com"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                                            SMTP Port
-                                        </label>
-                                        <Input
-                                            type="number"
-                                            value={smtpConfig.port}
-                                            onChange={(e) => handleSmtpChange('port', parseInt(e.target.value) || 0)}
-                                            placeholder="587"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                                            SMTP User
-                                        </label>
-                                        <Input
-                                            value={smtpConfig.user}
-                                            onChange={(e) => handleSmtpChange('user', e.target.value)}
-                                            placeholder="user@example.com"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                                            SMTP Password
-                                        </label>
-                                        <Input
-                                            type="password"
-                                            value={smtpConfig.pass}
-                                            onChange={(e) => handleSmtpChange('pass', e.target.value)}
-                                            placeholder="••••••••"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                                            From Email
-                                        </label>
-                                        <Input
-                                            value={smtpConfig.fromEmail}
-                                            onChange={(e) => handleSmtpChange('fromEmail', e.target.value)}
-                                            placeholder="noreply@example.com"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                                            From Name
-                                        </label>
-                                        <Input
-                                            value={smtpConfig.fromName}
-                                            onChange={(e) => handleSmtpChange('fromName', e.target.value)}
-                                            placeholder="TalentX"
-                                        />
-                                    </div>
-                                </div>
+                                {/* Show locked view when configured and not in edit mode */}
+                                {smtpConfig.host && !editModes.smtp ? (
+                                    <>
+                                        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <CheckCircle2 className="text-green-600 dark:text-green-400" size={20} />
+                                                <div>
+                                                    <p className="font-medium text-green-800 dark:text-green-200">SMTP Configured</p>
+                                                    <p className="text-sm text-green-600 dark:text-green-400">
+                                                        Host: {smtpConfig.host}:{smtpConfig.port} • From: {smtpConfig.fromEmail || 'Not set'}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <Button
+                                                variant="secondary"
+                                                size="sm"
+                                                onClick={() => requestEditAccess('smtp')}
+                                                className="flex items-center gap-2"
+                                            >
+                                                <Edit size={16} />
+                                                Edit Settings
+                                            </Button>
+                                        </div>
 
-                                <div className="flex items-center gap-2">
-                                    <input
-                                        type="checkbox"
-                                        id="secure"
-                                        checked={smtpConfig.secure}
-                                        onChange={(e) => handleSmtpChange('secure', e.target.checked)}
-                                        className="rounded border-neutral-300 text-blue-600 focus:ring-blue-500"
-                                    />
-                                    <label htmlFor="secure" className="text-sm text-neutral-700 dark:text-neutral-300">
-                                        Use Secure Connection (SSL/TLS)
-                                    </label>
-                                </div>
+                                        <div className="text-sm text-neutral-500 dark:text-neutral-400 flex items-center gap-2">
+                                            <AlertCircle size={16} />
+                                            <span>To modify these settings, click "Edit Settings" and verify your password.</span>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <div>
+                                                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                                                    SMTP Host
+                                                </label>
+                                                <Input
+                                                    value={smtpConfig.host}
+                                                    onChange={(e) => handleSmtpChange('host', e.target.value)}
+                                                    placeholder="smtp.example.com"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                                                    SMTP Port
+                                                </label>
+                                                <Input
+                                                    type="number"
+                                                    value={smtpConfig.port}
+                                                    onChange={(e) => handleSmtpChange('port', parseInt(e.target.value) || 0)}
+                                                    placeholder="587"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                                                    SMTP User
+                                                </label>
+                                                <Input
+                                                    value={smtpConfig.user}
+                                                    onChange={(e) => handleSmtpChange('user', e.target.value)}
+                                                    placeholder="user@example.com"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                                                    SMTP Password
+                                                </label>
+                                                <Input
+                                                    type="password"
+                                                    value={smtpConfig.pass}
+                                                    onChange={(e) => handleSmtpChange('pass', e.target.value)}
+                                                    placeholder="••••••••"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                                                    From Email
+                                                </label>
+                                                <Input
+                                                    value={smtpConfig.fromEmail}
+                                                    onChange={(e) => handleSmtpChange('fromEmail', e.target.value)}
+                                                    placeholder="noreply@example.com"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                                                    From Name
+                                                </label>
+                                                <Input
+                                                    value={smtpConfig.fromName}
+                                                    onChange={(e) => handleSmtpChange('fromName', e.target.value)}
+                                                    placeholder="TalentX"
+                                                />
+                                            </div>
+                                        </div>
 
-                                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-lg p-4 flex items-start gap-3">
-                                    <AlertCircle className="text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" size={18} />
-                                    <div className="text-sm text-blue-700 dark:text-blue-300">
-                                        <p className="font-medium mb-1">Note on Security</p>
-                                        <p>
-                                            Your SMTP password is stored securely. Ensure you are using a dedicated app password if you are using services like Gmail.
-                                        </p>
-                                    </div>
-                                </div>
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="checkbox"
+                                                id="secure"
+                                                checked={smtpConfig.secure}
+                                                onChange={(e) => handleSmtpChange('secure', e.target.checked)}
+                                                className="rounded border-neutral-300 text-blue-600 focus:ring-blue-500"
+                                            />
+                                            <label htmlFor="secure" className="text-sm text-neutral-700 dark:text-neutral-300">
+                                                Use Secure Connection (SSL/TLS)
+                                            </label>
+                                        </div>
 
-                                <div className="flex justify-end pt-4">
-                                    <Button
-                                        onClick={handleSaveSmtp}
-                                        isLoading={smtpSaving}
-                                        variant="primary"
-                                        className="flex items-center gap-2"
-                                    >
-                                        <Save size={16} />
-                                        Save Configuration
-                                    </Button>
-                                </div>
+                                        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-lg p-4 flex items-start gap-3">
+                                            <AlertCircle className="text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" size={18} />
+                                            <div className="text-sm text-blue-700 dark:text-blue-300">
+                                                <p className="font-medium mb-1">Note on Security</p>
+                                                <p>
+                                                    Your SMTP password is stored securely. Ensure you are using a dedicated app password if you are using services like Gmail.
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex justify-end gap-3 pt-4">
+                                            {editModes.smtp && (
+                                                <Button
+                                                    variant="secondary"
+                                                    onClick={() => resetEditMode('smtp')}
+                                                >
+                                                    Cancel
+                                                </Button>
+                                            )}
+                                            <Button
+                                                onClick={async () => {
+                                                    await handleSaveSmtp();
+                                                    resetEditMode('smtp');
+                                                }}
+                                                isLoading={smtpSaving}
+                                                variant="primary"
+                                                className="flex items-center gap-2"
+                                            >
+                                                <Save size={16} />
+                                                Save Configuration
+                                            </Button>
+                                        </div>
+                                    </>
+                                )}
                             </>
                         )}
                     </div>
@@ -738,24 +884,57 @@ export function IntegrationSettings() {
                                         <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">Configured</span>
                                     )}
                                 </div>
-                                <form onSubmit={handleSaveGoogleConfig} className="space-y-4">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <Input
-                                            label="Client ID"
-                                            value={googleForm.clientId}
-                                            onChange={(e) => setGoogleForm(prev => ({ ...prev, clientId: e.target.value }))}
-                                            placeholder="xxxxx.apps.googleusercontent.com"
-                                        />
-                                        <Input
-                                            label="Client Secret"
-                                            type="password"
-                                            value={googleForm.clientSecret}
-                                            onChange={(e) => setGoogleForm(prev => ({ ...prev, clientSecret: e.target.value }))}
-                                            placeholder="Enter client secret"
-                                        />
+
+                                {/* Show locked view when configured and not in edit mode */}
+                                {calendarSettings?.google?.isConfigured && !editModes.calendar_google ? (
+                                    <div className="space-y-3">
+                                        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3 flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <CheckCircle2 className="text-green-600 dark:text-green-400" size={18} />
+                                                <span className="text-sm text-green-700 dark:text-green-300">Google OAuth credentials are configured</span>
+                                            </div>
+                                            <Button
+                                                variant="secondary"
+                                                size="sm"
+                                                onClick={() => requestEditAccess('calendar_google')}
+                                                className="flex items-center gap-2"
+                                            >
+                                                <Edit size={14} />
+                                                Edit
+                                            </Button>
+                                        </div>
+                                        <p className="text-xs text-neutral-500">Password verification required to edit credentials.</p>
                                     </div>
-                                    <Button type="submit" size="sm" isLoading={savingGoogle}>Save Google Credentials</Button>
-                                </form>
+                                ) : (
+                                    <form onSubmit={async (e) => {
+                                        await handleSaveGoogleConfig(e);
+                                        resetEditMode('calendar_google');
+                                    }} className="space-y-4">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <Input
+                                                label="Client ID"
+                                                value={googleForm.clientId}
+                                                onChange={(e) => setGoogleForm(prev => ({ ...prev, clientId: e.target.value }))}
+                                                placeholder="xxxxx.apps.googleusercontent.com"
+                                            />
+                                            <Input
+                                                label="Client Secret"
+                                                type="password"
+                                                value={googleForm.clientSecret}
+                                                onChange={(e) => setGoogleForm(prev => ({ ...prev, clientSecret: e.target.value }))}
+                                                placeholder="Enter client secret"
+                                            />
+                                        </div>
+                                        <div className="flex gap-2">
+                                            {editModes.calendar_google && (
+                                                <Button type="button" variant="secondary" size="sm" onClick={() => resetEditMode('calendar_google')}>
+                                                    Cancel
+                                                </Button>
+                                            )}
+                                            <Button type="submit" size="sm" isLoading={savingGoogle}>Save Google Credentials</Button>
+                                        </div>
+                                    </form>
+                                )}
                                 <p className="text-xs text-neutral-500 mt-2">
                                     Get credentials at <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Google Cloud Console</a>.
                                     Add redirect URI: <code className="bg-neutral-100 dark:bg-neutral-800 px-1 rounded">{window.location.origin}/settings</code>
@@ -773,30 +952,63 @@ export function IntegrationSettings() {
                                         <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">Configured</span>
                                     )}
                                 </div>
-                                <form onSubmit={handleSaveOutlookConfig} className="space-y-4">
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                        <Input
-                                            label="Client ID (Application ID)"
-                                            value={outlookForm.clientId}
-                                            onChange={(e) => setOutlookForm(prev => ({ ...prev, clientId: e.target.value }))}
-                                            placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                                        />
-                                        <Input
-                                            label="Client Secret"
-                                            type="password"
-                                            value={outlookForm.clientSecret}
-                                            onChange={(e) => setOutlookForm(prev => ({ ...prev, clientSecret: e.target.value }))}
-                                            placeholder="Enter client secret"
-                                        />
-                                        <Input
-                                            label="Tenant ID"
-                                            value={outlookForm.tenantId}
-                                            onChange={(e) => setOutlookForm(prev => ({ ...prev, tenantId: e.target.value }))}
-                                            placeholder="common"
-                                        />
+
+                                {/* Show locked view when configured and not in edit mode */}
+                                {calendarSettings?.outlook?.isConfigured && !editModes.calendar_outlook ? (
+                                    <div className="space-y-3">
+                                        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3 flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <CheckCircle2 className="text-green-600 dark:text-green-400" size={18} />
+                                                <span className="text-sm text-green-700 dark:text-green-300">Outlook OAuth credentials are configured</span>
+                                            </div>
+                                            <Button
+                                                variant="secondary"
+                                                size="sm"
+                                                onClick={() => requestEditAccess('calendar_outlook')}
+                                                className="flex items-center gap-2"
+                                            >
+                                                <Edit size={14} />
+                                                Edit
+                                            </Button>
+                                        </div>
+                                        <p className="text-xs text-neutral-500">Password verification required to edit credentials.</p>
                                     </div>
-                                    <Button type="submit" size="sm" isLoading={savingOutlook}>Save Outlook Credentials</Button>
-                                </form>
+                                ) : (
+                                    <form onSubmit={async (e) => {
+                                        await handleSaveOutlookConfig(e);
+                                        resetEditMode('calendar_outlook');
+                                    }} className="space-y-4">
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                            <Input
+                                                label="Client ID (Application ID)"
+                                                value={outlookForm.clientId}
+                                                onChange={(e) => setOutlookForm(prev => ({ ...prev, clientId: e.target.value }))}
+                                                placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                                            />
+                                            <Input
+                                                label="Client Secret"
+                                                type="password"
+                                                value={outlookForm.clientSecret}
+                                                onChange={(e) => setOutlookForm(prev => ({ ...prev, clientSecret: e.target.value }))}
+                                                placeholder="Enter client secret"
+                                            />
+                                            <Input
+                                                label="Tenant ID"
+                                                value={outlookForm.tenantId}
+                                                onChange={(e) => setOutlookForm(prev => ({ ...prev, tenantId: e.target.value }))}
+                                                placeholder="common"
+                                            />
+                                        </div>
+                                        <div className="flex gap-2">
+                                            {editModes.calendar_outlook && (
+                                                <Button type="button" variant="secondary" size="sm" onClick={() => resetEditMode('calendar_outlook')}>
+                                                    Cancel
+                                                </Button>
+                                            )}
+                                            <Button type="submit" size="sm" isLoading={savingOutlook}>Save Outlook Credentials</Button>
+                                        </div>
+                                    </form>
+                                )}
                                 <p className="text-xs text-neutral-500 mt-2">
                                     Get credentials at <a href="https://portal.azure.com/#blade/Microsoft_AAD_RegisteredApps" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Azure Portal</a>.
                                     Use "common" for multi-tenant apps.
@@ -967,19 +1179,116 @@ export function IntegrationSettings() {
                                             <p className="text-sm text-neutral-600 dark:text-neutral-400">
                                                 Credentials saved. Click below to authorize TalentX with your DocuSign account.
                                             </p>
-                                            <Button onClick={handleConnectEsign}>
-                                                <ExternalLink size={16} className="mr-2" />
-                                                Authorize DocuSign
-                                            </Button>
+                                            <div className="flex gap-3">
+                                                <Button onClick={handleConnectEsign}>
+                                                    <ExternalLink size={16} className="mr-2" />
+                                                    Authorize DocuSign
+                                                </Button>
+                                                {!editModes.esignature ? (
+                                                    <Button
+                                                        variant="secondary"
+                                                        onClick={() => requestEditAccess('esignature')}
+                                                        className="flex items-center gap-2"
+                                                    >
+                                                        <Edit size={14} />
+                                                        Edit Credentials
+                                                    </Button>
+                                                ) : (
+                                                    <Button
+                                                        variant="secondary"
+                                                        onClick={() => resetEditMode('esignature')}
+                                                    >
+                                                        Cancel Edit
+                                                    </Button>
+                                                )}
+                                            </div>
+                                            {editModes.esignature && (
+                                                <form onSubmit={async (e) => {
+                                                    await handleConfigureEsign(e);
+                                                    resetEditMode('esignature');
+                                                }} className="space-y-4 mt-4 p-4 border border-neutral-200 dark:border-neutral-700 rounded-lg">
+                                                    <p className="text-sm text-amber-600">Editing credentials will require re-authorization.</p>
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                        <Input
+                                                            label="Integration Key (Client ID)"
+                                                            value={esignForm.clientId}
+                                                            onChange={(e) => setEsignForm(prev => ({ ...prev, clientId: e.target.value }))}
+                                                            placeholder="Enter your DocuSign Integration Key"
+                                                            required
+                                                        />
+                                                        <Input
+                                                            label="Secret Key"
+                                                            type="password"
+                                                            value={esignForm.clientSecret}
+                                                            onChange={(e) => setEsignForm(prev => ({ ...prev, clientSecret: e.target.value }))}
+                                                            placeholder="Enter your DocuSign Secret Key"
+                                                            required
+                                                        />
+                                                    </div>
+                                                    <div className="flex gap-3">
+                                                        <Button type="submit" isLoading={configuringEsign}>
+                                                            Update Credentials
+                                                        </Button>
+                                                    </div>
+                                                </form>
+                                            )}
                                         </div>
                                     ) : (
-                                        <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
-                                            <p className="text-sm text-green-700 dark:text-green-300">
-                                                <strong>Account ID:</strong> {esignSettings.accountId}
-                                            </p>
-                                            <p className="text-sm text-green-600 dark:text-green-400 mt-1">
-                                                DocuSign is fully configured. You can now send offer letters for e-signature.
-                                            </p>
+                                        <div className="space-y-4">
+                                            <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg flex items-center justify-between">
+                                                <div>
+                                                    <p className="text-sm text-green-700 dark:text-green-300">
+                                                        <strong>Account ID:</strong> {esignSettings.accountId}
+                                                    </p>
+                                                    <p className="text-sm text-green-600 dark:text-green-400 mt-1">
+                                                        DocuSign is fully configured. You can now send offer letters for e-signature.
+                                                    </p>
+                                                </div>
+                                                {!editModes.esignature && (
+                                                    <Button
+                                                        variant="secondary"
+                                                        size="sm"
+                                                        onClick={() => requestEditAccess('esignature')}
+                                                        className="flex items-center gap-2"
+                                                    >
+                                                        <Edit size={14} />
+                                                        Edit
+                                                    </Button>
+                                                )}
+                                            </div>
+                                            {editModes.esignature && (
+                                                <form onSubmit={async (e) => {
+                                                    await handleConfigureEsign(e);
+                                                    resetEditMode('esignature');
+                                                }} className="space-y-4 p-4 border border-neutral-200 dark:border-neutral-700 rounded-lg">
+                                                    <p className="text-sm text-amber-600">Editing credentials will require re-authorization.</p>
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                        <Input
+                                                            label="Integration Key (Client ID)"
+                                                            value={esignForm.clientId}
+                                                            onChange={(e) => setEsignForm(prev => ({ ...prev, clientId: e.target.value }))}
+                                                            placeholder="Enter your DocuSign Integration Key"
+                                                            required
+                                                        />
+                                                        <Input
+                                                            label="Secret Key"
+                                                            type="password"
+                                                            value={esignForm.clientSecret}
+                                                            onChange={(e) => setEsignForm(prev => ({ ...prev, clientSecret: e.target.value }))}
+                                                            placeholder="Enter your DocuSign Secret Key"
+                                                            required
+                                                        />
+                                                    </div>
+                                                    <div className="flex gap-3">
+                                                        <Button type="button" variant="secondary" onClick={() => resetEditMode('esignature')}>
+                                                            Cancel
+                                                        </Button>
+                                                        <Button type="submit" isLoading={configuringEsign}>
+                                                            Update Credentials
+                                                        </Button>
+                                                    </div>
+                                                </form>
+                                            )}
                                         </div>
                                     )}
                                 </div>
@@ -1066,32 +1375,90 @@ export function IntegrationSettings() {
                             ) : (
                                 <div className="space-y-4">
                                     {availableJobBoards.map((board) => (
-                                        <div key={board.id} className="flex items-center justify-between p-4 border border-neutral-200 dark:border-neutral-700 rounded-lg">
-                                            <div className="flex items-center gap-4">
-                                                <div className="w-12 h-12 bg-white border border-neutral-200 rounded-lg flex items-center justify-center p-2">
-                                                    {board.icon ? <img src={board.icon} alt={board.name} className="w-full h-full object-contain" /> : <Briefcase className="w-6 h-6 text-neutral-400" />}
-                                                </div>
-                                                <div>
-                                                    <h4 className="font-medium text-neutral-900 dark:text-white">{board.name}</h4>
-                                                    <p className="text-sm text-neutral-500">{board.description}</p>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-4">
-                                                {jobBoardSettings[board.id]?.isConfigured ? (
-                                                    <>
-                                                        <div className="flex items-center gap-2 text-green-600 text-sm font-medium">
-                                                            <CheckCircle2 size={16} /> Connected
-                                                        </div>
-                                                        <Button variant="danger" size="sm" onClick={() => handleDisconnectJobBoard(board.id)}>
-                                                            <Trash2 size={16} />
-                                                        </Button>
-                                                    </>
-                                                ) : (
-                                                    <div className="flex items-center gap-2 text-neutral-400 text-sm">
-                                                        <AlertCircle size={16} /> Not Connected
+                                        <div key={board.id} className="border border-neutral-200 dark:border-neutral-700 rounded-lg overflow-hidden">
+                                            <div className="flex items-center justify-between p-4">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-12 h-12 bg-white border border-neutral-200 rounded-lg flex items-center justify-center p-2">
+                                                        {board.icon ? <img src={board.icon} alt={board.name} className="w-full h-full object-contain" /> : <Briefcase className="w-6 h-6 text-neutral-400" />}
                                                     </div>
-                                                )}
+                                                    <div>
+                                                        <h4 className="font-medium text-neutral-900 dark:text-white">{board.name}</h4>
+                                                        <p className="text-sm text-neutral-500">{board.description}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-4">
+                                                    {jobBoardSettings[board.id]?.isConfigured ? (
+                                                        <>
+                                                            <div className="flex items-center gap-2 text-green-600 text-sm font-medium">
+                                                                <CheckCircle2 size={16} /> Connected
+                                                            </div>
+                                                            {!editModes.job_board[board.id] && (
+                                                                <Button
+                                                                    variant="secondary"
+                                                                    size="sm"
+                                                                    onClick={() => requestEditAccess('job_board', board.id)}
+                                                                    className="flex items-center gap-2"
+                                                                >
+                                                                    <Edit size={14} />
+                                                                    Edit
+                                                                </Button>
+                                                            )}
+                                                            <Button variant="danger" size="sm" onClick={() => handleDisconnectJobBoard(board.id)}>
+                                                                <Trash2 size={16} />
+                                                            </Button>
+                                                        </>
+                                                    ) : (
+                                                        <div className="flex items-center gap-2 text-neutral-400 text-sm">
+                                                            <AlertCircle size={16} /> Not Connected
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
+
+                                            {/* Edit form for this job board */}
+                                            {editModes.job_board[board.id] && (
+                                                <div className="p-4 bg-neutral-50 dark:bg-neutral-800/50 border-t border-neutral-200 dark:border-neutral-700">
+                                                    <form onSubmit={async (e) => {
+                                                        e.preventDefault();
+                                                        setJobBoardForm(prev => ({ ...prev, provider: board.id as JobBoardProvider }));
+                                                        await handleConfigureJobBoard(e);
+                                                        resetEditMode('job_board', board.id);
+                                                    }} className="space-y-4">
+                                                        <p className="text-sm text-amber-600 mb-3">Update API credentials for {board.name}</p>
+                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                            <Input
+                                                                label="API Key"
+                                                                type="password"
+                                                                value={jobBoardForm.apiKey}
+                                                                onChange={(e) => setJobBoardForm(prev => ({ ...prev, provider: board.id as JobBoardProvider, apiKey: e.target.value }))}
+                                                                placeholder="Enter new API key"
+                                                                required
+                                                            />
+                                                            <Input
+                                                                label="API Secret (optional)"
+                                                                type="password"
+                                                                value={jobBoardForm.apiSecret}
+                                                                onChange={(e) => setJobBoardForm(prev => ({ ...prev, provider: board.id as JobBoardProvider, apiSecret: e.target.value }))}
+                                                                placeholder="Enter new API secret"
+                                                            />
+                                                            <Input
+                                                                label="Company ID (optional)"
+                                                                value={jobBoardForm.companyId}
+                                                                onChange={(e) => setJobBoardForm(prev => ({ ...prev, provider: board.id as JobBoardProvider, companyId: e.target.value }))}
+                                                                placeholder="Enter company ID"
+                                                            />
+                                                        </div>
+                                                        <div className="flex gap-3">
+                                                            <Button type="button" variant="secondary" onClick={() => resetEditMode('job_board', board.id)}>
+                                                                Cancel
+                                                            </Button>
+                                                            <Button type="submit" isLoading={configuringJobBoard === board.id}>
+                                                                Update {board.name}
+                                                            </Button>
+                                                        </div>
+                                                    </form>
+                                                </div>
+                                            )}
                                         </div>
                                     ))}
                                 </div>
@@ -1124,28 +1491,42 @@ export function IntegrationSettings() {
                                 <div className="flex justify-center py-8">
                                     <Loader2 className="animate-spin text-blue-600" size={32} />
                                 </div>
-                            ) : bgvSettings?.isConfigured ? (
+                            ) : bgvSettings?.isConfigured && !editModes.bgv ? (
                                 <div className="space-y-4">
-                                    <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
-                                        <div className="flex items-center gap-2 text-green-700 dark:text-green-300 font-medium mb-2">
-                                            <CheckCircle2 size={18} />
-                                            Provider Connected
+                                    <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg flex items-center justify-between">
+                                        <div>
+                                            <div className="flex items-center gap-2 text-green-700 dark:text-green-300 font-medium mb-2">
+                                                <CheckCircle2 size={18} />
+                                                Provider Connected
+                                            </div>
+                                            <p className="text-sm text-green-600 dark:text-green-400">
+                                                <strong>Provider:</strong> {bgvSettings.provider}
+                                                {bgvSettings.sandboxMode && <span className="ml-2 text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded">Sandbox Mode</span>}
+                                            </p>
+                                            <p className="text-sm text-green-600 dark:text-green-400 mt-1">
+                                                Background checks can now be initiated from candidate profiles.
+                                            </p>
                                         </div>
-                                        <p className="text-sm text-green-600 dark:text-green-400">
-                                            <strong>Provider:</strong> {bgvSettings.provider}
-                                            {bgvSettings.sandboxMode && <span className="ml-2 text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded">Sandbox Mode</span>}
-                                        </p>
-                                        <p className="text-sm text-green-600 dark:text-green-400 mt-1">
-                                            Background checks can now be initiated from candidate profiles.
-                                        </p>
+                                        <Button
+                                            variant="secondary"
+                                            size="sm"
+                                            onClick={() => requestEditAccess('bgv')}
+                                            className="flex items-center gap-2"
+                                        >
+                                            <Edit size={14} />
+                                            Edit
+                                        </Button>
                                     </div>
-                                    <Button variant="secondary" onClick={() => setBgvSettings({ isConfigured: false })}>
-                                        <SettingsIcon size={16} className="mr-2" />
-                                        Reconfigure
-                                    </Button>
+                                    <p className="text-xs text-neutral-500">Password verification required to edit credentials.</p>
                                 </div>
                             ) : (
-                                <form onSubmit={handleConfigureBgv} className="space-y-4">
+                                <form onSubmit={async (e) => {
+                                    await handleConfigureBgv(e);
+                                    resetEditMode('bgv');
+                                }} className="space-y-4">
+                                    {editModes.bgv && (
+                                        <p className="text-sm text-amber-600">Update BGV provider credentials</p>
+                                    )}
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
                                             <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Provider</label>
@@ -1191,9 +1572,16 @@ export function IntegrationSettings() {
                                             </label>
                                         </div>
                                     </div>
-                                    <Button type="submit" isLoading={configuringBgv}>
-                                        Configure {bgvForm.provider}
-                                    </Button>
+                                    <div className="flex gap-3">
+                                        {editModes.bgv && (
+                                            <Button type="button" variant="secondary" onClick={() => resetEditMode('bgv')}>
+                                                Cancel
+                                            </Button>
+                                        )}
+                                        <Button type="submit" isLoading={configuringBgv}>
+                                            {editModes.bgv ? 'Update' : 'Configure'} {bgvForm.provider}
+                                        </Button>
+                                    </div>
                                 </form>
                             )}
                         </div>
@@ -1283,38 +1671,68 @@ export function IntegrationSettings() {
                                                     <Button variant="secondary" size="sm" onClick={handleTestSlack} isLoading={testingSlack}>
                                                         Test
                                                     </Button>
+                                                    {!editModes.slack && (
+                                                        <Button
+                                                            variant="secondary"
+                                                            size="sm"
+                                                            onClick={() => requestEditAccess('slack')}
+                                                            className="flex items-center gap-2"
+                                                        >
+                                                            <Edit size={14} />
+                                                            Edit
+                                                        </Button>
+                                                    )}
                                                 </div>
                                             ) : (
                                                 <span className="text-neutral-400 text-sm">Not Connected</span>
                                             )}
                                         </div>
-                                        <form onSubmit={handleConfigureSlack} className="space-y-4">
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                                        {/* Show locked view when configured and not in edit mode */}
+                                        {slackConfig?.isConfigured && !editModes.slack ? (
+                                            <p className="text-xs text-neutral-500">Password verification required to edit credentials.</p>
+                                        ) : (
+                                            <form onSubmit={async (e) => {
+                                                await handleConfigureSlack(e);
+                                                resetEditMode('slack');
+                                            }} className="space-y-4">
+                                                {editModes.slack && (
+                                                    <p className="text-sm text-amber-600">Update Slack credentials</p>
+                                                )}
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    <Input
+                                                        label="Bot Token"
+                                                        type="password"
+                                                        value={slackForm.botToken}
+                                                        onChange={(e) => setSlackForm(prev => ({ ...prev, botToken: e.target.value }))}
+                                                        placeholder="xoxb-..."
+                                                    />
+                                                    <Input
+                                                        label="Signing Secret"
+                                                        type="password"
+                                                        value={slackForm.signingSecret}
+                                                        onChange={(e) => setSlackForm(prev => ({ ...prev, signingSecret: e.target.value }))}
+                                                        placeholder="Enter signing secret"
+                                                    />
+                                                </div>
                                                 <Input
-                                                    label="Bot Token"
-                                                    type="password"
-                                                    value={slackForm.botToken}
-                                                    onChange={(e) => setSlackForm(prev => ({ ...prev, botToken: e.target.value }))}
-                                                    placeholder="xoxb-..."
+                                                    label="Default Channel ID (optional)"
+                                                    value={slackForm.defaultChannelId}
+                                                    onChange={(e) => setSlackForm(prev => ({ ...prev, defaultChannelId: e.target.value }))}
+                                                    placeholder="C01234567"
                                                 />
-                                                <Input
-                                                    label="Signing Secret"
-                                                    type="password"
-                                                    value={slackForm.signingSecret}
-                                                    onChange={(e) => setSlackForm(prev => ({ ...prev, signingSecret: e.target.value }))}
-                                                    placeholder="Enter signing secret"
-                                                />
-                                            </div>
-                                            <Input
-                                                label="Default Channel ID (optional)"
-                                                value={slackForm.defaultChannelId}
-                                                onChange={(e) => setSlackForm(prev => ({ ...prev, defaultChannelId: e.target.value }))}
-                                                placeholder="C01234567"
-                                            />
-                                            <Button type="submit" size="sm" isLoading={configuringSlack}>
-                                                {slackConfig?.isConfigured ? 'Update Slack' : 'Configure Slack'}
-                                            </Button>
-                                        </form>
+                                                <div className="flex gap-3">
+                                                    {editModes.slack && (
+                                                        <Button type="button" variant="secondary" size="sm" onClick={() => resetEditMode('slack')}>
+                                                            Cancel
+                                                        </Button>
+                                                    )}
+                                                    <Button type="submit" size="sm" isLoading={configuringSlack}>
+                                                        {slackConfig?.isConfigured ? 'Update Slack' : 'Configure Slack'}
+                                                    </Button>
+                                                </div>
+                                            </form>
+                                        )}
                                     </div>
 
                                     {/* Teams Configuration */}
@@ -1339,22 +1757,52 @@ export function IntegrationSettings() {
                                                     <Button variant="secondary" size="sm" onClick={handleTestTeams} isLoading={testingTeams}>
                                                         Test
                                                     </Button>
+                                                    {!editModes.teams && (
+                                                        <Button
+                                                            variant="secondary"
+                                                            size="sm"
+                                                            onClick={() => requestEditAccess('teams')}
+                                                            className="flex items-center gap-2"
+                                                        >
+                                                            <Edit size={14} />
+                                                            Edit
+                                                        </Button>
+                                                    )}
                                                 </div>
                                             ) : (
                                                 <span className="text-neutral-400 text-sm">Not Connected</span>
                                             )}
                                         </div>
-                                        <form onSubmit={handleConfigureTeams} className="space-y-4">
-                                            <Input
-                                                label="Incoming Webhook URL"
-                                                value={teamsForm.webhookUrl}
-                                                onChange={(e) => setTeamsForm(prev => ({ ...prev, webhookUrl: e.target.value }))}
-                                                placeholder="https://outlook.office.com/webhook/..."
-                                            />
-                                            <Button type="submit" size="sm" isLoading={configuringTeams}>
-                                                {teamsConfig?.isConfigured ? 'Update Teams' : 'Configure Teams'}
-                                            </Button>
-                                        </form>
+
+                                        {/* Show locked view when configured and not in edit mode */}
+                                        {teamsConfig?.isConfigured && !editModes.teams ? (
+                                            <p className="text-xs text-neutral-500">Password verification required to edit credentials.</p>
+                                        ) : (
+                                            <form onSubmit={async (e) => {
+                                                await handleConfigureTeams(e);
+                                                resetEditMode('teams');
+                                            }} className="space-y-4">
+                                                {editModes.teams && (
+                                                    <p className="text-sm text-amber-600">Update Teams webhook</p>
+                                                )}
+                                                <Input
+                                                    label="Incoming Webhook URL"
+                                                    value={teamsForm.webhookUrl}
+                                                    onChange={(e) => setTeamsForm(prev => ({ ...prev, webhookUrl: e.target.value }))}
+                                                    placeholder="https://outlook.office.com/webhook/..."
+                                                />
+                                                <div className="flex gap-3">
+                                                    {editModes.teams && (
+                                                        <Button type="button" variant="secondary" size="sm" onClick={() => resetEditMode('teams')}>
+                                                            Cancel
+                                                        </Button>
+                                                    )}
+                                                    <Button type="submit" size="sm" isLoading={configuringTeams}>
+                                                        {teamsConfig?.isConfigured ? 'Update Teams' : 'Configure Teams'}
+                                                    </Button>
+                                                </div>
+                                            </form>
+                                        )}
                                     </div>
 
                                     {/* Test Notification */}
@@ -1388,6 +1836,17 @@ export function IntegrationSettings() {
                 </div>
             )}
 
+            {/* Password Confirmation Modal */}
+            <PasswordConfirmModal
+                isOpen={showPasswordModal}
+                onClose={() => {
+                    setShowPasswordModal(false);
+                    setPendingEditAction(null);
+                }}
+                onConfirm={handlePasswordConfirmed}
+                title="Confirm Your Identity"
+                description="For security, please enter your password to edit these integration settings."
+            />
         </div>
     );
 }

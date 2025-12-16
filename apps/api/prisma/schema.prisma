@@ -4,7 +4,6 @@
 generator client {
   provider        = "prisma-client-js"
   previewFeatures = ["postgresqlExtensions"]
-  output          = "../node_modules/.prisma/client"
 }
 
 datasource db {
@@ -23,6 +22,8 @@ enum UserRole {
   RECRUITER
   HIRING_MANAGER
   INTERVIEWER
+  HR
+  EMPLOYEE
   CANDIDATE
   VENDOR
 }
@@ -482,10 +483,14 @@ model JobTemplate {
 }
 
 model ScorecardTemplate {
-  id          String   @id @default(uuid())
-  name        String
-  sections    Json     // Array of sections with criteria
-  isActive    Boolean  @default(true)
+  id                    String   @id @default(uuid())
+  name                  String
+  sections              Json     // Array of sections with criteria
+  ratingScale           Int      @default(5)
+  ratingLabelMin        String?  @default("Poor")
+  ratingLabelMax        String?  @default("Excellent")
+  recommendationOptions Json?    // Store string[]
+  isActive              Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

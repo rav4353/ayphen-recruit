@@ -52,6 +52,7 @@ import { CandidateOfferPage } from './pages/offers/CandidateOfferPage';
 import { OnboardingDashboardPage } from './pages/onboarding/OnboardingDashboardPage';
 import { OnboardingDetailPage } from './pages/onboarding/OnboardingDetailPage';
 import { SourcingPage } from './pages/sourcing/SourcingPage';
+import { TalentPoolsPage } from './pages/sourcing/TalentPoolsPage';
 import { CampaignsPage } from './pages/marketing/CampaignsPage';
 
 
@@ -138,6 +139,7 @@ function App() {
                   <Route path="onboarding" element={<OnboardingDashboardPage />} />
                   <Route path="onboarding/:id" element={<OnboardingDetailPage />} />
                   <Route path="sourcing" element={<SourcingPage />} />
+                  <Route path="talent-pools" element={<TalentPoolsPage />} />
                 </Route>
               </Route>
 

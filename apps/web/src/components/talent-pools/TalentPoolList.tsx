@@ -45,8 +45,16 @@ export function TalentPoolList() {
     },
   });
 
-  const poolList = pools?.data || [];
-  const statsData = stats?.data;
+  const poolsPayload = pools?.data;
+  const poolList = Array.isArray(poolsPayload)
+    ? poolsPayload
+    : Array.isArray(poolsPayload?.data)
+      ? poolsPayload.data
+      : Array.isArray(poolsPayload?.data?.data)
+        ? poolsPayload.data.data
+        : [];
+
+  const statsData = stats?.data?.data || stats?.data;
 
   const filteredPools = poolList.filter((pool: { name: string; description?: string }) =>
     pool.name.toLowerCase().includes(searchQuery.toLowerCase()) ||

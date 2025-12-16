@@ -143,6 +143,7 @@ export class JobsService {
           department: true,
           location: true,
           recruiter: { select: { id: true, firstName: true, lastName: true } },
+          hiringManager: { select: { id: true, firstName: true, lastName: true } },
           _count: { select: { applications: true } },
         },
       }),
@@ -797,7 +798,7 @@ export class JobsService {
     const currentMetadata = requisitionLog.metadata as any;
 
     const newStatus = action === 'APPROVE' ? 'APPROVED' :
-                      action === 'REJECT' ? 'REJECTED' : 'CANCELLED';
+      action === 'REJECT' ? 'REJECTED' : 'CANCELLED';
 
     const updatedMetadata = {
       ...currentMetadata,

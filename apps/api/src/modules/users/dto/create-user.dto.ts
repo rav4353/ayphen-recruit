@@ -14,10 +14,10 @@ export class CreateUserDto {
   @IsString()
   lastName: string;
 
-  @ApiPropertyOptional({ example: 'RECRUITER', enum: ['SUPER_ADMIN', 'ADMIN', 'RECRUITER', 'HIRING_MANAGER', 'INTERVIEWER', 'CANDIDATE', 'VENDOR'] })
+  @ApiPropertyOptional({ example: 'RECRUITER', enum: ['SUPER_ADMIN', 'ADMIN', 'RECRUITER', 'HIRING_MANAGER', 'INTERVIEWER', 'HR', 'EMPLOYEE', 'CANDIDATE', 'VENDOR'] })
   @IsOptional()
-  @IsIn(['SUPER_ADMIN', 'ADMIN', 'RECRUITER', 'HIRING_MANAGER', 'INTERVIEWER', 'CANDIDATE', 'VENDOR'])
-  role?: 'SUPER_ADMIN' | 'ADMIN' | 'RECRUITER' | 'HIRING_MANAGER' | 'INTERVIEWER' | 'CANDIDATE' | 'VENDOR';
+  @IsIn(['SUPER_ADMIN', 'ADMIN', 'RECRUITER', 'HIRING_MANAGER', 'INTERVIEWER', 'HR', 'EMPLOYEE', 'CANDIDATE', 'VENDOR'])
+  role?: 'SUPER_ADMIN' | 'ADMIN' | 'RECRUITER' | 'HIRING_MANAGER' | 'INTERVIEWER' | 'HR' | 'EMPLOYEE' | 'CANDIDATE' | 'VENDOR';
 
   @ApiPropertyOptional({ example: '+1234567890' })
   @IsOptional()

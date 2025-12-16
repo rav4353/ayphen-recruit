@@ -56,6 +56,7 @@ export enum Permission {
 }
 
 export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
+    SUPER_ADMIN: Object.values(Permission),
     ADMIN: Object.values(Permission),
     RECRUITER: [
         Permission.CANDIDATE_VIEW, Permission.CANDIDATE_CREATE, Permission.CANDIDATE_EDIT, Permission.CANDIDATE_DELETE, Permission.CANDIDATE_EXPORT, Permission.CANDIDATE_ARCHIVE,
@@ -73,8 +74,23 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
         Permission.OFFER_VIEW, Permission.OFFER_APPROVE,
         Permission.PIPELINE_VIEW,
     ],
+    HR: [
+        Permission.CANDIDATE_VIEW, Permission.CANDIDATE_EDIT,
+        Permission.JOB_VIEW,
+        Permission.INTERVIEW_VIEW,
+        Permission.OFFER_VIEW,
+        Permission.PIPELINE_VIEW,
+        Permission.EMAIL_SEND,
+        Permission.REPORT_VIEW,
+    ],
     INTERVIEWER: [
         Permission.CANDIDATE_VIEW,
         Permission.INTERVIEW_VIEW, Permission.INTERVIEW_FEEDBACK_CREATE
-    ]
+    ],
+    EMPLOYEE: [
+        // Primarily used for referrals / limited visibility
+        Permission.CANDIDATE_VIEW,
+    ],
+    CANDIDATE: [],
+    VENDOR: [],
 };

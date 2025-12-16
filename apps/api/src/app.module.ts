@@ -45,6 +45,7 @@ import { BulkImportModule } from './modules/bulk-import/bulk-import.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { SourcingModule } from './modules/sourcing/sourcing.module';
 import { TalentPoolsModule } from './modules/talent-pools/talent-pools.module';
+import { BulkEmailModule } from './modules/bulk-email/bulk-email.module';
 
 @Module({
   imports: [
@@ -106,6 +107,7 @@ import { TalentPoolsModule } from './modules/talent-pools/talent-pools.module';
     AuditModule,
     SourcingModule,
     TalentPoolsModule,
+    BulkEmailModule,
 
     // Serve static files (uploads)
     ServeStaticModule.forRoot({

@@ -109,20 +109,20 @@ export class SettingsService {
 
     // Scorecard Templates (Temporary Workaround)
     async createScorecard(tenantId: string, data: any) {
-        return (this.prisma as any).scorecardTemplate.create({
+        return this.prisma.scorecardTemplate.create({
             data: { ...data, tenantId },
         });
     }
 
     async getScorecards(tenantId: string) {
-        return (this.prisma as any).scorecardTemplate.findMany({
+        return this.prisma.scorecardTemplate.findMany({
             where: { tenantId },
             orderBy: { createdAt: 'desc' },
         });
     }
 
     async getScorecard(id: string) {
-        const template = await (this.prisma as any).scorecardTemplate.findUnique({
+        const template = await this.prisma.scorecardTemplate.findUnique({
             where: { id },
         });
         if (!template) throw new NotFoundException('Template not found');
@@ -130,14 +130,14 @@ export class SettingsService {
     }
 
     async updateScorecard(id: string, data: any) {
-        return (this.prisma as any).scorecardTemplate.update({
+        return this.prisma.scorecardTemplate.update({
             where: { id },
             data,
         });
     }
 
     async deleteScorecard(id: string) {
-        return (this.prisma as any).scorecardTemplate.delete({
+        return this.prisma.scorecardTemplate.delete({
             where: { id },
         });
     }

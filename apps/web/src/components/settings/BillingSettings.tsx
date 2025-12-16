@@ -136,6 +136,8 @@ export function BillingSettings() {
     const [showAddCardModal, setShowAddCardModal] = useState(false);
     const [showAddressModal, setShowAddressModal] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [isSavingAddress, setIsSavingAddress] = useState(false);
+    const [isAddingCard, setIsAddingCard] = useState(false);
 
     // Mock data - in real app, fetch from API
     const [paymentMethods] = useState<PaymentMethod[]>([
@@ -199,9 +201,18 @@ export function BillingSettings() {
         toast.success('Payment method removed');
     };
 
-    const handleSaveAddress = () => {
-        toast.success('Billing address updated');
-        setShowAddressModal(false);
+    const handleSaveAddress = async () => {
+        setIsSavingAddress(true);
+        try {
+            // Simulate API call
+            await new Promise(resolve => setTimeout(resolve, 500));
+            toast.success('Billing address updated');
+            setShowAddressModal(false);
+        } catch {
+            toast.error('Failed to update billing address');
+        } finally {
+            setIsSavingAddress(false);
+        }
     };
 
     const yearlyDiscount = 0.2; // 20% discount for annual billing
@@ -619,8 +630,19 @@ export function BillingSettings() {
                     </div>
                     <Input label="Cardholder Name" placeholder="John Doe" />
                     <div className="flex justify-end gap-3 pt-4 border-t border-neutral-200 dark:border-neutral-700">
-                        <Button variant="secondary" onClick={() => setShowAddCardModal(false)}>Cancel</Button>
-                        <Button onClick={() => { setShowAddCardModal(false); toast.success('Card added successfully'); }}>
+                        <Button variant="secondary" onClick={() => setShowAddCardModal(false)} disabled={isAddingCard}>Cancel</Button>
+                        <Button isLoading={isAddingCard} onClick={async () => {
+                            setIsAddingCard(true);
+                            try {
+                                await new Promise(resolve => setTimeout(resolve, 500));
+                                setShowAddCardModal(false);
+                                toast.success('Card added successfully');
+                            } catch {
+                                toast.error('Failed to add card');
+                            } finally {
+                                setIsAddingCard(false);
+                            }
+                        }}>
                             Add Card
                         </Button>
                     </div>
@@ -671,8 +693,8 @@ export function BillingSettings() {
                         placeholder="VAT, GST, or EIN"
                     />
                     <div className="flex justify-end gap-3 pt-4 border-t border-neutral-200 dark:border-neutral-700">
-                        <Button variant="secondary" onClick={() => setShowAddressModal(false)}>Cancel</Button>
-                        <Button onClick={handleSaveAddress}>Save Address</Button>
+                        <Button variant="secondary" onClick={() => setShowAddressModal(false)} disabled={isSavingAddress}>Cancel</Button>
+                        <Button onClick={handleSaveAddress} isLoading={isSavingAddress}>Save Address</Button>
                     </div>
                 </div>
             </Modal>

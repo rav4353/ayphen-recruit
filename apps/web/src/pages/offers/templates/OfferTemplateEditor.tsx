@@ -132,7 +132,7 @@ export function OfferTemplateEditor() {
                 await offerTemplatesApi.create({ name, content });
                 toast.success(t('offers.templates.editor.createSuccess'));
             }
-            navigate(`/${tenantId}/offers/templates`);
+            navigate(`/${tenantId}/settings?tab=templates&view=offers`);
         } catch (error) {
             console.error('Failed to save template', error);
             toast.error(t('offers.templates.editor.saveError'));
@@ -166,7 +166,7 @@ export function OfferTemplateEditor() {
         <div className="space-y-6 h-[calc(100vh-100px)] flex flex-col">
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                    <Button variant="ghost" onClick={() => navigate(`/${tenantId}/offers/templates`)}>
+                    <Button variant="ghost" onClick={() => navigate(`/${tenantId}/settings?tab=templates&view=offers`)}>
                         <ArrowLeft size={16} className="mr-2" />
                         {t('offers.templates.editor.back')}
                     </Button>

@@ -100,6 +100,11 @@ export function PipelineSettings() {
     const [editingStage, setEditingStage] = useState<PipelineStage | null>(null); // null means creating new
     const [stageFormData, setStageFormData] = useState({ name: '', slaDays: 3, color: '#94a3b8' });
 
+    // Loading states
+    const [isCreating, setIsCreating] = useState(false);
+    const [isUpdating, setIsUpdating] = useState(false);
+    const [isSavingStage, setIsSavingStage] = useState(false);
+
     const sensors = useSensors(
         useSensor(PointerSensor),
         useSensor(KeyboardSensor, {
@@ -122,6 +127,7 @@ export function PipelineSettings() {
     };
 
     const handleCreatePipeline = async (data: { name: string; description: string; isDefault: boolean }) => {
+        setIsCreating(true);
         try {
             // First create the pipeline
             await pipelinesApi.create({
@@ -144,12 +150,15 @@ export function PipelineSettings() {
         } catch (error) {
             console.error('Failed to create pipeline', error);
             toast.error(t('pipelines.createError'));
+        } finally {
+            setIsCreating(false);
         }
     };
 
     const handleUpdatePipeline = async () => {
         if (!editingPipeline) return;
 
+        setIsUpdating(true);
         try {
             await pipelinesApi.update(editingPipeline.id, {
                 name: editingPipeline.name,
@@ -163,6 +172,8 @@ export function PipelineSettings() {
         } catch (error) {
             console.error('Failed to update pipeline', error);
             toast.error(t('pipelines.updateError'));
+        } finally {
+            setIsUpdating(false);
         }
     };
 
@@ -223,6 +234,7 @@ export function PipelineSettings() {
         e.preventDefault();
         if (!editingPipeline) return;
 
+        setIsSavingStage(true);
         try {
             if (editingStage) {
                 // Update existing stage
@@ -252,6 +264,8 @@ export function PipelineSettings() {
         } catch (error) {
             console.error('Failed to save stage', error);
             toast.error(editingStage ? t('pipelines.updateStageError') : t('pipelines.addStageError'));
+        } finally {
+            setIsSavingStage(false);
         }
     };
 
@@ -368,8 +382,8 @@ export function PipelineSettings() {
                         <label htmlFor="isDefault" className="text-sm">{t('pipelines.isDefault')}</label>
                     </div>
                     <div className="flex justify-end gap-2 mt-6">
-                        <Button type="button" variant="ghost" onClick={() => setIsCreateModalOpen(false)}>{t('common.cancel')}</Button>
-                        <Button type="submit">{t('pipelines.createPipeline')}</Button>
+                        <Button type="button" variant="ghost" onClick={() => setIsCreateModalOpen(false)} disabled={isCreating}>{t('common.cancel')}</Button>
+                        <Button type="submit" isLoading={isCreating}>{t('pipelines.createPipeline')}</Button>
                     </div>
                 </form>
             </Modal>
@@ -435,8 +449,8 @@ export function PipelineSettings() {
                         </div>
 
                         <div className="flex justify-end gap-2 pt-4 border-t border-neutral-200 dark:border-neutral-800">
-                            <Button variant="ghost" onClick={() => setIsEditModalOpen(false)}>{t('common.cancel')}</Button>
-                            <Button onClick={handleUpdatePipeline}>{t('pipelines.saveChanges')}</Button>
+                            <Button variant="ghost" onClick={() => setIsEditModalOpen(false)} disabled={isUpdating}>{t('common.cancel')}</Button>
+                            <Button onClick={handleUpdatePipeline} isLoading={isUpdating}>{t('pipelines.saveChanges')}</Button>
                         </div>
                     </div>
                 )}
@@ -486,8 +500,8 @@ export function PipelineSettings() {
                         </div>
                     </div>
                     <div className="flex justify-end gap-2 mt-6">
-                        <Button type="button" variant="ghost" onClick={() => setIsStageModalOpen(false)}>{t('common.cancel')}</Button>
-                        <Button type="submit">{editingStage ? t('pipelines.updateStage') : t('pipelines.addStage')}</Button>
+                        <Button type="button" variant="ghost" onClick={() => setIsStageModalOpen(false)} disabled={isSavingStage}>{t('common.cancel')}</Button>
+                        <Button type="submit" isLoading={isSavingStage}>{editingStage ? t('pipelines.updateStage') : t('pipelines.addStage')}</Button>
                     </div>
                 </form>
             </Modal>

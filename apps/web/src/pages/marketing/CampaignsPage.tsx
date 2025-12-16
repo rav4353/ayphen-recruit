@@ -1,23 +1,30 @@
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
-import { Send, Users, Search, CheckSquare, Square, Loader2, Mail, Eye, Sparkles, User } from 'lucide-react';
-import { candidatesApi } from '../../lib/api';
+import { Send, Users, Search, CheckSquare, Square, Loader2, Mail, Eye, Sparkles, User, BarChart3, RefreshCw } from 'lucide-react';
+import { bulkEmailApi, candidatesApi } from '../../lib/api';
 import { Button, Input, Card, Modal } from '../../components/ui';
 
 export function CampaignsPage() {
     const { t } = useTranslation();
     const [candidates, setCandidates] = useState<any[]>([]);
+    const [campaigns, setCampaigns] = useState<any[]>([]);
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
+    const [campaignName, setCampaignName] = useState('');
     const [subject, setSubject] = useState('');
     const [message, setMessage] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [isSending, setIsSending] = useState(false);
     const [showPreview, setShowPreview] = useState(false);
+    const [showStats, setShowStats] = useState(false);
+    const [statsLoading, setStatsLoading] = useState(false);
+    const [selectedCampaign, setSelectedCampaign] = useState<any | null>(null);
+    const [selectedCampaignStats, setSelectedCampaignStats] = useState<any | null>(null);
 
     useEffect(() => {
         fetchCandidates();
+        fetchCampaigns();
     }, []);
 
     const fetchCandidates = async () => {
@@ -31,6 +38,17 @@ export function CampaignsPage() {
             setCandidates([]);
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const fetchCampaigns = async () => {
+        try {
+            const res = await bulkEmailApi.getAll();
+            const data = res.data?.data || res.data || [];
+            setCampaigns(Array.isArray(data) ? data : []);
+        } catch (error) {
+            console.error('Failed to fetch campaigns', error);
+            setCampaigns([]);
         }
     };
 
@@ -76,26 +94,54 @@ export function CampaignsPage() {
 
         setIsSending(true);
         try {
-            const bulkResponse = await fetch('/api/v1/emails/bulk', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ids: selectedIds, subject, message }),
+            const name = campaignName.trim() || `Campaign ${new Date().toLocaleString()}`;
+            const createRes = await bulkEmailApi.create({
+                name,
+                subject,
+                body: message,
+                recipientType: 'custom',
+                recipientIds: selectedIds,
             });
 
-            if (bulkResponse.ok) {
-                const result = await bulkResponse.json();
-                toast.success(t('campaigns.success', { count: result.data?.count || selectedIds.length }) || `Campaign sent to ${selectedIds.length} candidates`);
-                setSelectedIds([]);
-                setSubject('');
-                setMessage('');
-            } else {
-                throw new Error('Failed to send bulk email');
+            const created = createRes.data?.data || createRes.data;
+            const campaignId = created?.id;
+            if (!campaignId) {
+                throw new Error('Campaign created but no id returned');
             }
+
+            const sendRes = await bulkEmailApi.send(campaignId);
+            const sendData = sendRes.data?.data || sendRes.data;
+            toast.success(
+                t('campaigns.success', { count: sendData?.sent || sendData?.count || selectedIds.length }) ||
+                `Campaign sent to ${sendData?.sent || selectedIds.length} candidates`
+            );
+
+            setSelectedIds([]);
+            setCampaignName('');
+            setSubject('');
+            setMessage('');
+            await fetchCampaigns();
         } catch (error) {
             console.error('Failed to send campaign', error);
             toast.error(t('campaigns.error') || 'Failed to send email campaign');
         } finally {
             setIsSending(false);
+        }
+    };
+
+    const openStats = async (campaign: any) => {
+        setSelectedCampaign(campaign);
+        setSelectedCampaignStats(null);
+        setShowStats(true);
+        setStatsLoading(true);
+        try {
+            const res = await bulkEmailApi.getStats(campaign.id);
+            setSelectedCampaignStats(res.data?.data || res.data);
+        } catch (error) {
+            console.error('Failed to load stats', error);
+            toast.error('Failed to load campaign stats');
+        } finally {
+            setStatsLoading(false);
         }
     };
 
@@ -121,6 +167,42 @@ export function CampaignsPage() {
                     </p>
                 </div>
             </div>
+
+            {/* Campaign History */}
+            <Card className="shrink-0 border-neutral-200 dark:border-neutral-800">
+                <div className="p-4 border-b border-neutral-100 dark:border-neutral-800 flex items-center justify-between">
+                    <div>
+                        <h3 className="font-semibold text-neutral-900 dark:text-white">Recent Campaigns</h3>
+                        <p className="text-xs text-neutral-500">Last {Math.min(campaigns.length, 10)} campaigns</p>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={fetchCampaigns} className="gap-2">
+                        <RefreshCw size={14} />
+                        Refresh
+                    </Button>
+                </div>
+                <div className="divide-y divide-neutral-100 dark:divide-neutral-800">
+                    {(campaigns || []).slice(0, 10).map((c: any) => (
+                        <div key={c.id} className="p-4 flex items-center justify-between gap-4">
+                            <div className="min-w-0">
+                                <p className="text-sm font-medium text-neutral-900 dark:text-white truncate">{c.name}</p>
+                                <p className="text-xs text-neutral-500 truncate">{c.subject}</p>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                                <span className="text-xs px-2 py-1 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300">
+                                    {c.status}
+                                </span>
+                                <Button variant="outline" size="sm" onClick={() => openStats(c)} className="gap-2">
+                                    <BarChart3 size={14} />
+                                    Stats
+                                </Button>
+                            </div>
+                        </div>
+                    ))}
+                    {(campaigns || []).length === 0 && (
+                        <div className="p-6 text-sm text-neutral-500">No campaigns yet. Send one to see history here.</div>
+                    )}
+                </div>
+            </Card>
 
             <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-0">
                 {/* Left Column: Candidate Selection */}
@@ -206,6 +288,12 @@ export function CampaignsPage() {
                 <div className="lg:col-span-8 flex flex-col gap-6 h-full min-h-0">
                     <Card className="flex-1 flex flex-col overflow-hidden border-neutral-200 dark:border-neutral-800 shadow-sm">
                         <div className="p-4 border-b border-neutral-100 dark:border-neutral-800 bg-white dark:bg-neutral-900">
+                            <Input
+                                value={campaignName}
+                                onChange={(e) => setCampaignName(e.target.value)}
+                                placeholder={t('campaigns.create', 'Create Campaign') + ' - Name (optional)'}
+                                className="text-sm font-medium mb-3"
+                            />
                             <Input
                                 value={subject}
                                 onChange={(e) => setSubject(e.target.value)}
@@ -303,6 +391,47 @@ export function CampaignsPage() {
                         <Button variant="outline" onClick={() => setShowPreview(false)}>Close Preview</Button>
                     </div>
                 </div>
+            </Modal>
+
+            {/* Stats Modal */}
+            <Modal isOpen={showStats} onClose={() => setShowStats(false)} title="Campaign Stats">
+                {statsLoading ? (
+                    <div className="flex items-center justify-center h-32">
+                        <Loader2 size={22} className="animate-spin text-blue-500" />
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        <div>
+                            <p className="text-sm font-medium text-neutral-900 dark:text-white">{selectedCampaign?.name}</p>
+                            <p className="text-xs text-neutral-500">{selectedCampaign?.subject}</p>
+                        </div>
+                        <div className="grid grid-cols-3 gap-3">
+                            <div className="p-3 rounded-lg bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800">
+                                <p className="text-xs text-neutral-500">Recipients</p>
+                                <p className="text-lg font-semibold text-neutral-900 dark:text-white">{selectedCampaignStats?.totalRecipients ?? 0}</p>
+                            </div>
+                            <div className="p-3 rounded-lg bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800">
+                                <p className="text-xs text-neutral-500">Sent</p>
+                                <p className="text-lg font-semibold text-green-600">{selectedCampaignStats?.sent ?? 0}</p>
+                            </div>
+                            <div className="p-3 rounded-lg bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800">
+                                <p className="text-xs text-neutral-500">Failed</p>
+                                <p className="text-lg font-semibold text-red-600">{selectedCampaignStats?.failed ?? 0}</p>
+                            </div>
+                        </div>
+                        <div className="p-3 rounded-lg bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800">
+                            <p className="text-xs text-neutral-500">Delivery rate</p>
+                            <p className="text-sm text-neutral-900 dark:text-white">
+                                {typeof selectedCampaignStats?.deliveryRate === 'number'
+                                    ? `${selectedCampaignStats.deliveryRate.toFixed(1)}%`
+                                    : '0%'}
+                            </p>
+                        </div>
+                        <div className="flex justify-end pt-2">
+                            <Button variant="outline" onClick={() => setShowStats(false)}>Close</Button>
+                        </div>
+                    </div>
+                )}
             </Modal>
         </div>
     );

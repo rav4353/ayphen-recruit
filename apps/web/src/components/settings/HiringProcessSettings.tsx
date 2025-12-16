@@ -332,8 +332,8 @@ export function HiringProcessSettings() {
                             </div>
 
                             <div className="flex justify-end mt-6 pt-4 border-t border-neutral-200 dark:border-neutral-700">
-                                <Button onClick={handleSaveSlaSettings} disabled={savingSla}>
-                                    {savingSla ? 'Saving...' : t('hiringProcess.slas.save')}
+                                <Button onClick={handleSaveSlaSettings} isLoading={savingSla}>
+                                    {t('hiringProcess.slas.save')}
                                 </Button>
                             </div>
                         </div>
@@ -620,7 +620,7 @@ function InterviewTypeForm({ initialData, onSubmit, onCancel, isLoading }: any) 
             </div>
             <div className="flex justify-end gap-3 pt-4 border-t">
                 <Button variant="ghost" onClick={onCancel} type="button">Cancel</Button>
-                <Button type="submit" disabled={isLoading}>{isLoading ? 'Saving...' : 'Save'}</Button>
+                <Button type="submit" isLoading={isLoading}>Save</Button>
             </div>
         </form>
     );
@@ -803,7 +803,7 @@ function ApprovalWorkflowForm({ initialData, onSubmit, onCancel, isLoading }: an
             </div>
             <div className="flex justify-end gap-3 pt-4 border-t">
                 <Button variant="ghost" onClick={onCancel} type="button">Cancel</Button>
-                <Button type="submit" disabled={isLoading}>{isLoading ? 'Saving...' : 'Save'}</Button>
+                <Button type="submit" isLoading={isLoading}>Save</Button>
             </div>
         </form>
     );

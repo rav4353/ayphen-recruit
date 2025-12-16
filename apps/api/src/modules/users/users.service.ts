@@ -158,7 +158,7 @@ export class UsersService {
 
   async update(id: string, dto: UpdateUserDto) {
     const user = await this.findById(id);
-    const { departmentId, role, customPermissions, roleId, ...userData } = dto;
+    const { departmentId, role, customPermissions, roleId, password, ...userData } = dto;
     return this.prisma.user.update({
       where: { id: user.id },
       data: {
@@ -167,7 +167,7 @@ export class UsersService {
         ...(roleId !== undefined && { roleId: roleId || null }),
         ...(departmentId !== undefined && { departmentId: departmentId || null }),
         ...(customPermissions && { customPermissions }),
-      },
+      } as any,
     });
   }
 

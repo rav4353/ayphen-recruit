@@ -19,7 +19,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
         return (
             <div className="w-full">
                 {label && (
-                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1.5">
+                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
                         {label}
                     </label>
                 )}
@@ -27,13 +27,14 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
                     <select
                         ref={ref}
                         className={cn(
-                            'w-full px-4 py-2.5 rounded-lg font-sans appearance-none',
+                            'w-full px-3.5 py-2.5 rounded-lg font-sans appearance-none',
                             'bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700',
                             'text-neutral-900 dark:text-white',
-                            'focus:outline-none focus:border-neutral-500 dark:focus:border-neutral-500',
-                            'focus:ring-1 focus:ring-neutral-500 transition-all duration-150',
+                            'focus:outline-none focus:border-primary-500 dark:focus:border-primary-500',
+                            'focus:ring-2 focus:ring-primary-500/10 transition-all duration-150',
                             'disabled:opacity-50 disabled:cursor-not-allowed',
-                            error && 'border-red-500/50 focus:border-red-500 focus:ring-red-500/50',
+                            'shadow-soft',
+                            error && 'border-danger-500 focus:border-danger-500 focus:ring-danger-500/10',
                             className
                         )}
                         {...props}
@@ -53,7 +54,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
                         <ChevronDown size={16} />
                     </div>
                 </div>
-                {error && <p className="mt-1.5 text-sm text-red-500 dark:text-red-400">{error}</p>}
+                {error && <p className="mt-1.5 text-sm text-danger-600 dark:text-danger-400">{error}</p>}
             </div>
         );
     }

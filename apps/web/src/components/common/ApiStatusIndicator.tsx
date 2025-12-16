@@ -44,24 +44,24 @@ export function ApiStatusIndicator() {
       case 'online':
         return {
           icon: Wifi,
-          color: 'text-emerald-500',
-          bg: 'bg-emerald-500',
+          color: 'text-success-600 dark:text-success-400',
+          bg: 'bg-success-500',
           label: 'API Connected',
           description: 'All systems operational',
         };
       case 'offline':
         return {
           icon: WifiOff,
-          color: 'text-red-500',
-          bg: 'bg-red-500',
+          color: 'text-danger-600 dark:text-danger-400',
+          bg: 'bg-danger-500',
           label: 'API Offline',
           description: 'Cannot reach the server. Check if the API is running.',
         };
       case 'unauthorized':
         return {
           icon: AlertCircle,
-          color: 'text-amber-500',
-          bg: 'bg-amber-500',
+          color: 'text-warning-600 dark:text-warning-400',
+          bg: 'bg-warning-500',
           label: 'Session Expired',
           description: 'Your session may have expired. Try logging in again.',
         };
@@ -92,7 +92,7 @@ export function ApiStatusIndicator() {
       onMouseLeave={() => setShowTooltip(false)}
     >
       <button
-        className={`p-2 rounded-lg transition-colors ${config.color} hover:bg-neutral-100 dark:hover:bg-neutral-800`}
+        className={`p-2 rounded-lg transition-all duration-150 ${config.color} hover:bg-neutral-100 dark:hover:bg-neutral-800`}
         aria-label={config.label}
       >
         <Icon size={18} />
@@ -100,14 +100,14 @@ export function ApiStatusIndicator() {
 
       {/* Tooltip */}
       {showTooltip && (
-        <div className="absolute right-0 top-full mt-2 z-50 w-64 p-3 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg shadow-lg">
-          <div className="flex items-center gap-2 mb-1">
-            <span className={`w-2 h-2 rounded-full ${config.bg}`} />
-            <span className="text-sm font-medium text-neutral-900 dark:text-white">
+        <div className="absolute right-0 top-full mt-2 z-50 w-64 p-3 bg-white dark:bg-neutral-900 border border-neutral-200/60 dark:border-neutral-800/60 rounded-lg shadow-soft-lg">
+          <div className="flex items-center gap-2 mb-2">
+            <span className={`w-2 h-2 rounded-full ${config.bg} shadow-soft`} />
+            <span className="text-sm font-semibold text-neutral-900 dark:text-white tracking-tight">
               {config.label}
             </span>
           </div>
-          <p className="text-xs text-neutral-500 dark:text-neutral-400">
+          <p className="text-xs text-neutral-600 dark:text-neutral-400 leading-relaxed">
             {config.description}
           </p>
         </div>

@@ -181,7 +181,7 @@ export function CandidatesPage() {
   };
 
   return (
-    <div className="flex flex-col gap-6 relative min-h-full">
+    <div className="flex flex-col gap-6 h-full">
       {/* Bulk Actions Toolbar */}
       {selectedIds.length > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 shadow-2xl rounded-2xl px-5 py-3 flex items-center gap-4 animate-in slide-in-from-bottom-4">
@@ -319,7 +319,7 @@ export function CandidatesPage() {
           <p className="text-sm text-neutral-500">Try adjusting your search or filters</p>
         </div>
       ) : (
-        <>
+        <div className="flex-1 flex flex-col min-h-0">
           <div className="flex items-center gap-3 mb-4 p-3 bg-neutral-50 dark:bg-neutral-900/50 rounded-lg border border-neutral-200 dark:border-neutral-800">
             <input
               type="checkbox"
@@ -332,7 +332,8 @@ export function CandidatesPage() {
             </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="flex-1 overflow-auto pb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
             {candidates.map((candidate) => (
               <div
                 key={candidate.id}
@@ -413,10 +414,11 @@ export function CandidatesPage() {
                 </div>
               </div>
             ))}
+            </div>
           </div>
 
           {/* Pagination Controls */}
-          <div className="sticky bottom-0 z-10 bg-neutral-50/95 dark:bg-neutral-950/95 backdrop-blur-sm flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-neutral-200 dark:border-neutral-800 -mx-3 -mb-3 p-3 sm:-mx-4 sm:-mb-4 sm:px-4 sm:py-4 lg:-mx-6 lg:-mb-6 lg:px-6 lg:py-4 mt-auto">
+          <div className="flex-shrink-0 bg-white dark:bg-neutral-900 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-neutral-200 dark:border-neutral-800 p-4 rounded-b-lg">
             <span className="text-sm text-neutral-500 dark:text-neutral-400">
               Showing {((page - 1) * LIMIT) + 1} to {Math.min(page * LIMIT, totalCount)} of {totalCount} candidates
             </span>
@@ -442,7 +444,7 @@ export function CandidatesPage() {
               </Button>
             </div>
           </div>
-        </>
+        </div>
       )}
 
       <ConfirmationModal

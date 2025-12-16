@@ -106,6 +106,30 @@ export class OffersService {
         });
     }
 
+    async getPublicOffer(token: string) {
+        const offer = await this.prisma.offer.findUnique({
+            where: { token },
+            include: {
+                application: {
+                    include: {
+                        candidate: true,
+                        job: {
+                            include: {
+                                tenant: true,
+                            },
+                        },
+                    },
+                },
+            },
+        });
+
+        if (!offer) {
+            throw new NotFoundException('Offer not found');
+        }
+
+        return offer;
+    }
+
     async submit(tenantId: string, id: string) {
         const offer = await this.findOne(tenantId, id);
 
@@ -132,10 +156,19 @@ export class OffersService {
             },
         });
 
-        return this.prisma.offer.update({
+        const updated = await this.prisma.offer.update({
             where: { id },
             data: { status: OfferStatus.PENDING_APPROVAL },
         });
+
+        // Notify approver
+        try {
+            await this.notificationsService.notifyApprovalRequest('offer', offer, approverId, tenantId);
+        } catch (error) {
+            console.error('Failed to notify offer approver:', error);
+        }
+
+        return updated;
     }
 
     async approve(tenantId: string, id: string, user: any) {
@@ -169,10 +202,31 @@ export class OffersService {
             data: { status: 'APPROVED', approvedAt: new Date(), approverId: userId },
         });
 
-        return this.prisma.offer.update({
+        const updated = await this.prisma.offer.update({
             where: { id },
             data: { status: OfferStatus.APPROVED },
         });
+
+        // Notify recruiter and hiring manager
+        try {
+            const recipientIds = Array.from(new Set([
+                offer.application.job.recruiterId,
+                offer.application.job.hiringManagerId,
+            ].filter(Boolean) as string[])).filter((rid) => rid !== userId);
+
+            if (recipientIds.length > 0) {
+                await this.notificationsService.notifyOfferStatusChange(
+                    offer,
+                    'APPROVED',
+                    recipientIds,
+                    tenantId,
+                );
+            }
+        } catch (error) {
+            console.error('Failed to notify offer approval:', error);
+        }
+
+        return updated;
     }
 
     async reject(tenantId: string, id: string, user: any, reason: string) {
@@ -206,13 +260,34 @@ export class OffersService {
             data: { status: 'REJECTED', comment: reason, approvedAt: new Date(), approverId: userId },
         });
 
-        return this.prisma.offer.update({
+        const updated = await this.prisma.offer.update({
             where: { id },
             data: {
                 status: OfferStatus.DRAFT,
                 notes: offer.notes ? `${offer.notes}\n\nRejection Reason: ${reason}` : `Rejection Reason: ${reason}`
             },
         });
+
+        // Notify recruiter and hiring manager
+        try {
+            const recipientIds = Array.from(new Set([
+                offer.application.job.recruiterId,
+                offer.application.job.hiringManagerId,
+            ].filter(Boolean) as string[])).filter((rid) => rid !== userId);
+
+            if (recipientIds.length > 0) {
+                await this.notificationsService.notifyOfferStatusChange(
+                    offer,
+                    'REJECTED',
+                    recipientIds,
+                    tenantId,
+                );
+            }
+        } catch (error) {
+            console.error('Failed to notify offer rejection:', error);
+        }
+
+        return updated;
     }
 
     async delete(tenantId: string, id: string) {
@@ -245,40 +320,43 @@ export class OffersService {
             candidateId: offer.application.candidateId
         });
 
-        return this.prisma.offer.update({
+        const updatedOffer = await this.prisma.offer.update({
             where: { id },
             data: {
                 status: OfferStatus.SENT,
                 sentAt: new Date(),
                 token,
-            }
-        });
-    }
-
-    async getPublicOffer(token: string) {
-        const offer = await this.prisma.offer.findUnique({
-            where: { token },
+            },
             include: {
                 application: {
                     include: {
                         candidate: true,
                         job: true,
-                    }
-                }
-            }
+                    },
+                },
+            },
         });
 
-        if (!offer) {
-            throw new NotFoundException('Offer not found or invalid token');
+        // Notify recruiter and hiring manager that offer was sent
+        try {
+            const recipientIds = Array.from(new Set([
+                offer.application.job.recruiterId,
+                offer.application.job.hiringManagerId,
+            ].filter(Boolean) as string[]));
+
+            if (recipientIds.length > 0) {
+                await this.notificationsService.notifyOfferStatusChange(
+                    offer,
+                    'SENT',
+                    recipientIds,
+                    tenantId,
+                );
+            }
+        } catch (error) {
+            console.error('Failed to notify offer sent:', error);
         }
 
-        // Check expiry
-        if (offer.expiresAt && new Date() > offer.expiresAt) {
-            // We might still want to show it but as expired
-            // For now, let's return it but the frontend can handle expired state
-        }
-
-        return offer;
+        return updatedOffer;
     }
 
     async acceptOffer(token: string, signature: string) {

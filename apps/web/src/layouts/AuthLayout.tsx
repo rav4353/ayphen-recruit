@@ -34,7 +34,7 @@ export function AuthLayout() {
           className="h-40 mx-auto"
         />
       </div>
-      <div className="w-full animate-slide-up">
+      <div className="w-full flex justify-center animate-slide-up">
         <Outlet />
       </div>
     </div>

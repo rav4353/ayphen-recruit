@@ -8,9 +8,10 @@ import { JobTemplatesController } from './job-templates.controller';
 
 import { IntegrationsModule } from '../integrations/integrations.module';
 import { SettingsModule } from '../settings/settings.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [IntegrationsModule, SettingsModule],
+  imports: [IntegrationsModule, SettingsModule, NotificationsModule],
   controllers: [JobsController, HiringTeamController, MyHiringTeamsController, JobTemplatesController],
   providers: [JobsService, HiringTeamService, JobTemplatesService],
   exports: [JobsService, HiringTeamService, JobTemplatesService],

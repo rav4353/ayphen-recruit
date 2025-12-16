@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CheckrService } from './providers/checkr.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 type BGVProvider = 'CHECKR' | 'SPRINGVERIFY' | 'AUTHBRIDGE' | 'MANUAL';
 type BGVStatus = 'PENDING' | 'INITIATED' | 'IN_PROGRESS' | 'COMPLETED' | 'CLEAR' | 'CONSIDER' | 'FAILED' | 'CANCELLED';
@@ -27,6 +28,7 @@ export class BGVService {
     constructor(
         private readonly prisma: PrismaService,
         private readonly checkr: CheckrService,
+        private readonly notificationsService: NotificationsService,
     ) {}
 
     /**
@@ -143,9 +145,38 @@ export class BGVService {
                 initiatedAt: new Date(),
             },
             include: {
-                candidate: { select: { firstName: true, lastName: true, email: true } },
+                candidate: { select: { firstName: true, lastName: true, email: true, tenantId: true } },
+                application: {
+                    select: {
+                        job: { select: { recruiterId: true, hiringManagerId: true, tenantId: true } },
+                    },
+                },
             },
         });
+
+        // Notify HR, recruiter, and hiring manager about BGV initiation
+        try {
+            const recipientIds = Array.from(new Set([
+                bgvCheck.application?.job?.recruiterId,
+                bgvCheck.application?.job?.hiringManagerId,
+            ].filter(Boolean) as string[])).filter((rid) => rid !== userId);
+
+            if (recipientIds.length > 0) {
+                await this.notificationsService.createMany(
+                    recipientIds.map((rid) => ({
+                        type: 'BGV',
+                        title: 'Background Check Initiated',
+                        message: `Background check initiated for ${bgvCheck.candidate.firstName} ${bgvCheck.candidate.lastName}`,
+                        link: `/bgv/checks/${bgvCheck.id}`,
+                        metadata: { checkId: bgvCheck.id, candidateId: dto.candidateId, status },
+                        userId: rid,
+                        tenantId: bgvCheck.candidate.tenantId,
+                    })) as any,
+                );
+            }
+        } catch (error) {
+            this.logger.error('Failed to notify BGV initiation:', error);
+        }
 
         return bgvCheck;
     }
@@ -216,6 +247,7 @@ export class BGVService {
                 if (reports.length > 0) {
                     const latestReport = reports[0];
                     const newStatus = this.checkr.mapStatus(latestReport.status, latestReport.result) as BGVStatus;
+                    const previousStatus = check.status;
 
                     await this.prisma.bGVCheck.update({
                         where: { id: checkId },
@@ -226,6 +258,11 @@ export class BGVService {
                             completedAt: latestReport.completed_at ? new Date(latestReport.completed_at) : null,
                         },
                     });
+
+                    // Notify if status changed
+                    if (newStatus !== previousStatus) {
+                        await this.notifyBGVStatusChange(check, newStatus);
+                    }
                 }
             } catch (error) {
                 this.logger.error('Failed to sync Checkr status:', error);
@@ -254,6 +291,7 @@ export class BGVService {
 
                 if (check) {
                     const newStatus = this.checkr.mapStatus(data.object.status, data.object.result) as BGVStatus;
+                    const previousStatus = check.status;
 
                     await this.prisma.bGVCheck.update({
                         where: { id: check.id },
@@ -263,6 +301,11 @@ export class BGVService {
                             completedAt: data.object.completed_at ? new Date(data.object.completed_at) : null,
                         },
                     });
+
+                    // Notify if status changed
+                    if (newStatus !== previousStatus) {
+                        await this.notifyBGVStatusChange(check, newStatus);
+                    }
                 }
             }
         }
@@ -375,5 +418,47 @@ export class BGVService {
             { id: 'CREDIT', name: 'Credit Check', description: 'Checks credit history (where applicable)' },
             { id: 'DRUG', name: 'Drug Screening', description: 'Pre-employment drug testing' },
         ];
+    }
+
+    /**
+     * Notify relevant users about BGV status change
+     */
+    private async notifyBGVStatusChange(check: any, newStatus: BGVStatus) {
+        try {
+            const fullCheck = await this.prisma.bGVCheck.findUnique({
+                where: { id: check.id },
+                include: {
+                    candidate: { select: { firstName: true, lastName: true, tenantId: true } },
+                    application: {
+                        select: {
+                            job: { select: { recruiterId: true, hiringManagerId: true } },
+                        },
+                    },
+                },
+            });
+
+            if (!fullCheck) return;
+
+            const recipientIds = Array.from(new Set([
+                fullCheck.application?.job?.recruiterId,
+                fullCheck.application?.job?.hiringManagerId,
+            ].filter(Boolean) as string[]));
+
+            if (recipientIds.length > 0) {
+                await this.notificationsService.createMany(
+                    recipientIds.map((rid) => ({
+                        type: 'BGV',
+                        title: `BGV Status: ${newStatus}`,
+                        message: `Background check for ${fullCheck.candidate.firstName} ${fullCheck.candidate.lastName} is now ${newStatus}`,
+                        link: `/bgv/checks/${fullCheck.id}`,
+                        metadata: { checkId: fullCheck.id, candidateId: fullCheck.candidateId, status: newStatus },
+                        userId: rid,
+                        tenantId: fullCheck.candidate.tenantId,
+                    })) as any,
+                );
+            }
+        } catch (error) {
+            this.logger.error('Failed to notify BGV status change:', error);
+        }
     }
 }

@@ -5,7 +5,7 @@ import type { Transporter } from 'nodemailer';
 import { PrismaService } from '../../prisma/prisma.service';
 import * as aws from '@aws-sdk/client-ses';
 
-export type EmailPurpose = 'notifications' | 'interviews' | 'offers' | 'rejections' | 'bulkEmails' | 'default';
+export type EmailPurpose = 'notifications' | 'interviews' | 'offers' | 'rejections' | 'bulkEmails' | 'onboarding' | 'default';
 
 export interface EmailOptions {
   to: string | string[];

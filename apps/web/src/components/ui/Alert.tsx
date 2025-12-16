@@ -8,10 +8,10 @@ export interface AlertProps extends HTMLAttributes<HTMLDivElement> {
 }
 
 const variantStyles = {
-  error: 'bg-red-500/10 border-red-500/20 text-red-400',
-  success: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400',
-  warning: 'bg-amber-500/10 border-amber-500/20 text-amber-400',
-  info: 'bg-blue-500/10 border-blue-500/20 text-blue-400',
+  error: 'bg-danger-50 dark:bg-danger-950/30 border-danger-200 dark:border-danger-800/60 text-danger-700 dark:text-danger-400',
+  success: 'bg-success-50 dark:bg-success-950/30 border-success-200 dark:border-success-800/60 text-success-700 dark:text-success-400',
+  warning: 'bg-warning-50 dark:bg-warning-950/30 border-warning-200 dark:border-warning-800/60 text-warning-700 dark:text-warning-400',
+  info: 'bg-primary-50 dark:bg-primary-950/30 border-primary-200 dark:border-primary-800/60 text-primary-700 dark:text-primary-400',
 };
 
 const icons = {
@@ -29,16 +29,17 @@ export const Alert = forwardRef<HTMLDivElement, AlertProps>(
       <div
         ref={ref}
         className={cn(
-          'p-4 rounded-lg border flex gap-3',
+          'p-4 rounded-lg border flex gap-3 shadow-soft transition-all duration-150',
           variantStyles[variant],
           className
         )}
+        role="alert"
         {...props}
       >
         <Icon className="w-5 h-5 flex-shrink-0 mt-0.5" />
         <div className="flex-1">
-          {title && <p className="font-medium mb-1">{title}</p>}
-          <div className="text-sm opacity-90">{children}</div>
+          {title && <p className="font-semibold mb-1.5 tracking-tight">{title}</p>}
+          <div className="text-sm leading-relaxed">{children}</div>
         </div>
       </div>
     );

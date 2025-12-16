@@ -405,28 +405,85 @@ export function CampaignsPage() {
                             <p className="text-sm font-medium text-neutral-900 dark:text-white">{selectedCampaign?.name}</p>
                             <p className="text-xs text-neutral-500">{selectedCampaign?.subject}</p>
                         </div>
+                        
+                        {/* Delivery Stats */}
+                        <div>
+                            <p className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-2 uppercase tracking-wider">Delivery</p>
+                            <div className="grid grid-cols-3 gap-3">
+                                <div className="p-3 rounded-lg bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800">
+                                    <p className="text-xs text-neutral-500">Recipients</p>
+                                    <p className="text-lg font-semibold text-neutral-900 dark:text-white">{selectedCampaignStats?.totalRecipients ?? 0}</p>
+                                </div>
+                                <div className="p-3 rounded-lg bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800">
+                                    <p className="text-xs text-neutral-500">Sent</p>
+                                    <p className="text-lg font-semibold text-green-600">{selectedCampaignStats?.sent ?? 0}</p>
+                                </div>
+                                <div className="p-3 rounded-lg bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800">
+                                    <p className="text-xs text-neutral-500">Failed</p>
+                                    <p className="text-lg font-semibold text-red-600">{selectedCampaignStats?.failed ?? 0}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Engagement Stats */}
+                        <div>
+                            <p className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-2 uppercase tracking-wider">Engagement</p>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                                    <p className="text-xs text-blue-600 dark:text-blue-400">Opened</p>
+                                    <p className="text-lg font-semibold text-blue-900 dark:text-blue-100">{selectedCampaignStats?.opened ?? 0}</p>
+                                    <p className="text-xs text-blue-500 mt-1">
+                                        {typeof selectedCampaignStats?.openRate === 'number'
+                                            ? `${selectedCampaignStats.openRate.toFixed(1)}% open rate`
+                                            : '0% open rate'}
+                                    </p>
+                                </div>
+                                <div className="p-3 rounded-lg bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800">
+                                    <p className="text-xs text-purple-600 dark:text-purple-400">Clicked</p>
+                                    <p className="text-lg font-semibold text-purple-900 dark:text-purple-100">{selectedCampaignStats?.clicked ?? 0}</p>
+                                    <p className="text-xs text-purple-500 mt-1">
+                                        {typeof selectedCampaignStats?.clickRate === 'number'
+                                            ? `${selectedCampaignStats.clickRate.toFixed(1)}% click rate`
+                                            : '0% click rate'}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Additional Metrics */}
                         <div className="grid grid-cols-3 gap-3">
                             <div className="p-3 rounded-lg bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800">
-                                <p className="text-xs text-neutral-500">Recipients</p>
-                                <p className="text-lg font-semibold text-neutral-900 dark:text-white">{selectedCampaignStats?.totalRecipients ?? 0}</p>
+                                <p className="text-xs text-neutral-500">Total Opens</p>
+                                <p className="text-sm font-semibold text-neutral-900 dark:text-white">{selectedCampaignStats?.totalOpens ?? 0}</p>
                             </div>
                             <div className="p-3 rounded-lg bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800">
-                                <p className="text-xs text-neutral-500">Sent</p>
-                                <p className="text-lg font-semibold text-green-600">{selectedCampaignStats?.sent ?? 0}</p>
+                                <p className="text-xs text-neutral-500">Total Clicks</p>
+                                <p className="text-sm font-semibold text-neutral-900 dark:text-white">{selectedCampaignStats?.totalClicks ?? 0}</p>
                             </div>
                             <div className="p-3 rounded-lg bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800">
-                                <p className="text-xs text-neutral-500">Failed</p>
-                                <p className="text-lg font-semibold text-red-600">{selectedCampaignStats?.failed ?? 0}</p>
+                                <p className="text-xs text-neutral-500">CTOR</p>
+                                <p className="text-sm font-semibold text-neutral-900 dark:text-white">
+                                    {typeof selectedCampaignStats?.clickToOpenRate === 'number'
+                                        ? `${selectedCampaignStats.clickToOpenRate.toFixed(1)}%`
+                                        : '0%'}
+                                </p>
                             </div>
                         </div>
-                        <div className="p-3 rounded-lg bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800">
-                            <p className="text-xs text-neutral-500">Delivery rate</p>
-                            <p className="text-sm text-neutral-900 dark:text-white">
-                                {typeof selectedCampaignStats?.deliveryRate === 'number'
-                                    ? `${selectedCampaignStats.deliveryRate.toFixed(1)}%`
-                                    : '0%'}
-                            </p>
-                        </div>
+
+                        {/* Negative Actions */}
+                        {(selectedCampaignStats?.unsubscribed > 0 || selectedCampaignStats?.bounced > 0) && (
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+                                    <p className="text-xs text-amber-600 dark:text-amber-400">Unsubscribed</p>
+                                    <p className="text-sm font-semibold text-amber-900 dark:text-amber-100">{selectedCampaignStats?.unsubscribed ?? 0}</p>
+                                </div>
+                                <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+                                    <p className="text-xs text-red-600 dark:text-red-400">Bounced</p>
+                                    <p className="text-sm font-semibold text-red-900 dark:text-red-100">{selectedCampaignStats?.bounced ?? 0}</p>
+                                </div>
+                            </div>
+                        )}
+
                         <div className="flex justify-end pt-2">
                             <Button variant="outline" onClick={() => setShowStats(false)}>Close</Button>
                         </div>

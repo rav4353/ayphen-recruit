@@ -48,6 +48,8 @@ export class BulkActionsService {
       include: {
         candidate: { select: { firstName: true, lastName: true } },
         currentStage: { select: { name: true } },
+        job: { select: { title: true, recruiterId: true, hiringManagerId: true, tenantId: true } },
+        assignedTo: { select: { id: true } },
       },
     });
 
@@ -92,6 +94,34 @@ export class BulkActionsService {
     const successCount = results.filter(r => r.success).length;
     const failedCount = results.filter(r => !r.success).length;
 
+    // Notify involved users per application
+    try {
+      const notificationPromises = applications.map(async (app) => {
+        const recipientIds = Array.from(new Set([
+          app.job?.recruiterId,
+          app.job?.hiringManagerId,
+          app.assignedTo?.id,
+        ].filter(Boolean) as string[])).filter((rid) => rid !== userId);
+
+        if (recipientIds.length > 0) {
+          await this.notificationsService.createMany(
+            recipientIds.map((rid) => ({
+              type: 'APPLICATION',
+              title: 'Bulk Stage Move',
+              message: `${app.candidate.firstName || 'Candidate'} moved to ${stage.name} for ${app.job?.title || 'a job'}`,
+              link: `/candidates/${app.candidateId}`,
+              metadata: { applicationId: app.id, targetStageId: dto.targetStageId, bulkAction: true },
+              userId: rid,
+              tenantId: app.job?.tenantId,
+            })) as any,
+          );
+        }
+      });
+      await Promise.all(notificationPromises);
+    } catch (error) {
+      console.error('Failed to send bulk stage move notifications:', error);
+    }
+
     return {
       success: true,
       processed: results.length,
@@ -113,7 +143,8 @@ export class BulkActionsService {
       },
       include: {
         candidate: { select: { firstName: true, lastName: true, email: true } },
-        job: { select: { title: true } },
+        job: { select: { title: true, recruiterId: true, hiringManagerId: true, tenantId: true } },
+        assignedTo: { select: { id: true } },
       },
     });
 
@@ -153,10 +184,40 @@ export class BulkActionsService {
       })
     );
 
+    const successCount = results.filter(r => r.success).length;
+
+    // Notify involved users per application
+    try {
+      const notificationPromises = applications.map(async (app) => {
+        const recipientIds = Array.from(new Set([
+          app.job?.recruiterId,
+          app.job?.hiringManagerId,
+          app.assignedTo?.id,
+        ].filter(Boolean) as string[])).filter((rid) => rid !== userId);
+
+        if (recipientIds.length > 0) {
+          await this.notificationsService.createMany(
+            recipientIds.map((rid) => ({
+              type: 'APPLICATION',
+              title: 'Bulk Status Update',
+              message: `${app.candidate.firstName || 'Candidate'} status changed to ${dto.status} for ${app.job?.title || 'a job'}`,
+              link: `/candidates/${app.candidateId}`,
+              metadata: { applicationId: app.id, newStatus: dto.status, reason: dto.reason, bulkAction: true },
+              userId: rid,
+              tenantId: app.job?.tenantId,
+            })) as any,
+          );
+        }
+      });
+      await Promise.all(notificationPromises);
+    } catch (error) {
+      console.error('Failed to send bulk status update notifications:', error);
+    }
+
     return {
       success: true,
       processed: results.length,
-      successCount: results.filter(r => r.success).length,
+      successCount,
       failedCount: results.filter(r => !r.success).length,
       newStatus: dto.status,
       results,

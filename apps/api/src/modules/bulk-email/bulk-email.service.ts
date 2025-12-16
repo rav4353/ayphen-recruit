@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { EmailService } from '../../common/services/email.service';
+import { EmailTrackingService } from '../email-tracking/email-tracking.service';
 
 export type BulkEmailCampaignStatus = 'DRAFT' | 'SCHEDULED' | 'SENT' | 'CANCELLED';
 export type BulkEmailRecipientType = 'candidates' | 'talent_pool' | 'custom';
@@ -35,6 +36,7 @@ export class BulkEmailService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly emailService: EmailService,
+    private readonly trackingService: EmailTrackingService,
   ) { }
 
   private newId(prefix: string) {
@@ -262,7 +264,21 @@ export class BulkEmailService {
     for (const c of candidates) {
       try {
         const subject = this.personalize(campaign.subject, c);
-        const html = this.personalize(campaign.body, c).replace(/\n/g, '<br>');
+        let html = this.personalize(campaign.body, c).replace(/\n/g, '<br>');
+        
+        // Add tracking pixel for opens
+        const trackingPixel = this.trackingService.createTrackingPixel(id, c.id);
+        html = this.trackingService.injectTrackingPixel(html, trackingPixel);
+        
+        // Wrap links with tracking (with candidateId in query)
+        html = await this.trackingService.wrapLinksWithTracking(html, id);
+        // Add candidateId to all tracking links
+        html = html.replace(/\/email-tracking\/click\/([^"']+)/g, `/email-tracking/click/$1?cid=${c.id}`);
+        
+        // Add unsubscribe link
+        const unsubscribeUrl = `${this.trackingService['baseUrl']}/api/v1/email-tracking/unsubscribe/${id}/${c.id}`;
+        html += `<br><br><div style="text-align:center;font-size:11px;color:#999;margin-top:20px;"><a href="${unsubscribeUrl}" style="color:#999;">Unsubscribe</a></div>`;
+        
         const ok = await this.emailService.sendEmail({
           to: c.email,
           subject,
@@ -334,6 +350,25 @@ export class BulkEmailService {
     const campaign = await this.getLatestCampaignMetadata(id, tenantId);
     const summary = campaign.sendSummary || { total: 0, sent: 0, failed: 0 };
 
+    // Get tracking analytics
+    let tracking = {
+      uniqueOpens: 0,
+      uniqueClicks: 0,
+      uniqueReplies: 0,
+      unsubscribes: 0,
+      bounces: 0,
+      totalOpens: 0,
+      totalClicks: 0,
+    };
+
+    if (campaign.status === 'SENT') {
+      try {
+        tracking = await this.trackingService.getCampaignAnalytics(id, tenantId);
+      } catch (error) {
+        this.logger.error(`Failed to get tracking analytics for campaign ${id}`, error);
+      }
+    }
+
     return {
       id: campaign.id,
       status: campaign.status,
@@ -341,11 +376,16 @@ export class BulkEmailService {
       sent: summary.sent,
       failed: summary.failed,
       deliveryRate: summary.total > 0 ? (summary.sent / summary.total) * 100 : 0,
-      // placeholders for future tracking
-      opened: 0,
-      clicked: 0,
-      replied: 0,
-      unsubscribed: 0,
+      opened: tracking.uniqueOpens,
+      clicked: tracking.uniqueClicks,
+      replied: tracking.uniqueReplies,
+      unsubscribed: tracking.unsubscribes,
+      bounced: tracking.bounces,
+      totalOpens: tracking.totalOpens,
+      totalClicks: tracking.totalClicks,
+      openRate: summary.sent > 0 ? (tracking.uniqueOpens / summary.sent) * 100 : 0,
+      clickRate: summary.sent > 0 ? (tracking.uniqueClicks / summary.sent) * 100 : 0,
+      clickToOpenRate: tracking.uniqueOpens > 0 ? (tracking.uniqueClicks / tracking.uniqueOpens) * 100 : 0,
     };
   }
 

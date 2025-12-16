@@ -578,6 +578,7 @@ model Candidate {
   activities   ActivityLog[]
   emails       Email[]
   bgvChecks    BGVCheck[]
+  emailTrackingEvents EmailTrackingEvent[]
 
   // Vector embedding for semantic search
   embedding Unsupported("vector(1536)")?
@@ -1352,4 +1353,40 @@ model NotificationPreference {
   user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("notification_preferences")
+}
+
+// ============================================
+// EMAIL TRACKING
+// ============================================
+
+model EmailTrackingEvent {
+  id           String   @id @default(uuid())
+  campaignId   String
+  candidateId  String
+  eventType    String   // OPEN, CLICK, REPLY, BOUNCE, UNSUBSCRIBE
+  eventData    Json?    // Additional data like clicked URL, bounce reason, etc.
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+  tenantId     String
+
+  candidate Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+  @@index([candidateId])
+  @@index([eventType])
+  @@index([tenantId])
+  @@index([createdAt])
+  @@map("email_tracking_events")
+}
+
+model EmailTrackingLink {
+  id            String   @id @default(uuid())
+  campaignId    String
+  originalUrl   String
+  trackingToken String   @unique
+  createdAt     DateTime @default(now())
+
+  @@index([campaignId])
+  @@map("email_tracking_links")
 }

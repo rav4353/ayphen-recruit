@@ -38,7 +38,7 @@ export function ThemeToggle({ variant = 'icon', className }: ThemeToggleProps) {
 
   if (variant === 'buttons') {
     return (
-      <div className={cn('flex items-center gap-1 p-1 rounded-lg bg-neutral-100 dark:bg-neutral-800', className)}>
+      <div className={cn('flex items-center gap-1 p-1 rounded-lg bg-neutral-100 dark:bg-neutral-800 shadow-soft', className)}>
         {themeOptions.map((option) => {
           const Icon = option.icon;
           return (
@@ -46,10 +46,10 @@ export function ThemeToggle({ variant = 'icon', className }: ThemeToggleProps) {
               key={option.value}
               onClick={() => setTheme(option.value)}
               className={cn(
-                'flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
+                'flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-150',
                 theme === option.value
-                  ? 'bg-white dark:bg-neutral-700 text-neutral-900 dark:text-white shadow-sm'
-                  : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
+                  ? 'bg-white dark:bg-neutral-700 text-neutral-900 dark:text-white shadow-soft'
+                  : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-50 dark:hover:bg-neutral-700/50'
               )}
             >
               <Icon size={16} />
@@ -69,17 +69,18 @@ export function ThemeToggle({ variant = 'icon', className }: ThemeToggleProps) {
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          'p-2 rounded-lg transition-colors',
+          'p-2 rounded-lg transition-all duration-150',
           'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100',
           'dark:text-neutral-400 dark:hover:text-white dark:hover:bg-neutral-800'
         )}
         title={t('theme.select')}
+        aria-label={t('theme.select')}
       >
         <CurrentIcon size={20} />
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-40 py-1 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg shadow-lg z-50">
+        <div className="absolute right-0 mt-2 w-40 py-1 bg-white dark:bg-neutral-900 border border-neutral-200/60 dark:border-neutral-800/60 rounded-lg shadow-soft-lg z-50">
           {themeOptions.map((option) => {
             const Icon = option.icon;
             return (
@@ -90,17 +91,17 @@ export function ThemeToggle({ variant = 'icon', className }: ThemeToggleProps) {
                   setIsOpen(false);
                 }}
                 className={cn(
-                  'w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors',
-                  'hover:bg-neutral-100 dark:hover:bg-neutral-700',
+                  'w-full flex items-center gap-3 px-4 py-2 text-sm transition-all duration-150',
+                  'hover:bg-neutral-50 dark:hover:bg-neutral-800',
                   theme === option.value
-                    ? 'text-neutral-900 dark:text-white'
+                    ? 'text-neutral-900 dark:text-white font-medium'
                     : 'text-neutral-600 dark:text-neutral-400'
                 )}
               >
                 <Icon size={16} />
                 <span className="flex-1 text-left">{t(option.labelKey)}</span>
                 {theme === option.value && (
-                  <Check size={16} className="text-green-500" />
+                  <Check size={16} className="text-primary-600 dark:text-primary-400" />
                 )}
               </button>
             );

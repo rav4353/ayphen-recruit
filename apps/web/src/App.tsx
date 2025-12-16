@@ -51,6 +51,7 @@ import { OfferDetailPage } from './pages/offers/OfferDetailPage';
 import { CandidateOfferPage } from './pages/offers/CandidateOfferPage';
 import { OnboardingDashboardPage } from './pages/onboarding/OnboardingDashboardPage';
 import { OnboardingDetailPage } from './pages/onboarding/OnboardingDetailPage';
+import { EmployeeOnboardingPortal } from './pages/portal/EmployeeOnboardingPortal';
 import { SourcingPage } from './pages/sourcing/SourcingPage';
 import { TalentPoolsPage } from './pages/sourcing/TalentPoolsPage';
 import { CampaignsPage } from './pages/marketing/CampaignsPage';
@@ -148,6 +149,7 @@ function App() {
               {/* <Route path="/jobs/public/:tenantId" element={<PublicJobBoard />} /> */}
               <Route path="/offers/public/:token" element={<CandidateOfferPage />} />
               <Route path="/schedule/:token" element={<InterviewSchedulePage />} />
+              <Route path="/portal/onboarding/:id" element={<EmployeeOnboardingPortal />} />
 
               {/* Catch all */}
               <Route path="*" element={<Navigate to="/" replace />} />

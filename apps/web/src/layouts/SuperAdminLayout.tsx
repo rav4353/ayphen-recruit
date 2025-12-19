@@ -25,6 +25,8 @@ import {
 } from 'lucide-react';
 import { useSuperAdminStore } from '../stores/superAdmin';
 import { cn } from '../lib/utils';
+import { NotificationDropdown } from '../components/super-admin/NotificationDropdown';
+import { useSuperAdminSocket } from '../hooks/useSuperAdminSocket';
 import logoLight from '../assets/branding/logo_light_theme.png';
 
 const navigation = [
@@ -49,6 +51,14 @@ export function SuperAdminLayout() {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const { superAdmin, logout, isSessionValid, updateActivity, theme, toggleTheme } = useSuperAdminStore();
   const navigate = useNavigate();
+
+  // Initialize WebSocket connection for real-time notifications
+  const { isConnected, requestNotificationPermission } = useSuperAdminSocket();
+
+  // Request browser notification permission on mount
+  useEffect(() => {
+    requestNotificationPermission();
+  }, [requestNotificationPermission]);
 
   // Theme support
   useEffect(() => {
@@ -111,12 +121,12 @@ export function SuperAdminLayout() {
       {/* Sidebar */}
       <aside
         className={cn(
-          'fixed top-0 left-0 z-50 h-full w-72 bg-white dark:bg-neutral-900 border-r border-neutral-200 dark:border-neutral-800 transform transition-all duration-300 ease-in-out lg:translate-x-0',
+          'fixed top-0 left-0 z-50 h-full w-72 bg-white dark:bg-neutral-900 border-r border-neutral-200 dark:border-neutral-800 transform transition-all duration-300 ease-in-out lg:translate-x-0 flex flex-col',
           sidebarOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'
         )}
       >
         {/* Logo */}
-        <div className="h-16 flex items-center justify-between px-6 border-b border-neutral-200 dark:border-neutral-800">
+        <div className="h-16 flex-none flex items-center justify-between px-6 border-b border-neutral-200 dark:border-neutral-800">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center shadow-lg shadow-red-500/20">
               <Shield size={18} className="text-white" />
@@ -135,7 +145,7 @@ export function SuperAdminLayout() {
         </div>
 
         {/* Navigation */}
-        <nav className="p-4 space-y-1 overflow-y-auto max-h-[calc(100vh-160px)] scrollbar-thin">
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto scrollbar-thin min-h-0">
           {navigation.map((item) => (
             <NavLink
               key={item.name}
@@ -156,30 +166,33 @@ export function SuperAdminLayout() {
           ))}
         </nav>
 
-        {/* Warning banner */}
-        <div className="absolute bottom-20 left-4 right-4">
-          <div className="bg-yellow-500/5 dark:bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4">
-            <div className="flex items-start gap-3">
-              <AlertTriangle size={18} className="text-yellow-600 dark:text-yellow-500 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-xs font-semibold text-yellow-700 dark:text-yellow-500 uppercase tracking-tight">Privileged Access</p>
-                <p className="text-[11px] text-yellow-700/70 dark:text-yellow-500/70 mt-1 leading-relaxed">
-                  Every action is logged. Unauthorized use is prohibited.
-                </p>
+        {/* Bottom Section Wrapper */}
+        <div className="flex-none bg-white dark:bg-neutral-900 z-10">
+          {/* Warning banner */}
+          <div className="px-4 pb-4">
+            <div className="bg-yellow-500/5 dark:bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4">
+              <div className="flex items-start gap-3">
+                <AlertTriangle size={18} className="text-yellow-600 dark:text-yellow-500 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-xs font-semibold text-yellow-700 dark:text-yellow-500 uppercase tracking-tight">Privileged Access</p>
+                  <p className="text-[11px] text-yellow-700/70 dark:text-yellow-500/70 mt-1 leading-relaxed">
+                    Every action is logged. Unauthorized use is prohibited.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Admin info */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-neutral-200 dark:border-neutral-800 bg-neutral-50/50 dark:bg-transparent">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center text-white font-semibold shadow-inner">
-              {superAdmin?.name?.[0] || 'S'}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-neutral-900 dark:text-white truncate">{superAdmin?.name || 'Super Admin'}</p>
-              <p className="text-xs text-neutral-500 truncate">{superAdmin?.email}</p>
+          {/* Admin info */}
+          <div className="p-4 border-t border-neutral-200 dark:border-neutral-800 bg-neutral-50/50 dark:bg-transparent">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center text-white font-semibold shadow-inner">
+                {superAdmin?.name?.[0] || 'S'}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-neutral-900 dark:text-white truncate">{superAdmin?.name || 'Super Admin'}</p>
+                <p className="text-xs text-neutral-500 truncate">{superAdmin?.email}</p>
+              </div>
             </div>
           </div>
         </div>
@@ -209,10 +222,27 @@ export function SuperAdminLayout() {
 
             {/* Right side */}
             <div className="flex items-center gap-2 sm:gap-3">
-              {/* System status */}
-              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-500/5 dark:bg-green-500/10 border border-green-500/20">
-                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
-                <span className="text-xs font-bold text-green-600 dark:text-green-500 uppercase tracking-wider">Live</span>
+              {/* System status - shows WebSocket connection state */}
+              <div className={cn(
+                "hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full border",
+                isConnected
+                  ? "bg-green-500/5 dark:bg-green-500/10 border-green-500/20"
+                  : "bg-yellow-500/5 dark:bg-yellow-500/10 border-yellow-500/20"
+              )}>
+                <div className={cn(
+                  "w-2 h-2 rounded-full animate-pulse",
+                  isConnected
+                    ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]"
+                    : "bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.5)]"
+                )} />
+                <span className={cn(
+                  "text-xs font-bold uppercase tracking-wider",
+                  isConnected
+                    ? "text-green-600 dark:text-green-500"
+                    : "text-yellow-600 dark:text-yellow-500"
+                )}>
+                  {isConnected ? 'Live' : 'Connecting'}
+                </span>
               </div>
 
               {/* Theme Toggle */}
@@ -232,10 +262,7 @@ export function SuperAdminLayout() {
               </button>
 
               {/* Notifications */}
-              <button className="p-2 rounded-xl text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors relative">
-                <Bell size={20} />
-                <span className="absolute top-2.5 right-2.5 w-1.5 h-1.5 rounded-full bg-red-500 ring-2 ring-white dark:ring-neutral-950" />
-              </button>
+              <NotificationDropdown />
 
               {/* Profile menu */}
               <div className="relative">
@@ -262,7 +289,7 @@ export function SuperAdminLayout() {
                       </div>
                       <div className="p-2 space-y-0.5">
                         <NavLink
-                          to="/super-admin/settings/profile"
+                          to="/super-admin/settings"
                           className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-all font-medium"
                           onClick={() => setShowProfileMenu(false)}
                         >
@@ -270,7 +297,7 @@ export function SuperAdminLayout() {
                           Profile Settings
                         </NavLink>
                         <NavLink
-                          to="/super-admin/settings/security"
+                          to="/super-admin/security"
                           className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-all font-medium"
                           onClick={() => setShowProfileMenu(false)}
                         >

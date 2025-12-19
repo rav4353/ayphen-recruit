@@ -1441,6 +1441,7 @@ model SuperAdmin {
   id              String           @id @default(uuid())
   email           String           @unique
   passwordHash    String
+  requirePasswordChange Boolean     @default(false)
   name            String
   status          SuperAdminStatus @default(ACTIVE)
   mfaEnabled      Boolean          @default(false)
@@ -1458,6 +1459,9 @@ model SuperAdmin {
   // Audit logs
   auditLogs SuperAdminAuditLog[]
   supportMessages SupportTicketMessage[]
+  
+  // Notifications
+  notifications SuperAdminNotification[]
   
   @@index([email])
   @@index([status])
@@ -1507,6 +1511,50 @@ model SuperAdminAuditLog {
   @@index([createdAt])
 
   @@map("super_admin_audit_logs")
+}
+
+// ============================================
+// SUPER ADMIN NOTIFICATIONS
+// ============================================
+
+enum SuperAdminNotificationType {
+  SYSTEM          // System alerts (health, errors)
+  SECURITY        // Security alerts (blocked IPs, failed logins)
+  TENANT          // Tenant-related (new signup, suspension)
+  SUBSCRIPTION    // Billing/subscription events
+  SUPPORT         // New support tickets
+  ANNOUNCEMENT    // Announcement-related
+  USER            // User-related events
+}
+
+enum SuperAdminNotificationPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model SuperAdminNotification {
+  id        String                         @id @default(uuid())
+  type      SuperAdminNotificationType
+  priority  SuperAdminNotificationPriority @default(MEDIUM)
+  title     String
+  message   String                         @db.Text
+  link      String?                        // Optional link to related resource
+  metadata  Json?                          // Additional context data
+  read      Boolean                        @default(false)
+  readAt    DateTime?
+  createdAt DateTime                       @default(now())
+
+  superAdminId String
+  superAdmin   SuperAdmin @relation(fields: [superAdminId], references: [id], onDelete: Cascade)
+
+  @@index([superAdminId])
+  @@index([read])
+  @@index([type])
+  @@index([priority])
+  @@index([createdAt])
+  @@map("super_admin_notifications")
 }
 
 // ============================================

@@ -32,12 +32,12 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
     constructor(
         private readonly jwtService: JwtService,
         private readonly notificationsService: NotificationsService,
-    ) {}
+    ) { }
 
     async handleConnection(client: AuthenticatedSocket) {
         try {
             const token = client.handshake.auth?.token || client.handshake.headers?.authorization?.split(' ')[1];
-            
+
             if (!token) {
                 client.disconnect();
                 return;
@@ -134,7 +134,7 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
      */
     async broadcastNotification(notification: any) {
         this.sendToUser(notification.userId, 'new_notification', notification);
-        
+
         // Also update unread count
         const unreadCount = await this.notificationsService.getUnreadCount(notification.userId);
         this.sendToUser(notification.userId, 'unread_count', { count: unreadCount });

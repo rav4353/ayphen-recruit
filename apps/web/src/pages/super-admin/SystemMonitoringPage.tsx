@@ -14,7 +14,7 @@ import {
     FolderOpen,
 } from 'lucide-react';
 import { Button } from '../../components/ui';
-import { superAdminMonitoringApi, superAdminDashboardApi } from '../../lib/superAdminApi';
+import { superAdminMonitoringApi, superAdminDashboardApi, superAdminSettingsApi } from '../../lib/superAdminApi';
 import toast from 'react-hot-toast';
 import { cn } from '../../lib/utils';
 import { useSuperAdminSocket } from '../../hooks/useSuperAdminSocket';
@@ -35,6 +35,8 @@ export function SystemMonitoringPage() {
     const [health, setHealth] = useState<SystemHealth | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [logLevel, setLogLevel] = useState('all');
+    const [maintenanceMode, setMaintenanceMode] = useState(false);
+    const [isLockdownLoading, setIsLockdownLoading] = useState(false);
     const { socket, isConnected } = useSuperAdminSocket();
 
     useEffect(() => {
@@ -58,17 +60,19 @@ export function SystemMonitoringPage() {
 
     const fetchData = async () => {
         try {
-            const [resourceRes, logsRes, jobsRes, healthRes] = await Promise.all([
+            const [resourceRes, logsRes, jobsRes, healthRes, maintenanceRes] = await Promise.all([
                 superAdminMonitoringApi.getResources(),
                 superAdminMonitoringApi.getLogs({ level: logLevel }),
                 superAdminMonitoringApi.getJobs(),
                 superAdminDashboardApi.getSystemHealth(),
+                superAdminSettingsApi.getMaintenanceMode(),
             ]);
 
             setResources(resourceRes.data.data);
             setLogs(logsRes.data.data);
             setJobs(jobsRes.data.data);
             setHealth(healthRes.data.data);
+            setMaintenanceMode(maintenanceRes.data?.data?.enabled || false);
         } catch (error) {
             toast.error('Failed to fetch system metrics');
         } finally {
@@ -327,9 +331,33 @@ export function SystemMonitoringPage() {
                         </div>
                     </div>
 
-                    <Button className="w-full h-14 bg-red-600 hover:bg-red-700 text-white font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-red-600/20 active:scale-95 transition-all">
-                        <AlertTriangle size={18} className="mr-3" />
-                        Platform Lockdown
+                    <Button 
+                        className={cn(
+                            "w-full h-14 font-black uppercase tracking-widest rounded-2xl shadow-xl active:scale-95 transition-all",
+                            maintenanceMode 
+                                ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20"
+                                : "bg-red-600 hover:bg-red-700 text-white shadow-red-600/20"
+                        )}
+                        onClick={async () => {
+                            setIsLockdownLoading(true);
+                            try {
+                                await superAdminSettingsApi.setMaintenanceMode(!maintenanceMode);
+                                setMaintenanceMode(!maintenanceMode);
+                                toast.success(maintenanceMode ? 'Platform unlocked' : 'Platform locked down');
+                            } catch (error) {
+                                toast.error('Failed to toggle maintenance mode');
+                            } finally {
+                                setIsLockdownLoading(false);
+                            }
+                        }}
+                        disabled={isLockdownLoading}
+                    >
+                        {isLockdownLoading ? (
+                            <RefreshCw size={18} className="mr-3 animate-spin" />
+                        ) : (
+                            <AlertTriangle size={18} className="mr-3" />
+                        )}
+                        {maintenanceMode ? 'Unlock Platform' : 'Platform Lockdown'}
                     </Button>
                 </div>
             </div>

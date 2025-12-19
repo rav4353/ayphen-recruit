@@ -8,6 +8,7 @@ interface ModalProps {
     title?: string;
     children: ReactNode;
     className?: string;
+    disableClose?: boolean;
 }
 
 export function Modal({
@@ -16,6 +17,7 @@ export function Modal({
     title,
     children,
     className,
+    disableClose,
 }: ModalProps) {
     const [show, setShow] = useState(false);
 
@@ -48,7 +50,7 @@ export function Modal({
             {/* Backdrop */}
             <div
                 className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
-                onClick={onClose}
+                onClick={disableClose ? undefined : onClose}
                 aria-hidden="true"
             />
 
@@ -65,13 +67,15 @@ export function Modal({
                     <h3 className="text-lg font-semibold text-neutral-900 dark:text-white tracking-tight">
                         {title}
                     </h3>
-                    <button
-                        onClick={onClose}
-                        className="p-2 -mr-2 rounded-lg text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-all duration-150"
-                        aria-label="Close modal"
-                    >
-                        <X size={18} />
-                    </button>
+                    {!disableClose && (
+                        <button
+                            onClick={onClose}
+                            className="p-2 -mr-2 rounded-lg text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-all duration-150"
+                            aria-label="Close modal"
+                        >
+                            <X size={18} />
+                        </button>
+                    )}
                 </div>
 
                 {/* Content */}

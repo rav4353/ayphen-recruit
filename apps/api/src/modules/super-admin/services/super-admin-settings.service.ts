@@ -99,8 +99,12 @@ export class SuperAdminSettingsService implements OnModuleInit {
             
             // Security settings
             { key: 'global_mfa_enforced', value: false, category: 'security' },
-            { key: 'session_timeout', value: 30, category: 'security' },
+            { key: 'session_timeout', value: 60, category: 'security' },
             { key: 'max_login_attempts', value: 5, category: 'security' },
+            { key: 'lockout_duration', value: 30, category: 'security' },
+            { key: 'enforce_strong_passwords', value: true, category: 'security' },
+            { key: 'block_tor_exit_nodes', value: true, category: 'security' },
+            { key: 'auto_block_suspicious_ips', value: true, category: 'security' },
             
             // Feature flags
             { key: 'feature_flag_ai_resume_parsing', value: true, category: 'features' },

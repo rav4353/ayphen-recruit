@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { Button, ConfirmationModal } from '../../components/ui';
 import toast from 'react-hot-toast';
-import { superAdminApi, extractData } from '../../lib/api';
+import { superAdminSubscriptionsApi, superAdminBillingApi } from '../../lib/superAdminApi';
 import { cn } from '../../lib/utils';
 
 interface Invoice {
@@ -102,8 +102,8 @@ export function BillingManagementPage() {
 
     const fetchGateways = async () => {
         try {
-            const response = await superAdminApi.getGateways();
-            const data = extractData(response);
+            const response = await superAdminBillingApi.getGateways();
+            const data = response.data.data || response.data;
             // Merge with defaults
             const providers = ['STRIPE', 'GPAY', 'PAYTM'];
             const merged = providers.map(p => {
@@ -120,14 +120,15 @@ export function BillingManagementPage() {
         setIsLoading(true);
         try {
             const [invoicesRes, statsRes] = await Promise.all([
-                superAdminApi.getInvoices(),
-                superAdminApi.getSubscriptionStats()
+                superAdminBillingApi.getPayments(),
+                superAdminSubscriptionsApi.getStats()
             ]);
 
-            const invData: any = extractData(invoicesRes);
-            const statsData: any = extractData(statsRes);
+            const invData: any = invoicesRes.data?.data || invoicesRes.data || [];
+            const statsData: any = statsRes.data?.data || statsRes.data || {};
 
-            const mappedPayments = invData.data.map((p: any) => ({
+            const paymentsArray = Array.isArray(invData) ? invData : (invData.data || []);
+            const mappedPayments = paymentsArray.map((p: any) => ({
                 id: p.id,
                 tenantName: p.subscription?.tenant?.name || 'Unknown',
                 amount: p.amount,
@@ -168,8 +169,9 @@ export function BillingManagementPage() {
 
     const fetchPlans = async () => {
         try {
-            const response = await superAdminApi.getSubscriptionPlans();
-            setPlans(extractData(response));
+            const response = await superAdminSubscriptionsApi.getPlans();
+            const data = response.data.data || response.data;
+            setPlans(data);
         } catch (error) {
             toast.error('Failed to fetch plans');
         }
@@ -179,15 +181,21 @@ export function BillingManagementPage() {
 
     const handleRefund = async () => {
         if (!refundPayment) return;
-        setPayments(payments.map(p => p.id === refundPayment.id ? { ...p, status: 'refunded' } : p));
-        toast.success('Capital reversal processed');
-        setRefundPayment(null);
+        try {
+            await superAdminBillingApi.refundPayment(refundPayment.id, 'Refund requested by super admin');
+            setPayments(payments.map(p => p.id === refundPayment.id ? { ...p, status: 'refunded' } : p));
+            toast.success('Capital reversal processed');
+        } catch (error) {
+            toast.error('Failed to process refund');
+        } finally {
+            setRefundPayment(null);
+        }
     };
 
     const handleDeletePlan = async () => {
         if (!deletingPlan) return;
         try {
-            await superAdminApi.deleteSubscriptionPlan(deletingPlan.id);
+            await superAdminSubscriptionsApi.deletePlan(deletingPlan.id);
             toast.success('Plan decommissioned successfully');
             fetchPlans();
         } catch (error) {
@@ -234,7 +242,27 @@ export function BillingManagementPage() {
                     <Button variant="outline" className="h-12 w-12 rounded-2xl border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-sm transition-all active:scale-90" onClick={fetchBillingData}>
                         <RefreshCw size={18} className={isLoading ? 'animate-spin text-red-500' : 'text-neutral-500'} />
                     </Button>
-                    <Button variant="outline" className="h-12 border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 text-neutral-600 dark:text-neutral-300 px-6 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-sm hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-all active:scale-95">
+                    <Button 
+                        variant="outline" 
+                        className="h-12 border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 text-neutral-600 dark:text-neutral-300 px-6 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-sm hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-all active:scale-95"
+                        onClick={async () => {
+                            try {
+                                const response = await superAdminBillingApi.exportBillingData({ format: 'csv' });
+                                const blob = new Blob([response.data], { type: 'text/csv' });
+                                const url = window.URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = url;
+                                a.download = `billing-export-${new Date().toISOString().split('T')[0]}.csv`;
+                                document.body.appendChild(a);
+                                a.click();
+                                window.URL.revokeObjectURL(url);
+                                document.body.removeChild(a);
+                                toast.success('Billing data exported');
+                            } catch (error) {
+                                toast.error('Failed to export billing data');
+                            }
+                        }}
+                    >
                         <Download size={14} className="mr-2 text-blue-500" />
                         Fiscal Dump
                     </Button>
@@ -544,10 +572,10 @@ function PlanModal({ onClose, onSuccess, plan }: { onClose: () => void, onSucces
             };
 
             if (plan) {
-                await superAdminApi.updateSubscriptionPlan(plan.id, payload);
+                await superAdminSubscriptionsApi.updatePlan(plan.id, payload);
                 toast.success('Architecture updated');
             } else {
-                await superAdminApi.createSubscriptionPlan(payload);
+                await superAdminSubscriptionsApi.createPlan(payload);
                 toast.success('New tier initialized');
             }
             onSuccess();
@@ -595,7 +623,7 @@ function GatewayModal({ onClose, onSuccess, gateway }: { onClose: () => void, on
         e.preventDefault();
         setIsSaving(true);
         try {
-            await superAdminApi.updateGateway({
+            await superAdminBillingApi.updateGateway({
                 provider: gateway.provider,
                 isActive,
                 config

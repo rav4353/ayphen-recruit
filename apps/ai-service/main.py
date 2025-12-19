@@ -18,15 +18,30 @@ app = FastAPI(
     version="0.1.0",
 )
 
-# CORS
+# CORS Configuration
+# In production, set ALLOWED_ORIGINS env var to comma-separated list of allowed origins
+# e.g., ALLOWED_ORIGINS=https://app.ayphen.com,https://admin.ayphen.com
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "").split(",") if os.getenv("ALLOWED_ORIGINS") else []
+
+# Default development origins
+DEFAULT_DEV_ORIGINS = [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://localhost:5173",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:3001",
+    "http://127.0.0.1:5173",
+]
+
+# Use production origins if set, otherwise use development defaults
+cors_origins = ALLOWED_ORIGINS if ALLOWED_ORIGINS and ALLOWED_ORIGINS[0] else DEFAULT_DEV_ORIGINS
+
 app.add_middleware(
     CORSMiddleware,
-    # For local development, allow all localhost origins so the web app
-    # (regardless of port) can call the AI service without CORS errors.
-    allow_origins=["*"],
+    allow_origins=cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Requested-With"],
 )
 
 

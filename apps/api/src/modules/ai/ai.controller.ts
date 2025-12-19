@@ -7,15 +7,17 @@ import { GenerateJdDto } from './dto/generate-jd.dto';
 import { CheckBiasDto } from './dto/check-bias.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ApiResponse } from '../../common/dto/api-response.dto';
+import { FeatureFlagGuard, RequireFeature } from '../../common/guards/feature-flag.guard';
 
 @ApiTags('ai')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, FeatureFlagGuard)
 @Controller('ai')
 export class AiController {
     constructor(private readonly aiService: AiService) { }
 
     @Post('generate-jd')
+    @RequireFeature('ai_jd_generation')
     @ApiOperation({ summary: 'Generate a job description using AI' })
     async generateJd(@Body() dto: GenerateJdDto) {
         const result = await this.aiService.generateJd(dto);
@@ -23,6 +25,7 @@ export class AiController {
     }
 
     @Post('parse-resume')
+    @RequireFeature('ai_resume_parsing')
     @UseInterceptors(FileInterceptor('file'))
     @ApiOperation({ summary: 'Parse a resume file' })
     @ApiConsumes('multipart/form-data')
@@ -44,6 +47,7 @@ export class AiController {
 
 
     @Post('check-bias')
+    @RequireFeature('ai_jd_generation')
     @ApiOperation({ summary: 'Check for biased language' })
     async checkBias(@Body() dto: CheckBiasDto) {
         const result = await this.aiService.checkBias(dto.text);
@@ -51,6 +55,7 @@ export class AiController {
     }
 
     @Post('generate-subject-lines')
+    @RequireFeature('ai_jd_generation')
     @ApiOperation({ summary: 'Generate AI-powered email subject line suggestions' })
     async generateSubjectLines(
         @Body() dto: { context: string; candidateName?: string; jobTitle?: string; companyName?: string },

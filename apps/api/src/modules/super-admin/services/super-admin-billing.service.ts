@@ -122,11 +122,16 @@ export class SuperAdminBillingService {
         return this.prisma.paymentGatewayConfig.findMany();
     }
 
-    async updatePaymentGateway(dto: { provider: string, isActive: boolean, config: any }) {
+    async updatePaymentGateway(dto: { provider: string; isActive: boolean; config?: any }) {
+        const updateData: Record<string, any> = { isActive: dto.isActive };
+        if (dto.config !== undefined) {
+            updateData.config = dto.config;
+        }
+
         return this.prisma.paymentGatewayConfig.upsert({
             where: { provider: dto.provider },
-            update: { isActive: dto.isActive, config: dto.config },
-            create: { provider: dto.provider, isActive: dto.isActive, config: dto.config },
+            update: updateData,
+            create: { provider: dto.provider, isActive: dto.isActive, config: dto.config ?? {} },
         });
     }
 }

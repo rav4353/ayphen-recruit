@@ -53,6 +53,7 @@ import { AnnouncementsModule } from './modules/announcements/announcements.modul
 
 import { BlockedIpMiddleware } from './common/middleware/blocked-ip.middleware';
 import { MaintenanceMiddleware } from './common/middleware/maintenance.middleware';
+import { LoginAttemptMiddleware } from './common/middleware/login-attempt.middleware';
 
 @Module({
   imports: [
@@ -133,5 +134,10 @@ export class AppModule implements NestModule {
     consumer
       .apply(BlockedIpMiddleware, MaintenanceMiddleware)
       .forRoutes({ path: '*', method: RequestMethod.ALL });
+    
+    // Login attempt tracking for rate limiting
+    consumer
+      .apply(LoginAttemptMiddleware)
+      .forRoutes({ path: 'auth/login', method: RequestMethod.POST });
   }
 }

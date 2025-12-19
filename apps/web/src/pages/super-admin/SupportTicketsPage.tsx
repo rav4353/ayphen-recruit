@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../../components/ui';
 import toast from 'react-hot-toast';
-import { superAdminApi, extractData } from '../../lib/api';
+import { superAdminSupportApi } from '../../lib/superAdminApi';
 import { cn } from '../../lib/utils';
 
 interface SupportTicket {
@@ -74,14 +74,15 @@ export function SupportTicketsPage() {
     const fetchTickets = async () => {
         setIsLoading(true);
         try {
-            const response = await superAdminApi.getSupportTickets({
+            const response = await superAdminSupportApi.getTickets({
                 search: searchQuery,
                 status: statusFilter === 'all' ? undefined : statusFilter,
                 priority: priorityFilter === 'all' ? undefined : priorityFilter,
             });
-            const data: any = extractData(response);
+            const data: any = response.data?.data || response.data || [];
+            const ticketsArray = Array.isArray(data) ? data : (data.data || []);
 
-            const mappedTickets = data.data.map((t: any) => ({
+            const mappedTickets = ticketsArray.map((t: any) => ({
                 id: t.id,
                 ticketNumber: t.id.substring(0, 8).toUpperCase(),
                 subject: t.subject,
@@ -110,7 +111,8 @@ export function SupportTicketsPage() {
 
     const fetchTicketDetails = async (id: string) => {
         try {
-            const data: any = await superAdminApi.getSupportTicket(id).then(extractData);
+            const response = await superAdminSupportApi.getTicketById(id);
+            const data: any = response.data.data || response.data;
             const mappedTicket = {
                 id: data.id,
                 ticketNumber: data.id.substring(0, 8).toUpperCase(),
@@ -151,7 +153,7 @@ export function SupportTicketsPage() {
 
         setIsSending(true);
         try {
-            await superAdminApi.addTicketMessage(selectedTicket.id, replyMessage, isInternalReply);
+            await superAdminSupportApi.addTicketMessage(selectedTicket.id, replyMessage);
             toast.success(isInternalReply ? 'Internal note added' : 'Reply sent');
             setReplyMessage('');
             setIsInternalReply(false);
@@ -165,7 +167,7 @@ export function SupportTicketsPage() {
 
     const handleUpdateStatus = async (ticketId: string, newStatus: SupportTicket['status']) => {
         try {
-            await superAdminApi.updateTicketStatus(ticketId, newStatus);
+            await superAdminSupportApi.updateTicketStatus(ticketId, newStatus);
             toast.success(`Ticket marked as ${newStatus.replace('_', ' ')}`);
             fetchTickets();
             if (selectedTicket?.id === ticketId) {

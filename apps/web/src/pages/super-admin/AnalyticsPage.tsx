@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   BarChart3,
   TrendingUp,
@@ -39,6 +40,7 @@ interface AnalyticsData {
 type Period = 'day' | 'week' | 'month' | 'year';
 
 export function AnalyticsPage() {
+  const navigate = useNavigate();
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [period, setPeriod] = useState<Period>('month');
@@ -338,7 +340,12 @@ export function AnalyticsPage() {
                     </div>
                   </td>
                   <td className="px-8 py-6">
-                    <Button variant="ghost" size="sm" className="h-10 w-10 p-0 rounded-xl hover:bg-neutral-900 hover:text-white dark:hover:bg-white dark:hover:text-neutral-900 transition-all">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-10 w-10 p-0 rounded-xl hover:bg-neutral-900 hover:text-white dark:hover:bg-white dark:hover:text-neutral-900 transition-all"
+                      onClick={() => navigate(`/super-admin/tenants/${tenant.id}`)}
+                    >
                       <ArrowRight size={18} />
                     </Button>
                   </td>
@@ -348,7 +355,11 @@ export function AnalyticsPage() {
           </table>
         </div>
         <div className="px-8 py-4 bg-neutral-50/50 dark:bg-neutral-800/10 border-t border-neutral-100 dark:border-neutral-800 flex justify-center">
-          <Button variant="ghost" className="text-[10px] font-black uppercase tracking-widest text-neutral-400 hover:text-neutral-900 dark:hover:text-white">
+          <Button 
+            variant="ghost" 
+            className="text-[10px] font-black uppercase tracking-widest text-neutral-400 hover:text-neutral-900 dark:hover:text-white"
+            onClick={() => navigate('/super-admin/tenants')}
+          >
             Deep Inspection • All Entities
           </Button>
         </div>

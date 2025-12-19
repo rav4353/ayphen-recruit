@@ -16,3 +16,4 @@ export { SupportTicketsPage } from './SupportTicketsPage';
 export { BillingManagementPage } from './BillingManagementPage';
 export { DataManagementPage } from './DataManagementPage';
 export { ApiManagementPage } from './ApiManagementPage';
+export { NotificationsPage } from './NotificationsPage';

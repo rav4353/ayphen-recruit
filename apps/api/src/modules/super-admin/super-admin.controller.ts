@@ -33,7 +33,11 @@ import { SuperAdminApiManagementService } from './services/super-admin-api-manag
 import { SuperAdminSettingsService } from './services/super-admin-settings.service';
 import { GetLogsDto } from './dto/monitoring.dto';
 import { CreateApiKeyDto, CreateWebhookDto } from './dto/api-management.dto';
+import { CreatePlanDto, UpdatePlanDto, UpdatePaymentGatewayDto, UpdateEmailConfigDto, UpdateSettingDto } from './dto/subscriptions.dto';
 import { AuthService } from '../auth/auth.service';
+import { SuperAdminAnalyticsService } from './services/super-admin-analytics.service';
+import { SuperAdminDataService } from './services/super-admin-data.service';
+import { SuperAdminNotificationService } from './services/super-admin-notification.service';
 
 // DTOs
 class LoginDto {
@@ -63,6 +67,19 @@ class SetupDto {
 }
 
 class ChangePasswordDto {
+  @IsString()
+  @IsNotEmpty()
+  currentPassword: string;
+
+  @IsString()
+  @MinLength(16)
+  newPassword: string;
+}
+
+class ForceChangePasswordDto {
+  @IsEmail()
+  email: string;
+
   @IsString()
   @IsNotEmpty()
   currentPassword: string;
@@ -136,6 +153,9 @@ export class SuperAdminController {
     private apiManagementService: SuperAdminApiManagementService,
     private settingsService: SuperAdminSettingsService,
     private userAuthService: AuthService,
+    private analyticsService: SuperAdminAnalyticsService,
+    private dataService: SuperAdminDataService,
+    private notificationService: SuperAdminNotificationService,
   ) { }
 
   // ==================== AUTH ====================
@@ -169,6 +189,20 @@ export class SuperAdminController {
     const token = req.headers.authorization?.replace('Bearer ', '');
     await this.authService.logout(user.id, token, ip, userAgent);
     return { success: true };
+  }
+
+  @Post('auth/force-change-password')
+  @HttpCode(HttpStatus.OK)
+  async forceChangePassword(@Body() dto: ForceChangePasswordDto, @Req() req: Request) {
+    const { ip, userAgent } = getRequestMeta(req);
+    const result = await this.authService.forceChangePassword(
+      dto.email,
+      dto.currentPassword,
+      dto.newPassword,
+      ip,
+      userAgent,
+    );
+    return { success: true, data: result };
   }
 
   @Post('auth/change-password')
@@ -420,22 +454,25 @@ export class SuperAdminController {
 
   @Post('subscriptions/plans')
   @UseGuards(AuthGuard('super-admin-jwt'))
-  async createPlan(@Body() data: any, @Req() req: any) {
-    const plan = await this.subscriptionsService.createPlan(data, req.user.id);
+  async createPlan(@Body() dto: CreatePlanDto, @Req() req: Request) {
+    const user = req.user as { id: string };
+    const plan = await this.subscriptionsService.createPlan(dto, user.id);
     return { success: true, data: plan };
   }
 
   @Patch('subscriptions/plans/:id')
   @UseGuards(AuthGuard('super-admin-jwt'))
-  async updatePlan(@Param('id') id: string, @Body() data: any, @Req() req: any) {
-    const plan = await this.subscriptionsService.updatePlan(id, data, req.user.id);
+  async updatePlan(@Param('id') id: string, @Body() dto: UpdatePlanDto, @Req() req: Request) {
+    const user = req.user as { id: string };
+    const plan = await this.subscriptionsService.updatePlan(id, dto, user.id);
     return { success: true, data: plan };
   }
 
   @Delete('subscriptions/plans/:id')
   @UseGuards(AuthGuard('super-admin-jwt'))
-  async deletePlan(@Param('id') id: string, @Req() req: any) {
-    await this.subscriptionsService.deletePlan(id, req.user.id);
+  async deletePlan(@Param('id') id: string, @Req() req: Request) {
+    const user = req.user as { id: string };
+    await this.subscriptionsService.deletePlan(id, user.id);
     return { success: true };
   }
 
@@ -689,7 +726,7 @@ export class SuperAdminController {
 
   @Post('billing/gateways')
   @UseGuards(AuthGuard('super-admin-jwt'))
-  async updatePaymentGateway(@Body() dto: { provider: string, isActive: boolean, config: any }) {
+  async updatePaymentGateway(@Body() dto: UpdatePaymentGatewayDto) {
     const gateway = await this.billingService.updatePaymentGateway(dto);
     return { success: true, data: gateway };
   }
@@ -797,7 +834,7 @@ export class SuperAdminController {
 
   @Patch('settings')
   @UseGuards(AuthGuard('super-admin-jwt'))
-  async updateSetting(@Body() dto: { key: string; value: any }) {
+  async updateSetting(@Body() dto: UpdateSettingDto) {
     await this.settingsService.update(dto.key, dto.value);
     return { success: true };
   }
@@ -811,8 +848,8 @@ export class SuperAdminController {
 
   @Patch('settings/email')
   @UseGuards(AuthGuard('super-admin-jwt'))
-  async updateEmailConfig(@Body() config: any) {
-    await this.settingsService.updateEmailConfig(config);
+  async updateEmailConfig(@Body() dto: UpdateEmailConfigDto) {
+    await this.settingsService.updateEmailConfig(dto);
     return { success: true };
   }
 
@@ -848,5 +885,188 @@ export class SuperAdminController {
   ) {
     await this.settingsService.setMaintenanceMode(enabled, message);
     return { success: true };
+  }
+
+  // ==================== ANALYTICS ====================
+
+  @Get('analytics/overview')
+  @UseGuards(AuthGuard('super-admin-jwt'))
+  async getAnalyticsOverview(@Query('period') period?: 'day' | 'week' | 'month' | 'year') {
+    const data = await this.analyticsService.getOverview(period || 'month');
+    return { success: true, data };
+  }
+
+  @Get('analytics/tenant-growth')
+  @UseGuards(AuthGuard('super-admin-jwt'))
+  async getTenantGrowth(@Query('period') period?: 'day' | 'week' | 'month' | 'year') {
+    const data = await this.analyticsService.getTenantGrowth(period || 'month');
+    return { success: true, data };
+  }
+
+  @Get('analytics/user-growth')
+  @UseGuards(AuthGuard('super-admin-jwt'))
+  async getUserGrowth(@Query('period') period?: 'day' | 'week' | 'month' | 'year') {
+    const data = await this.analyticsService.getUserGrowth(period || 'month');
+    return { success: true, data };
+  }
+
+  @Get('analytics/top-tenants')
+  @UseGuards(AuthGuard('super-admin-jwt'))
+  async getTopTenants(@Query('limit') limit?: string) {
+    const data = await this.analyticsService.getTopTenants(
+      limit ? parseInt(limit, 10) : 10,
+    );
+    return { success: true, data };
+  }
+
+  @Get('analytics/usage')
+  @UseGuards(AuthGuard('super-admin-jwt'))
+  async getUsageMetrics(@Query('tenantId') tenantId?: string) {
+    const data = await this.analyticsService.getUsageMetrics(tenantId);
+    return { success: true, data };
+  }
+
+  @Get('analytics/plan-distribution')
+  @UseGuards(AuthGuard('super-admin-jwt'))
+  async getPlanDistribution() {
+    const data = await this.analyticsService.getPlanDistribution();
+    return { success: true, data };
+  }
+
+  // ==================== DATA MANAGEMENT ====================
+
+  @Get('data/exports')
+  @UseGuards(AuthGuard('super-admin-jwt'))
+  async getDataExports(
+    @Query('page') page?: string,
+    @Query('status') status?: string,
+  ) {
+    const result = await this.dataService.getDataExports({
+      page: page ? parseInt(page, 10) : 1,
+      status,
+    });
+    return { success: true, ...result };
+  }
+
+  @Post('data/exports')
+  @UseGuards(AuthGuard('super-admin-jwt'))
+  async createDataExport(
+    @Body() body: { tenantId: string; type: string },
+    @Req() req: Request,
+  ) {
+    const user = req.user as { id: string };
+    const result = await this.dataService.createDataExport(body, user.id);
+    return { success: true, data: result };
+  }
+
+  @Get('data/gdpr-requests')
+  @UseGuards(AuthGuard('super-admin-jwt'))
+  async getGDPRRequests(
+    @Query('page') page?: string,
+    @Query('status') status?: string,
+    @Query('type') type?: string,
+  ) {
+    const result = await this.dataService.getGDPRRequests({
+      page: page ? parseInt(page, 10) : 1,
+      status,
+      type,
+    });
+    return { success: true, ...result };
+  }
+
+  @Post('data/gdpr-requests/:id/process')
+  @UseGuards(AuthGuard('super-admin-jwt'))
+  @HttpCode(HttpStatus.OK)
+  async processGDPRRequest(
+    @Param('id') id: string,
+    @Body('action') action: 'complete' | 'reject',
+    @Req() req: Request,
+  ) {
+    const user = req.user as { id: string };
+    const result = await this.dataService.processGDPRRequest(id, action, user.id);
+    return { success: true, data: result };
+  }
+
+  @Post('data/cleanup/:task')
+  @UseGuards(AuthGuard('super-admin-jwt'))
+  @HttpCode(HttpStatus.OK)
+  async runCleanupTask(
+    @Param('task') task: 'audit_logs' | 'sessions' | 'orphaned_files' | 'deleted_records',
+    @Req() req: Request,
+  ) {
+    const user = req.user as { id: string };
+    const result = await this.dataService.runCleanupTask(task, user.id);
+    return { success: true, data: result };
+  }
+
+  // ==================== NOTIFICATIONS ====================
+
+  @Get('notifications')
+  @UseGuards(AuthGuard('super-admin-jwt'))
+  async getNotifications(
+    @Req() req: Request,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('type') type?: string,
+    @Query('priority') priority?: string,
+    @Query('unreadOnly') unreadOnly?: string,
+  ) {
+    const user = req.user as { id: string };
+    const result = await this.notificationService.getAll(user.id, {
+      page: page ? parseInt(page, 10) : 1,
+      limit: limit ? parseInt(limit, 10) : 20,
+      type: type as any,
+      priority: priority as any,
+      unreadOnly: unreadOnly === 'true',
+    });
+    return { success: true, ...result };
+  }
+
+  @Get('notifications/unread-count')
+  @UseGuards(AuthGuard('super-admin-jwt'))
+  async getUnreadCount(@Req() req: Request) {
+    const user = req.user as { id: string };
+    const count = await this.notificationService.getUnreadCount(user.id);
+    return { success: true, data: { count } };
+  }
+
+  @Post('notifications/mark-read')
+  @UseGuards(AuthGuard('super-admin-jwt'))
+  @HttpCode(HttpStatus.OK)
+  async markNotificationsRead(
+    @Req() req: Request,
+    @Body('notificationIds') notificationIds: string[],
+  ) {
+    const user = req.user as { id: string };
+    const result = await this.notificationService.markAsRead(user.id, notificationIds);
+    return { success: true, data: result };
+  }
+
+  @Post('notifications/mark-all-read')
+  @UseGuards(AuthGuard('super-admin-jwt'))
+  @HttpCode(HttpStatus.OK)
+  async markAllNotificationsRead(@Req() req: Request) {
+    const user = req.user as { id: string };
+    const result = await this.notificationService.markAllAsRead(user.id);
+    return { success: true, data: result };
+  }
+
+  @Delete('notifications/:id')
+  @UseGuards(AuthGuard('super-admin-jwt'))
+  async deleteNotification(@Req() req: Request, @Param('id') id: string) {
+    const user = req.user as { id: string };
+    const result = await this.notificationService.delete(user.id, id);
+    return { success: true, data: result };
+  }
+
+  @Delete('notifications')
+  @UseGuards(AuthGuard('super-admin-jwt'))
+  async deleteAllNotifications(
+    @Req() req: Request,
+    @Query('readOnly') readOnly?: string,
+  ) {
+    const user = req.user as { id: string };
+    const result = await this.notificationService.deleteAll(user.id, readOnly === 'true');
+    return { success: true, data: result };
   }
 }

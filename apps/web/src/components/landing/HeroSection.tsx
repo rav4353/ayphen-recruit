@@ -10,6 +10,8 @@ import {
 import { ParticleBackground } from './ParticleBackground';
 import { MagneticButton } from './MagneticButton';
 import { Card3D } from './Card3D';
+import ssLight from '../../assets/branding/sslight.png';
+import ssDark from '../../assets/branding/ssdark.png';
 
 /**
  * Hero Section
@@ -30,7 +32,7 @@ export function HeroSection() {
         transition={{ duration: 1.5 }}
       >
         <div className="absolute inset-0 bg-gradient-to-br from-primary-100/50 via-transparent to-primary-100/50 dark:from-primary-900/20 dark:via-transparent dark:to-primary-900/20" />
-        
+
         {/* Animated gradient orbs */}
         <m.div
           className="absolute top-20 left-1/4 w-96 h-96 bg-gradient-to-br from-primary-400/30 to-primary-600/30 rounded-full blur-3xl"
@@ -192,99 +194,86 @@ export function HeroSection() {
 
           {/* Right: Product Visual with Floating Animation */}
           <Card3D className="relative">
-          <m.div
-            variants={getVariants(floatingVariants)}
-            animate="animate"
-            className="relative"
-          >
-            {/* Animated glow effect */}
             <m.div
-              className="absolute inset-0 bg-gradient-to-r from-primary-400/30 to-primary-600/30 blur-3xl rounded-full"
-              animate={{
-                scale: [1, 1.1, 1],
-                opacity: [0.3, 0.5, 0.3],
-              }}
-              transition={{
-                duration: 4,
-                repeat: Infinity,
-                ease: "easeInOut",
-              }}
-            />
-
-            {/* Product mockup placeholder */}
-            <m.div
-              className="relative bg-white dark:bg-neutral-900 rounded-2xl shadow-soft-xl border border-neutral-200/60 dark:border-neutral-800/60 p-8 backdrop-blur-sm"
-              whileHover={{ scale: 1.02 }}
-              transition={{ duration: 0.3 }}
+              variants={getVariants(floatingVariants)}
+              animate="animate"
+              className="relative"
             >
+              {/* Animated glow effect */}
               <m.div
-                className="aspect-[4/3] bg-gradient-to-br from-primary-50 to-primary-100 dark:from-primary-950 dark:to-primary-900 rounded-xl flex items-center justify-center relative overflow-hidden"
+                className="absolute inset-0 bg-gradient-to-r from-primary-400/30 to-primary-600/30 blur-3xl rounded-full"
                 animate={{
-                  backgroundPosition: ['0% 0%', '100% 100%', '0% 0%'],
+                  scale: [1, 1.1, 1],
+                  opacity: [0.3, 0.5, 0.3],
                 }}
                 transition={{
-                  duration: 10,
+                  duration: 4,
                   repeat: Infinity,
-                  ease: "linear",
+                  ease: "easeInOut",
                 }}
-                style={{
-                  backgroundSize: '200% 200%',
-                }}
-              >
-                <div className="text-center">
-                  <div className="w-24 h-24 mx-auto mb-4 rounded-2xl bg-primary-600 flex items-center justify-center shadow-soft-lg">
-                    <Sparkles size={48} className="text-white" />
-                  </div>
-                  <p className="text-neutral-600 dark:text-neutral-400 font-medium">
-                    Product Screenshot
-                  </p>
-                </div>
-              </m.div>
+              />
 
-              {/* Floating cards */}
+              {/* Product mockup placeholder */}
               <m.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.8, duration: 0.6 }}
-                className="absolute -top-4 -right-4 bg-white dark:bg-neutral-900 rounded-xl shadow-soft-lg p-4 border border-neutral-200/60 dark:border-neutral-800/60"
+                className="relative bg-white dark:bg-neutral-900 rounded-2xl shadow-soft-xl border border-neutral-200/60 dark:border-neutral-800/60 p-2 backdrop-blur-sm"
+                whileHover={{ scale: 1.02 }}
+                transition={{ duration: 0.3 }}
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-success-100 dark:bg-success-900/30 flex items-center justify-center">
-                    <span className="text-success-600 dark:text-success-400 text-xl">✓</span>
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-neutral-900 dark:text-white">
-                      Candidate Hired
-                    </p>
-                    <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                      Just now
-                    </p>
-                  </div>
-                </div>
-              </m.div>
+                <img
+                  src={ssLight}
+                  alt="Dashboard Light"
+                  className="w-full h-auto rounded-xl shadow-sm dark:hidden block"
+                />
+                <img
+                  src={ssDark}
+                  alt="Dashboard Dark"
+                  className="w-full h-auto rounded-xl shadow-sm hidden dark:block"
+                />
 
-              <m.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 1, duration: 0.6 }}
-                className="absolute -bottom-4 -left-4 bg-white dark:bg-neutral-900 rounded-xl shadow-soft-lg p-4 border border-neutral-200/60 dark:border-neutral-800/60"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
-                    <span className="text-primary-600 dark:text-primary-400 text-xl">⚡</span>
+                {/* Floating cards */}
+                <m.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.8, duration: 0.6 }}
+                  className="absolute -top-4 -right-4 bg-white dark:bg-neutral-900 rounded-xl shadow-soft-lg p-4 border border-neutral-200/60 dark:border-neutral-800/60"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-success-100 dark:bg-success-900/30 flex items-center justify-center">
+                      <span className="text-success-600 dark:text-success-400 text-xl">✓</span>
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-neutral-900 dark:text-white">
+                        Candidate Hired
+                      </p>
+                      <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                        Just now
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-semibold text-neutral-900 dark:text-white">
-                      AI Match: 98%
-                    </p>
-                    <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                      Perfect fit
-                    </p>
+                </m.div>
+
+                <m.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 1, duration: 0.6 }}
+                  className="absolute -bottom-4 -left-4 bg-white dark:bg-neutral-900 rounded-xl shadow-soft-lg p-4 border border-neutral-200/60 dark:border-neutral-800/60"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
+                      <span className="text-primary-600 dark:text-primary-400 text-xl">⚡</span>
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-neutral-900 dark:text-white">
+                        AI Match: 98%
+                      </p>
+                      <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                        Perfect fit
+                      </p>
+                    </div>
                   </div>
-                </div>
+                </m.div>
               </m.div>
             </m.div>
-          </m.div>
           </Card3D>
         </div>
       </div>

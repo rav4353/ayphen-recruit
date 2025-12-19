@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { Shield, Eye, EyeOff, AlertTriangle, Lock } from 'lucide-react';
 import { useSuperAdminStore } from '../../stores/superAdmin';
 import { superAdminAuthApi } from '../../lib/superAdminApi';
-import { Button, Input } from '../../components/ui';
+import { Button, Input, Modal } from '../../components/ui';
 import toast from 'react-hot-toast';
 
 interface LoginForm {
@@ -16,6 +16,13 @@ export function SuperAdminLoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [forcePasswordChangeOpen, setForcePasswordChangeOpen] = useState(false);
+  const [forcePasswordEmail, setForcePasswordEmail] = useState('');
+  const [forcePasswordCurrent, setForcePasswordCurrent] = useState('');
+  const [forcePasswordNew, setForcePasswordNew] = useState('');
+  const [forcePasswordConfirm, setForcePasswordConfirm] = useState('');
+  const [forcePasswordError, setForcePasswordError] = useState('');
+  const [forcePasswordLoading, setForcePasswordLoading] = useState(false);
   const navigate = useNavigate();
   const setAuth = useSuperAdminStore((state) => state.setAuth);
 
@@ -34,8 +41,20 @@ export function SuperAdminLoginPage() {
       console.log('[SuperAdmin] Calling API...');
       const response = await superAdminAuthApi.login(data.email, data.password);
       console.log('[SuperAdmin] API response:', response);
-      
-      const { superAdmin, accessToken, refreshToken } = response.data.data;
+
+      const payload = response.data.data;
+      if (payload?.requirePasswordChange) {
+        setForcePasswordEmail(data.email);
+        setForcePasswordCurrent(data.password);
+        setForcePasswordNew('');
+        setForcePasswordConfirm('');
+        setForcePasswordError('');
+        setForcePasswordChangeOpen(true);
+        toast('Password update required');
+        return;
+      }
+
+      const { superAdmin, accessToken, refreshToken } = payload;
       console.log('[SuperAdmin] Extracted data:', { superAdmin, hasToken: !!accessToken });
 
       setAuth({
@@ -60,8 +79,82 @@ export function SuperAdminLoginPage() {
     }
   };
 
+  const handleForcePasswordChange = async () => {
+    setForcePasswordLoading(true);
+    setForcePasswordError('');
+    try {
+      if (forcePasswordNew !== forcePasswordConfirm) {
+        setForcePasswordError('Passwords do not match');
+        return;
+      }
+
+      const response = await superAdminAuthApi.forceChangePassword(
+        forcePasswordEmail,
+        forcePasswordCurrent,
+        forcePasswordNew,
+      );
+
+      const { superAdmin, accessToken, refreshToken } = response.data.data;
+      setAuth({
+        superAdmin,
+        accessToken,
+        refreshToken,
+      });
+
+      setForcePasswordCurrent('');
+      setForcePasswordChangeOpen(false);
+
+      toast.success('Password updated');
+      navigate('/super-admin/dashboard');
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      setForcePasswordError(error.response?.data?.message || 'Failed to update password');
+    } finally {
+      setForcePasswordLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-neutral-950 flex items-center justify-center p-4">
+      <Modal
+        isOpen={forcePasswordChangeOpen}
+        onClose={() => {}}
+        title="Change your password"
+        disableClose
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-neutral-600 dark:text-neutral-400">
+            For security, you must change your password before continuing.
+          </p>
+
+          <Input
+            type="password"
+            label="New Password"
+            value={forcePasswordNew}
+            onChange={(e) => setForcePasswordNew(e.target.value)}
+            placeholder="At least 16 chars with upper/lower/number/special"
+          />
+
+          <Input
+            type="password"
+            label="Confirm New Password"
+            value={forcePasswordConfirm}
+            onChange={(e) => setForcePasswordConfirm(e.target.value)}
+            placeholder="Repeat new password"
+          />
+
+          {forcePasswordError && (
+            <p className="text-sm text-red-400">{forcePasswordError}</p>
+          )}
+
+          <div className="flex justify-end">
+            <Button onClick={handleForcePasswordChange} isLoading={forcePasswordLoading}>
+              Update Password
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
       {/* Background effects */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-red-500/10 rounded-full blur-3xl" />

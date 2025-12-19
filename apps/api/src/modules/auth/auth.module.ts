@@ -13,9 +13,11 @@ import { MfaService } from './services/mfa.service';
 import { SessionService } from './services/session.service';
 import { LoginAttemptService } from './services/login-attempt.service';
 import { SuperAdminModule } from '../super-admin/super-admin.module';
+import { PrismaModule } from '../../prisma/prisma.module';
 
 @Module({
   imports: [
+    PrismaModule,
     UsersModule,
     forwardRef(() => SuperAdminModule),
     PassportModule.register({ defaultStrategy: 'jwt' }),

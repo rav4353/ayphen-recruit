@@ -15,6 +15,9 @@ import { SuperAdminBillingService } from './services/super-admin-billing.service
 import { SuperAdminMonitoringService } from './services/super-admin-monitoring.service';
 import { SuperAdminApiManagementService } from './services/super-admin-api-management.service';
 import { SuperAdminSettingsService } from './services/super-admin-settings.service';
+import { SuperAdminAnalyticsService } from './services/super-admin-analytics.service';
+import { SuperAdminDataService } from './services/super-admin-data.service';
+import { SuperAdminNotificationService } from './services/super-admin-notification.service';
 import { AuthModule } from '../auth/auth.module';
 import { SuperAdminJwtStrategy } from './strategies/super-admin-jwt.strategy';
 import { SuperAdminGateway } from './super-admin.gateway';
@@ -50,7 +53,10 @@ import { SuperAdminGateway } from './super-admin.gateway';
     SuperAdminJwtStrategy,
     SuperAdminGateway,
     SuperAdminSettingsService,
+    SuperAdminAnalyticsService,
+    SuperAdminDataService,
+    SuperAdminNotificationService,
   ],
-  exports: [SuperAdminService, SuperAdminSecurityService, SuperAdminSettingsService],
+  exports: [SuperAdminService, SuperAdminSecurityService, SuperAdminSettingsService, SuperAdminNotificationService],
 })
 export class SuperAdminModule { }

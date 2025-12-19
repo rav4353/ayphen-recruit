@@ -335,7 +335,12 @@ export function UsersPage() {
                           <MoreVertical size={18} />
                         </button>
                         <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl shadow-2xl opacity-0 invisible group-hover/menu:opacity-100 group-hover/menu:visible transition-all z-20 py-2 animate-slide-in">
-                          <button className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">
+                          <button 
+                            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+                            onClick={() => {
+                              toast(`User: ${user.firstName} ${user.lastName}\nEmail: ${user.email}\nRole: ${user.role}\nOrg: ${user.tenantName}\nStatus: ${user.status}\nLast Login: ${user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString() : 'Never'}`, { duration: 5000, icon: '👤' });
+                            }}
+                          >
                             <Eye size={18} className="text-neutral-400" />
                             View Full Profile
                           </button>

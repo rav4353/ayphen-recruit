@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { Button, Input, ConfirmationModal } from '../../components/ui';
 import toast from 'react-hot-toast';
-import { superAdminApi, extractData } from '../../lib/api';
+import { superAdminAnnouncementsApi } from '../../lib/superAdminApi';
 import { cn } from '../../lib/utils';
 
 interface Announcement {
@@ -78,8 +78,10 @@ export function AnnouncementsPage() {
     const fetchAnnouncements = async () => {
         setIsLoading(true);
         try {
-            const data = await superAdminApi.getAnnouncements().then(extractData);
-            const mappedData = (data as any[]).map(item => ({
+            const response = await superAdminAnnouncementsApi.getAll();
+            const data = response.data?.data || response.data || [];
+            const announcementsArray = Array.isArray(data) ? data : (data.data || []);
+            const mappedData = announcementsArray.map((item: any) => ({
                 ...item,
                 message: item.content || item.message
             }));
@@ -100,10 +102,10 @@ export function AnnouncementsPage() {
             };
 
             if (editingAnnouncement) {
-                await superAdminApi.updateAnnouncement(editingAnnouncement.id, payload);
+                await superAdminAnnouncementsApi.update(editingAnnouncement.id, payload);
                 toast.success('Announcement updated');
             } else {
-                await superAdminApi.createAnnouncement(payload);
+                await superAdminAnnouncementsApi.create(payload);
                 toast.success('Announcement created');
             }
             handleCloseModal();
@@ -116,7 +118,7 @@ export function AnnouncementsPage() {
     const handleDelete = async () => {
         if (!deleteConfirm) return;
         try {
-            await superAdminApi.deleteAnnouncement(deleteConfirm.id);
+            await superAdminAnnouncementsApi.delete(deleteConfirm.id);
             toast.success('Announcement deleted');
             setDeleteConfirm(null);
             fetchAnnouncements();
@@ -127,7 +129,7 @@ export function AnnouncementsPage() {
 
     const handlePublish = async (id: string) => {
         try {
-            await superAdminApi.publishAnnouncement(id);
+            await superAdminAnnouncementsApi.publish(id);
             toast.success('Announcement published');
             fetchAnnouncements();
         } catch (error) {

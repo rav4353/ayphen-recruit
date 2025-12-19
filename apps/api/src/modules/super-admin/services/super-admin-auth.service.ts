@@ -67,6 +67,20 @@ export class SuperAdminAuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    if (admin.requirePasswordChange) {
+      return {
+        requirePasswordChange: true,
+        superAdmin: {
+          id: admin.id,
+          email: admin.email,
+          name: admin.name,
+          role: 'SUPER_ADMIN',
+          lastLogin: admin.lastLoginAt,
+          createdAt: admin.createdAt,
+        },
+      };
+    }
+
     // Reset failed attempts and update last login
     await this.prisma.$executeRaw`
       UPDATE super_admins 
@@ -96,6 +110,86 @@ export class SuperAdminAuthService {
     await this.auditService.log({
       superAdminId: admin.id,
       action: 'LOGIN',
+      ipAddress: ip,
+      userAgent,
+    });
+
+    return {
+      superAdmin: {
+        id: admin.id,
+        email: admin.email,
+        name: admin.name,
+        role: 'SUPER_ADMIN',
+        lastLogin: admin.lastLoginAt,
+        createdAt: admin.createdAt,
+      },
+      accessToken,
+      refreshToken,
+    };
+  }
+
+  async forceChangePassword(
+    email: string,
+    currentPassword: string,
+    newPassword: string,
+    ip?: string,
+    userAgent?: string,
+  ) {
+    const superAdmin = await this.prisma.$queryRaw<any[]>`
+      SELECT * FROM super_admins WHERE email = ${email} LIMIT 1
+    `;
+
+    if (!superAdmin || superAdmin.length === 0) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    const admin = superAdmin[0];
+
+    if (admin.status === 'DISABLED') {
+      throw new ForbiddenException('Account is disabled');
+    }
+
+    if (!admin.requirePasswordChange) {
+      throw new ForbiddenException('Password change not required');
+    }
+
+    const isValid = await bcrypt.compare(currentPassword, admin.passwordHash);
+    if (!isValid) {
+      throw new UnauthorizedException('Current password is incorrect');
+    }
+
+    this.validatePasswordStrength(newPassword);
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+
+    await this.prisma.$executeRaw`
+      UPDATE super_admins
+      SET "passwordHash" = ${passwordHash}, "requirePasswordChange" = false, "updatedAt" = NOW()
+      WHERE id = ${admin.id}
+    `;
+
+    await this.prisma.$executeRaw`
+      DELETE FROM super_admin_refresh_tokens WHERE "superAdminId" = ${admin.id}
+    `;
+
+    const payload = {
+      sub: admin.id,
+      email: admin.email,
+      role: 'SUPER_ADMIN',
+      type: 'super_admin',
+    };
+
+    const accessToken = this.jwtService.sign(payload);
+    const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
+
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    await this.prisma.$executeRaw`
+      INSERT INTO super_admin_refresh_tokens (id, token, "expiresAt", "superAdminId", "createdAt")
+      VALUES (gen_random_uuid(), ${refreshToken}, ${expiresAt}, ${admin.id}, NOW())
+    `;
+
+    await this.auditService.log({
+      superAdminId: admin.id,
+      action: 'PASSWORD_CHANGED',
       ipAddress: ip,
       userAgent,
     });
@@ -164,7 +258,7 @@ export class SuperAdminAuthService {
 
     // Update password
     await this.prisma.$executeRaw`
-      UPDATE super_admins SET "passwordHash" = ${passwordHash}, "updatedAt" = NOW()
+      UPDATE super_admins SET "passwordHash" = ${passwordHash}, "requirePasswordChange" = false, "updatedAt" = NOW()
       WHERE id = ${superAdminId}
     `;
 

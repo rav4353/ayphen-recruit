@@ -67,7 +67,10 @@ export function ApiManagementPage() {
     const [rateLimits, setRateLimits] = useState<RateLimitRule[]>([]);
 
     const [showNewKeyModal, setShowNewKeyModal] = useState(false);
+    const [showNewWebhookModal, setShowNewWebhookModal] = useState(false);
     const [newKeyName, setNewKeyName] = useState('');
+    const [newWebhookUrl, setNewWebhookUrl] = useState('');
+    const [newWebhookEvents, setNewWebhookEvents] = useState<string[]>([]);
     const [deleteKey, setDeleteKey] = useState<ApiKey | null>(null);
     const [deleteWebhook, setDeleteWebhook] = useState<WebhookEndpoint | null>(null);
     const [visibleKeys, setVisibleKeys] = useState<Set<string>>(new Set());
@@ -116,11 +119,27 @@ export function ApiManagementPage() {
             }
 
             if (activeTab === 'rate-limits') {
-                setRateLimits([
-                    { id: '1', name: 'Default API Limit', endpoint: '/api/v1/*', limit: 1000, window: '1 minute', isActive: true },
-                    { id: '2', name: 'Auth Endpoints', endpoint: '/api/v1/auth/*', limit: 10, window: '1 minute', isActive: true },
-                    { id: '3', name: 'Bulk Operations', endpoint: '/api/v1/*/bulk', limit: 10, window: '1 hour', isActive: true },
-                ]);
+                try {
+                    const response = await superAdminApiManagementApi.getRateLimits();
+                    const data = response.data.data || [];
+                    if (data.length > 0) {
+                        setRateLimits(data);
+                    } else {
+                        // Default rate limits if none configured
+                        setRateLimits([
+                            { id: '1', name: 'Default API Limit', endpoint: '/api/v1/*', limit: 1000, window: '1 minute', isActive: true },
+                            { id: '2', name: 'Auth Endpoints', endpoint: '/api/v1/auth/*', limit: 10, window: '1 minute', isActive: true },
+                            { id: '3', name: 'Bulk Operations', endpoint: '/api/v1/*/bulk', limit: 10, window: '1 hour', isActive: true },
+                        ]);
+                    }
+                } catch (error) {
+                    // Fallback defaults
+                    setRateLimits([
+                        { id: '1', name: 'Default API Limit', endpoint: '/api/v1/*', limit: 1000, window: '1 minute', isActive: true },
+                        { id: '2', name: 'Auth Endpoints', endpoint: '/api/v1/auth/*', limit: 10, window: '1 minute', isActive: true },
+                        { id: '3', name: 'Bulk Operations', endpoint: '/api/v1/*/bulk', limit: 10, window: '1 hour', isActive: true },
+                    ]);
+                }
             }
         } catch (error) {
             toast.error('Failed to fetch data');
@@ -170,6 +189,36 @@ export function ApiManagementPage() {
             fetchData();
         } catch (error) {
             toast.error('Failed to delete webhook');
+        }
+    };
+
+    const handleCreateWebhook = async () => {
+        if (!newWebhookUrl) {
+            toast.error('Please enter a webhook URL');
+            return;
+        }
+        try {
+            await superAdminApiManagementApi.createWebhook({
+                url: newWebhookUrl,
+                events: newWebhookEvents.length > 0 ? newWebhookEvents : ['all'],
+            });
+            toast.success('Webhook endpoint registered');
+            setShowNewWebhookModal(false);
+            setNewWebhookUrl('');
+            setNewWebhookEvents([]);
+            fetchData();
+        } catch (error) {
+            toast.error('Failed to register webhook');
+        }
+    };
+
+    const handleToggleRateLimit = async (rule: RateLimitRule) => {
+        try {
+            await superAdminApiManagementApi.updateRateLimit(rule.id, { isActive: !rule.isActive });
+            setRateLimits(limits => limits.map(r => r.id === rule.id ? { ...r, isActive: !r.isActive } : r));
+            toast.success(`Rate limit ${!rule.isActive ? 'enabled' : 'disabled'}`);
+        } catch (error) {
+            toast.error('Failed to update rate limit');
         }
     };
 
@@ -338,7 +387,10 @@ export function ApiManagementPage() {
                                     <p className="text-[10px] text-neutral-500 font-bold uppercase tracking-widest">Active System Callbacks</p>
                                 </div>
                             </div>
-                            <Button className="h-12 bg-neutral-900 hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-100 text-white dark:text-neutral-900 px-6 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl transition-all active:scale-95">
+                            <Button 
+                                className="h-12 bg-neutral-900 hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-100 text-white dark:text-neutral-900 px-6 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl transition-all active:scale-95"
+                                onClick={() => setShowNewWebhookModal(true)}
+                            >
                                 <Plus size={16} className="mr-2" />Register Endpoint
                             </Button>
                         </div>
@@ -448,7 +500,13 @@ export function ApiManagementPage() {
                                                 </span>
                                             </td>
                                             <td className="px-8 py-6 text-right">
-                                                <Button variant="ghost" size="sm" className="h-10 w-10 p-0 rounded-xl hover:bg-neutral-900 hover:text-white dark:hover:bg-white dark:hover:text-neutral-900 transition-all">
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="sm" 
+                                                    className="h-10 w-10 p-0 rounded-xl hover:bg-neutral-900 hover:text-white dark:hover:bg-white dark:hover:text-neutral-900 transition-all"
+                                                    onClick={() => handleToggleRateLimit(rule)}
+                                                    title={rule.isActive ? 'Disable' : 'Enable'}
+                                                >
                                                     <Settings size={16} />
                                                 </Button>
                                             </td>
@@ -564,6 +622,44 @@ export function ApiManagementPage() {
                         <div className="flex justify-end gap-3 mt-8">
                             <Button variant="outline" onClick={() => setShowNewKeyModal(false)} className="h-12 border-neutral-200 dark:border-neutral-800 px-6 rounded-xl font-black uppercase text-[10px] tracking-widest text-neutral-500">Cancel</Button>
                             <Button onClick={handleCreateKey} className="h-12 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 px-8 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-red-500/10">Authorize Release</Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Create Webhook Modal */}
+            {showNewWebhookModal && (
+                <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+                    <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-[2.5rem] w-full max-w-md p-8 shadow-2xl animate-scale-in">
+                        <div className="flex items-center gap-3 mb-6">
+                            <div className="w-10 h-10 rounded-xl bg-cyan-500 flex items-center justify-center text-white">
+                                <Webhook size={24} />
+                            </div>
+                            <h3 className="text-xl font-black text-neutral-900 dark:text-white uppercase tracking-tighter">Register Endpoint</h3>
+                        </div>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="text-[10px] font-black text-neutral-400 uppercase tracking-widest ml-1 mb-2 block">Webhook URL</label>
+                                <Input
+                                    placeholder="https://your-server.com/webhook..."
+                                    value={newWebhookUrl}
+                                    onChange={e => setNewWebhookUrl(e.target.value)}
+                                    className="h-14 bg-neutral-50 dark:bg-neutral-800 border-none rounded-2xl text-base font-bold placeholder-neutral-400 focus:ring-4 focus:ring-cyan-500/5 transition-all outline-none px-6"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-black text-neutral-400 uppercase tracking-widest ml-1 mb-2 block">Events (comma separated)</label>
+                                <Input
+                                    placeholder="user.created, job.posted, application.submitted..."
+                                    value={newWebhookEvents.join(', ')}
+                                    onChange={e => setNewWebhookEvents(e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
+                                    className="h-14 bg-neutral-50 dark:bg-neutral-800 border-none rounded-2xl text-base font-bold placeholder-neutral-400 focus:ring-4 focus:ring-cyan-500/5 transition-all outline-none px-6"
+                                />
+                            </div>
+                        </div>
+                        <div className="flex justify-end gap-3 mt-8">
+                            <Button variant="outline" onClick={() => setShowNewWebhookModal(false)} className="h-12 border-neutral-200 dark:border-neutral-800 px-6 rounded-xl font-black uppercase text-[10px] tracking-widest text-neutral-500">Cancel</Button>
+                            <Button onClick={handleCreateWebhook} className="h-12 bg-cyan-500 hover:bg-cyan-600 text-white px-8 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-cyan-500/10">Register</Button>
                         </div>
                     </div>
                 </div>

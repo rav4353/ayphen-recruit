@@ -52,6 +52,9 @@ export const superAdminAuthApi = {
   login: (email: string, password: string) =>
     superAdminApi.post('/auth/login', { email, password }),
 
+  forceChangePassword: (email: string, currentPassword: string, newPassword: string) =>
+    superAdminApi.post('/auth/force-change-password', { email, currentPassword, newPassword }),
+
   logout: () =>
     superAdminApi.post('/auth/logout'),
 
@@ -175,6 +178,33 @@ export const superAdminSubscriptionsApi = {
 
   updatePlan: (planId: string, data: Record<string, unknown>) =>
     superAdminApi.patch(`/subscriptions/plans/${planId}`, data),
+
+  createPlan: (data: Record<string, unknown>) =>
+    superAdminApi.post('/subscriptions/plans', data),
+
+  deletePlan: (planId: string) =>
+    superAdminApi.delete(`/subscriptions/plans/${planId}`),
+};
+
+// ==================== BILLING ====================
+export const superAdminBillingApi = {
+  getInvoices: (params?: { page?: number; status?: string }) =>
+    superAdminApi.get('/billing/invoices', { params }),
+
+  getPayments: (params?: { page?: number; status?: string }) =>
+    superAdminApi.get('/billing/invoices', { params }),
+
+  getGateways: () =>
+    superAdminApi.get('/billing/gateways'),
+
+  updateGateway: (data: { provider: string; isActive: boolean; config: Record<string, unknown> }) =>
+    superAdminApi.post('/billing/gateways', data),
+
+  refundPayment: (paymentId: string, reason?: string) =>
+    superAdminApi.post(`/billing/invoices/${paymentId}/refund`, { reason }),
+
+  exportBillingData: (params?: { startDate?: string; endDate?: string; format?: string }) =>
+    superAdminApi.get('/billing/export', { params, responseType: 'blob' }),
 };
 
 // ==================== AUDIT LOGS ====================
@@ -279,6 +309,12 @@ export const superAdminApiManagementApi = {
 
   deleteWebhook: (id: string) =>
     superAdminApi.delete(`/api/webhooks/${id}`),
+
+  getRateLimits: () =>
+    superAdminApi.get('/api/rate-limits'),
+
+  updateRateLimit: (id: string, data: { limit?: number; window?: string; isActive?: boolean }) =>
+    superAdminApi.patch(`/api/rate-limits/${id}`, data),
 };
 
 // ==================== SECURITY ====================
@@ -316,7 +352,7 @@ export const superAdminAnnouncementsApi = {
   getById: (id: string) =>
     superAdminApi.get(`/announcements/${id}`),
 
-  create: (data: { title: string; content: string; type: string; targetRoles?: string[] }) =>
+  create: (data: Record<string, unknown>) =>
     superAdminApi.post('/announcements', data),
 
   update: (id: string, data: Record<string, unknown>) =>
@@ -327,6 +363,39 @@ export const superAdminAnnouncementsApi = {
 
   publish: (id: string) =>
     superAdminApi.post(`/announcements/${id}/publish`),
+};
+
+// ==================== DATA MANAGEMENT ====================
+export const superAdminDataApi = {
+  getBackups: () =>
+    superAdminApi.get('/data/backups'),
+
+  createBackup: (type: 'full' | 'incremental' | 'manual' = 'manual') =>
+    superAdminApi.post('/data/backups', { type }),
+
+  deleteBackup: (id: string) =>
+    superAdminApi.delete(`/data/backups/${id}`),
+
+  downloadBackup: (id: string) =>
+    superAdminApi.get(`/data/backups/${id}/download`, { responseType: 'blob' }),
+
+  getExports: (params?: { page?: number; status?: string }) =>
+    superAdminApi.get('/data/exports', { params }),
+
+  createExport: (data: { tenantId: string; type: string }) =>
+    superAdminApi.post('/data/exports', data),
+
+  downloadExport: (id: string) =>
+    superAdminApi.get(`/data/exports/${id}/download`, { responseType: 'blob' }),
+
+  getGDPRRequests: (params?: { page?: number; status?: string; type?: string }) =>
+    superAdminApi.get('/data/gdpr-requests', { params }),
+
+  processGDPRRequest: (id: string, action: 'complete' | 'reject') =>
+    superAdminApi.post(`/data/gdpr-requests/${id}/process`, { action }),
+
+  runCleanupTask: (task: 'audit_logs' | 'sessions' | 'orphaned_files' | 'deleted_records') =>
+    superAdminApi.post(`/data/cleanup/${task}`),
 };
 
 // ==================== SUPPORT ====================
@@ -342,6 +411,27 @@ export const superAdminSupportApi = {
 
   addTicketMessage: (id: string, message: string) =>
     superAdminApi.post(`/support/tickets/${id}/messages`, { message }),
+};
+
+// ==================== NOTIFICATIONS ====================
+export const superAdminNotificationsApi = {
+  getAll: (params?: { page?: number; limit?: number; type?: string; priority?: string; unreadOnly?: boolean }) =>
+    superAdminApi.get('/notifications', { params }),
+
+  getUnreadCount: () =>
+    superAdminApi.get('/notifications/unread-count'),
+
+  markAsRead: (notificationIds: string[]) =>
+    superAdminApi.post('/notifications/mark-read', { notificationIds }),
+
+  markAllAsRead: () =>
+    superAdminApi.post('/notifications/mark-all-read'),
+
+  delete: (id: string) =>
+    superAdminApi.delete(`/notifications/${id}`),
+
+  deleteAll: (readOnly?: boolean) =>
+    superAdminApi.delete('/notifications', { params: { readOnly } }),
 };
 
 export default superAdminApi;

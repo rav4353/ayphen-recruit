@@ -79,6 +79,7 @@ import {
   BillingManagementPage,
   DataManagementPage,
   ApiManagementPage,
+  NotificationsPage,
 } from './pages/super-admin';
 import { useSuperAdminStore } from './stores/superAdmin';
 
@@ -240,6 +241,7 @@ function App() {
                 <Route path="/super-admin/billing" element={<BillingManagementPage />} />
                 <Route path="/super-admin/data" element={<DataManagementPage />} />
                 <Route path="/super-admin/api" element={<ApiManagementPage />} />
+                <Route path="/super-admin/notifications" element={<NotificationsPage />} />
               </Route>
 
               {/* Catch all */}

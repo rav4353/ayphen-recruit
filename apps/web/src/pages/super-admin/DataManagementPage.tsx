@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { Button, ConfirmationModal } from '../../components/ui';
 import toast from 'react-hot-toast';
-import { superAdminApi, extractData } from '../../lib/api';
+import { superAdminDataApi } from '../../lib/superAdminApi';
 import { cn } from '../../lib/utils';
 
 interface Backup {
@@ -69,20 +69,22 @@ export function DataManagementPage() {
     const fetchData = async () => {
         setIsLoading(true);
         try {
-            const backupsResponse = await superAdminApi.getBackups();
-            const backupsData: any = extractData(backupsResponse);
-            setBackups(backupsData);
+            const [backupsRes, exportsRes, gdprRes] = await Promise.all([
+                superAdminDataApi.getBackups(),
+                superAdminDataApi.getExports(),
+                superAdminDataApi.getGDPRRequests(),
+            ]);
 
-            setExports([
-                { id: '1', tenantName: 'Acme Corp', type: 'full', status: 'completed', requestedBy: 'admin@acme.com', fileUrl: '#', createdAt: new Date().toISOString() },
-                { id: '2', tenantName: 'TechStart', type: 'candidates', status: 'processing', requestedBy: 'hr@techstart.io', createdAt: new Date().toISOString() },
-            ]);
-            setGDPRRequests([
-                { id: '1', type: 'deletion', email: 'john@example.com', tenantName: 'Acme Corp', status: 'pending', createdAt: new Date().toISOString() },
-                { id: '2', type: 'access', email: 'jane@example.com', status: 'completed', createdAt: new Date(Date.now() - 86400000).toISOString() },
-            ]);
+            setBackups(backupsRes.data.data || []);
+            setExports(exportsRes.data.data || []);
+            setGDPRRequests(gdprRes.data.data || []);
         } catch (error) {
+            console.error('Failed to fetch data:', error);
             toast.error('Failed to fetch data');
+            // Set empty arrays on error
+            setBackups([]);
+            setExports([]);
+            setGDPRRequests([]);
         } finally {
             setIsLoading(false);
         }
@@ -91,6 +93,7 @@ export function DataManagementPage() {
     const handleCreateBackup = async () => {
         setIsCreatingBackup(true);
         try {
+            await superAdminDataApi.createBackup('manual');
             toast.success('System snapshot initiated');
             fetchData();
         } catch (error) {
@@ -103,6 +106,7 @@ export function DataManagementPage() {
     const handleDeleteBackup = async () => {
         if (!deleteBackup) return;
         try {
+            await superAdminDataApi.deleteBackup(deleteBackup.id);
             setBackups(backups.filter(b => b.id !== deleteBackup.id));
             toast.success('Sector purged');
             setDeleteBackup(null);
@@ -111,11 +115,59 @@ export function DataManagementPage() {
         }
     };
 
+    const handleDownloadBackup = async (backup: Backup) => {
+        try {
+            const response = await superAdminDataApi.downloadBackup(backup.id);
+            const blob = new Blob([response.data]);
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${backup.name}.sql`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            toast.success('Backup downloaded');
+        } catch (error) {
+            toast.error('Download failed');
+        }
+    };
+
+    const handleDownloadExport = async (exp: DataExport) => {
+        if (!exp.fileUrl) return;
+        try {
+            const response = await superAdminDataApi.downloadExport(exp.id);
+            const blob = new Blob([response.data]);
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `export-${exp.tenantName}-${exp.type}.json`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            toast.success('Export downloaded');
+        } catch (error) {
+            toast.error('Download failed');
+        }
+    };
+
+    const handleRunCleanup = async (task: 'audit_logs' | 'sessions' | 'orphaned_files' | 'deleted_records') => {
+        try {
+            await superAdminDataApi.runCleanupTask(task);
+            toast.success('Cleanup task executed');
+        } catch (error) {
+            toast.error('Cleanup task failed');
+        }
+    };
+
     const handleProcessGDPR = async (id: string, action: 'complete' | 'reject') => {
         try {
+            await superAdminDataApi.processGDPRRequest(id, action);
             setGDPRRequests(gdprRequests.map(r => r.id === id ? { ...r, status: action === 'complete' ? 'completed' : 'rejected' } : r));
             toast.success(`Compliance request ${action}ed`);
         } catch (error) {
+            console.error('Failed to process GDPR request:', error);
             toast.error('Internal processing error');
         }
     };
@@ -255,7 +307,7 @@ export function DataManagementPage() {
                                             </td>
                                             <td className="px-6 py-5">
                                                 <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <Button variant="ghost" size="sm" className="h-9 w-9 p-0 rounded-xl hover:bg-emerald-500/10 hover:text-emerald-500"><Download size={14} /></Button>
+                                                    <Button variant="ghost" size="sm" className="h-9 w-9 p-0 rounded-xl hover:bg-emerald-500/10 hover:text-emerald-500" onClick={() => handleDownloadBackup(backup)}><Download size={14} /></Button>
                                                     <Button variant="ghost" size="sm" className="h-9 w-9 p-0 rounded-xl hover:bg-red-500/10 hover:text-red-500" onClick={() => setDeleteBackup(backup)}><Trash2 size={14} /></Button>
                                                 </div>
                                             </td>
@@ -305,7 +357,7 @@ export function DataManagementPage() {
                                             <td className="px-6 py-5 text-xs font-bold text-neutral-500 tabular-nums">{new Date(exp.createdAt).toLocaleDateString()}</td>
                                             <td className="px-6 py-5 text-right">
                                                 {exp.status === 'completed' && exp.fileUrl && (
-                                                    <Button variant="ghost" size="sm" className="h-9 w-9 p-0 rounded-xl bg-emerald-500/5 text-emerald-500 border border-emerald-500/10 hover:bg-emerald-500 hover:text-white"><Download size={14} /></Button>
+                                                    <Button variant="ghost" size="sm" className="h-9 w-9 p-0 rounded-xl bg-emerald-500/5 text-emerald-500 border border-emerald-500/10 hover:bg-emerald-500 hover:text-white" onClick={() => handleDownloadExport(exp)}><Download size={14} /></Button>
                                                 )}
                                             </td>
                                         </tr>
@@ -384,10 +436,10 @@ export function DataManagementPage() {
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             {[
-                                { label: 'Audit Log Truncation', desc: 'Prune temporal artifacts older than 365 cycles', icon: History, danger: false },
-                                { label: 'Session Flush', desc: 'Purge expired authentication handshakes', icon: Zap, danger: false },
-                                { label: 'Orphaned Blob Purge', desc: 'Identify and remove unreferenced file assets', icon: FileSearch, danger: true },
-                                { label: 'Hard-Purge Deleted Nodes', desc: 'Irreversible destruction of soft-deleted datasets', icon: Database, danger: true },
+                                { label: 'Audit Log Truncation', desc: 'Prune temporal artifacts older than 365 cycles', icon: History, danger: false, task: 'audit_logs' as const },
+                                { label: 'Session Flush', desc: 'Purge expired authentication handshakes', icon: Zap, danger: false, task: 'sessions' as const },
+                                { label: 'Orphaned Blob Purge', desc: 'Identify and remove unreferenced file assets', icon: FileSearch, danger: true, task: 'orphaned_files' as const },
+                                { label: 'Hard-Purge Deleted Nodes', desc: 'Irreversible destruction of soft-deleted datasets', icon: Database, danger: true, task: 'deleted_records' as const },
                             ].map((item) => (
                                 <div key={item.label} className="group relative bg-neutral-50 dark:bg-neutral-800/10 border border-neutral-200 dark:border-neutral-800 p-6 rounded-[2rem] hover:border-red-500/50 transition-all hover:shadow-xl hover:shadow-red-500/5">
                                     <div className="flex items-start justify-between gap-4">
@@ -410,6 +462,7 @@ export function DataManagementPage() {
                                                 "h-10 px-4 rounded-xl font-black uppercase text-[9px] tracking-widest",
                                                 !item.danger && "border-neutral-200 dark:border-neutral-700"
                                             )}
+                                            onClick={() => handleRunCleanup(item.task)}
                                         >
                                             <Play size={12} className="mr-1.5" />
                                             Execute

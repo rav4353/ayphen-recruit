@@ -4,6 +4,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ApiResponse } from '../../common/dto/api-response.dto';
 import { BGVService } from './bgv.service';
 import { IsString, IsOptional, IsEnum, IsBoolean, IsArray } from 'class-validator';
+import { FeatureFlagGuard, RequireFeature } from '../../common/guards/feature-flag.guard';
 
 class ConfigureBGVDto {
     @IsEnum(['CHECKR', 'SPRINGVERIFY', 'AUTHBRIDGE', 'MANUAL'])
@@ -45,12 +46,13 @@ class InitiateBGVDto {
 
 @ApiTags('bgv')
 @Controller('bgv')
+@RequireFeature('background_checks')
 export class BGVController {
     constructor(private readonly bgvService: BGVService) {}
 
     @Get('settings')
     @ApiBearerAuth()
-    @UseGuards(JwtAuthGuard)
+    @UseGuards(JwtAuthGuard, FeatureFlagGuard)
     @ApiOperation({ summary: 'Get BGV provider settings' })
     async getSettings(@Req() req: any) {
         const tenantId = req.user.tenantId;
@@ -60,7 +62,7 @@ export class BGVController {
 
     @Post('configure')
     @ApiBearerAuth()
-    @UseGuards(JwtAuthGuard)
+    @UseGuards(JwtAuthGuard, FeatureFlagGuard)
     @ApiOperation({ summary: 'Configure BGV provider' })
     async configure(@Body() dto: ConfigureBGVDto, @Req() req: any) {
         const tenantId = req.user.tenantId;
@@ -70,7 +72,7 @@ export class BGVController {
 
     @Post('initiate')
     @ApiBearerAuth()
-    @UseGuards(JwtAuthGuard)
+    @UseGuards(JwtAuthGuard, FeatureFlagGuard)
     @ApiOperation({ summary: 'Initiate a background check' })
     async initiate(@Body() dto: InitiateBGVDto, @Req() req: any) {
         const tenantId = req.user.tenantId;
@@ -81,7 +83,7 @@ export class BGVController {
 
     @Get('checks')
     @ApiBearerAuth()
-    @UseGuards(JwtAuthGuard)
+    @UseGuards(JwtAuthGuard, FeatureFlagGuard)
     @ApiOperation({ summary: 'List all BGV checks' })
     @ApiQuery({ name: 'status', required: false })
     @ApiQuery({ name: 'candidateId', required: false })
@@ -97,7 +99,7 @@ export class BGVController {
 
     @Get('checks/:id')
     @ApiBearerAuth()
-    @UseGuards(JwtAuthGuard)
+    @UseGuards(JwtAuthGuard, FeatureFlagGuard)
     @ApiOperation({ summary: 'Get a specific BGV check' })
     async getCheck(@Param('id') id: string, @Req() req: any) {
         const tenantId = req.user.tenantId;
@@ -107,7 +109,7 @@ export class BGVController {
 
     @Post('checks/:id/sync')
     @ApiBearerAuth()
-    @UseGuards(JwtAuthGuard)
+    @UseGuards(JwtAuthGuard, FeatureFlagGuard)
     @ApiOperation({ summary: 'Sync BGV check status with provider' })
     async syncStatus(@Param('id') id: string, @Req() req: any) {
         const tenantId = req.user.tenantId;
@@ -117,7 +119,7 @@ export class BGVController {
 
     @Post('checks/:id/cancel')
     @ApiBearerAuth()
-    @UseGuards(JwtAuthGuard)
+    @UseGuards(JwtAuthGuard, FeatureFlagGuard)
     @ApiOperation({ summary: 'Cancel a BGV check' })
     async cancel(@Param('id') id: string, @Req() req: any) {
         const tenantId = req.user.tenantId;
@@ -127,7 +129,7 @@ export class BGVController {
 
     @Get('packages')
     @ApiBearerAuth()
-    @UseGuards(JwtAuthGuard)
+    @UseGuards(JwtAuthGuard, FeatureFlagGuard)
     @ApiOperation({ summary: 'Get available BGV packages' })
     async getPackages(@Req() req: any) {
         const tenantId = req.user.tenantId;
@@ -137,7 +139,7 @@ export class BGVController {
 
     @Post('test-connection')
     @ApiBearerAuth()
-    @UseGuards(JwtAuthGuard)
+    @UseGuards(JwtAuthGuard, FeatureFlagGuard)
     @ApiOperation({ summary: 'Test BGV provider connection' })
     async testConnection(@Req() req: any) {
         const tenantId = req.user.tenantId;
@@ -147,7 +149,7 @@ export class BGVController {
 
     @Get('screening-types')
     @ApiBearerAuth()
-    @UseGuards(JwtAuthGuard)
+    @UseGuards(JwtAuthGuard, FeatureFlagGuard)
     @ApiOperation({ summary: 'Get available screening types' })
     async getScreeningTypes(@Req() req: any) {
         const tenantId = req.user.tenantId;
@@ -157,7 +159,7 @@ export class BGVController {
 
     @Get('dashboard')
     @ApiBearerAuth()
-    @UseGuards(JwtAuthGuard)
+    @UseGuards(JwtAuthGuard, FeatureFlagGuard)
     @ApiOperation({ summary: 'Get BGV dashboard stats' })
     async getDashboard(@Req() req: any) {
         const tenantId = req.user.tenantId;

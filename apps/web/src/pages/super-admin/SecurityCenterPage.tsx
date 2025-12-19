@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { Button, Input, ConfirmationModal } from '../../components/ui';
 import toast from 'react-hot-toast';
-import { superAdminSecurityApi } from '../../lib/superAdminApi';
+import { superAdminSecurityApi, superAdminSettingsApi } from '../../lib/superAdminApi';
 import { cn } from '../../lib/utils';
 import { useSuperAdminSocket } from '../../hooks/useSuperAdminSocket';
 
@@ -88,8 +88,8 @@ export function SecurityCenterPage() {
     const [activeSessions, setActiveSessions] = useState<ActiveSession[]>([]);
     const [sessionToRevoke, setSessionToRevoke] = useState<ActiveSession | null>(null);
 
-    // Security Settings (Mock for now)
-    const [securitySettings] = useState({
+    // Security Settings
+    const [securitySettings, setSecuritySettings] = useState({
         maxLoginAttempts: 5,
         lockoutDuration: 30,
         sessionTimeout: 60,
@@ -98,6 +98,7 @@ export function SecurityCenterPage() {
         blockTorExitNodes: true,
         autoBlockSuspiciousIPs: true,
     });
+    const [isSavingSettings, setIsSavingSettings] = useState(false);
 
     const { socket } = useSuperAdminSocket();
 
@@ -129,7 +130,48 @@ export function SecurityCenterPage() {
 
     useEffect(() => {
         fetchSecurityData();
+        if (activeTab === 'settings') {
+            fetchSecuritySettings();
+        }
     }, [activeTab]);
+
+    const fetchSecuritySettings = async () => {
+        try {
+            const response = await superAdminSettingsApi.getAll();
+            const settings = response.data?.data || {};
+            setSecuritySettings({
+                maxLoginAttempts: settings.max_login_attempts || 5,
+                lockoutDuration: settings.lockout_duration || 30,
+                sessionTimeout: settings.session_timeout || 60,
+                enforceStrongPasswords: settings.enforce_strong_passwords ?? true,
+                enforceMfa: settings.global_mfa_enforced ?? false,
+                blockTorExitNodes: settings.block_tor_exit_nodes ?? true,
+                autoBlockSuspiciousIPs: settings.auto_block_suspicious_ips ?? true,
+            });
+        } catch (error) {
+            console.error('Failed to fetch security settings', error);
+        }
+    };
+
+    const handleSaveSecuritySettings = async () => {
+        setIsSavingSettings(true);
+        try {
+            await Promise.all([
+                superAdminSettingsApi.update('max_login_attempts', securitySettings.maxLoginAttempts),
+                superAdminSettingsApi.update('lockout_duration', securitySettings.lockoutDuration),
+                superAdminSettingsApi.update('session_timeout', securitySettings.sessionTimeout),
+                superAdminSettingsApi.update('enforce_strong_passwords', securitySettings.enforceStrongPasswords),
+                superAdminSettingsApi.update('global_mfa_enforced', securitySettings.enforceMfa),
+                superAdminSettingsApi.update('block_tor_exit_nodes', securitySettings.blockTorExitNodes),
+                superAdminSettingsApi.update('auto_block_suspicious_ips', securitySettings.autoBlockSuspiciousIPs),
+            ]);
+            toast.success('Security settings updated');
+        } catch (error) {
+            toast.error('Failed to update security settings');
+        } finally {
+            setIsSavingSettings(false);
+        }
+    };
 
     const fetchSecurityData = async () => {
         setIsLoading(true);
@@ -590,7 +632,12 @@ export function SecurityCenterPage() {
                                     <div className="space-y-2">
                                         <label className="block text-xs font-black text-neutral-500 uppercase tracking-widest">Max Violation Threshold</label>
                                         <div className="relative">
-                                            <Input type="number" value={securitySettings.maxLoginAttempts} className="bg-neutral-50 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700 h-12 rounded-xl font-black text-lg pl-4 shadow-inner" />
+                                            <Input 
+                                                type="number" 
+                                                value={securitySettings.maxLoginAttempts} 
+                                                onChange={(e) => setSecuritySettings({...securitySettings, maxLoginAttempts: parseInt(e.target.value) || 5})}
+                                                className="bg-neutral-50 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700 h-12 rounded-xl font-black text-lg pl-4 shadow-inner" 
+                                            />
                                             <Lock className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-300" size={18} />
                                         </div>
                                         <p className="text-[10px] font-bold text-neutral-400 px-1 italic">Attempts before automatic container lockout</p>
@@ -598,16 +645,29 @@ export function SecurityCenterPage() {
                                     <div className="space-y-2">
                                         <label className="block text-xs font-black text-neutral-500 uppercase tracking-widest">Quarantine Duration (min)</label>
                                         <div className="relative">
-                                            <Input type="number" value={securitySettings.lockoutDuration} className="bg-neutral-50 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700 h-12 rounded-xl font-black text-lg pl-4 shadow-inner" />
+                                            <Input 
+                                                type="number" 
+                                                value={securitySettings.lockoutDuration} 
+                                                onChange={(e) => setSecuritySettings({...securitySettings, lockoutDuration: parseInt(e.target.value) || 30})}
+                                                className="bg-neutral-50 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700 h-12 rounded-xl font-black text-lg pl-4 shadow-inner" 
+                                            />
                                             <Clock className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-300" size={18} />
                                         </div>
                                     </div>
                                 </div>
                             </div>
                             <div className="flex justify-end p-6 bg-red-500/5 rounded-3xl border border-red-500/10 shadow-inner">
-                                <Button className="bg-red-600 hover:bg-red-700 text-white font-black uppercase tracking-widest h-14 px-8 rounded-2xl shadow-xl shadow-red-600/20 active:scale-95 transition-all">
-                                    <Shield size={20} className="mr-3" />
-                                    Push Security Update
+                                <Button 
+                                    className="bg-red-600 hover:bg-red-700 text-white font-black uppercase tracking-widest h-14 px-8 rounded-2xl shadow-xl shadow-red-600/20 active:scale-95 transition-all"
+                                    onClick={handleSaveSecuritySettings}
+                                    disabled={isSavingSettings}
+                                >
+                                    {isSavingSettings ? (
+                                        <RefreshCw size={20} className="mr-3 animate-spin" />
+                                    ) : (
+                                        <Shield size={20} className="mr-3" />
+                                    )}
+                                    {isSavingSettings ? 'Updating...' : 'Push Security Update'}
                                 </Button>
                             </div>
                         </div>

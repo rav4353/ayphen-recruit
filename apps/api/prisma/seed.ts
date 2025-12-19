@@ -1,10 +1,90 @@
-import { PrismaClient, JobStatus, ApplicationStatus, InterviewStatus, OfferStatus, InterviewType, EmploymentType, WorkLocation, UserRole } from '@prisma/client';
+import { PrismaClient, JobStatus, ApplicationStatus, InterviewStatus, OfferStatus, InterviewType, EmploymentType, WorkLocation, UserRole, SuperAdminStatus, SuperAdminNotificationType, SuperAdminNotificationPriority } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
 async function main() {
   console.log('🌱 Starting database seed...');
+
+  // 0. Create Super Admin (Platform)
+  // Keep this aligned with local/dev defaults used by the Super Admin UI.
+  const superAdminTempPassword = 'Ayphen!SuperAdmin#2025-Temp1';
+  const superAdminPasswordHash = await bcrypt.hash(superAdminTempPassword, 10);
+  const superAdmin = await prisma.superAdmin.upsert({
+    where: { email: 'superadmin@ayphen.com' },
+    update: {
+      passwordHash: superAdminPasswordHash,
+      status: SuperAdminStatus.ACTIVE,
+      mfaEnabled: false,
+      requirePasswordChange: true,
+    },
+    create: {
+      email: 'superadmin@ayphen.com',
+      name: 'Super Admin',
+      passwordHash: superAdminPasswordHash,
+      status: SuperAdminStatus.ACTIVE,
+      mfaEnabled: false,
+      requirePasswordChange: true,
+    },
+  });
+  console.log('✅ Super Admin created/updated:', superAdmin.email);
+  console.log(`   Temporary Password: ${superAdminTempPassword}`);
+
+  // 0.1 Create Sample Notifications for Super Admin
+  const sampleNotifications = [
+    {
+      type: SuperAdminNotificationType.SYSTEM,
+      priority: SuperAdminNotificationPriority.HIGH,
+      title: 'System Health Check Complete',
+      message: 'All systems are operational. Database, Redis, and email services are running normally.',
+      link: '/super-admin/monitoring',
+    },
+    {
+      type: SuperAdminNotificationType.SECURITY,
+      priority: SuperAdminNotificationPriority.CRITICAL,
+      title: 'Multiple Failed Login Attempts Detected',
+      message: 'IP 192.168.1.100 has attempted 5 failed logins in the last 10 minutes. Consider blocking this IP.',
+      link: '/super-admin/security',
+    },
+    {
+      type: SuperAdminNotificationType.TENANT,
+      priority: SuperAdminNotificationPriority.MEDIUM,
+      title: 'New Tenant Registration',
+      message: 'A new organization "TechCorp Inc." has registered on the platform.',
+      link: '/super-admin/tenants',
+    },
+    {
+      type: SuperAdminNotificationType.SUBSCRIPTION,
+      priority: SuperAdminNotificationPriority.HIGH,
+      title: 'Payment Failed',
+      message: 'Payment for tenant "Acme Corp" has failed. Invoice #INV-2024-001 is overdue.',
+      link: '/super-admin/billing',
+    },
+    {
+      type: SuperAdminNotificationType.SUPPORT,
+      priority: SuperAdminNotificationPriority.MEDIUM,
+      title: 'New Support Ticket',
+      message: 'Ticket #1234: "Unable to access candidate profiles" - Priority: High',
+      link: '/super-admin/support',
+    },
+    {
+      type: SuperAdminNotificationType.USER,
+      priority: SuperAdminNotificationPriority.LOW,
+      title: 'New Admin User Created',
+      message: 'User john.doe@example.com was granted admin access to tenant "StartupXYZ".',
+      link: '/super-admin/users',
+    },
+  ];
+
+  for (const notification of sampleNotifications) {
+    await prisma.superAdminNotification.create({
+      data: {
+        ...notification,
+        superAdminId: superAdmin.id,
+      },
+    });
+  }
+  console.log('✅ Sample notifications created for Super Admin');
 
   // 1. Create Tenant
   // 1. Create Tenant

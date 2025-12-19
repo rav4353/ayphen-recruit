@@ -449,7 +449,17 @@ export function SettingsPage() {
                         <p className="text-[10px] text-neutral-500 font-bold uppercase tracking-widest mt-1">Force immediate secret lifecycle renewal</p>
                       </div>
                     </div>
-                    <Button className="h-12 bg-red-500 hover:bg-red-600 text-white px-8 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-red-500/20 active:scale-95 transition-all">
+                    <Button 
+                      className="h-12 bg-red-500 hover:bg-red-600 text-white px-8 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-red-500/20 active:scale-95 transition-all"
+                      onClick={async () => {
+                        try {
+                          await superAdminSettingsApi.update('force_password_reset', true);
+                          toast.success('Password reset protocol initiated for all users');
+                        } catch (error) {
+                          toast.error('Failed to initiate password reset');
+                        }
+                      }}
+                    >
                       Renew Hash
                     </Button>
                   </div>

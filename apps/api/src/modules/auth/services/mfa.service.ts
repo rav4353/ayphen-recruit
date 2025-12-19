@@ -19,7 +19,7 @@ export class MfaService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
-  ) {}
+  ) { }
 
   async initiateMfaSetup(userId: string): Promise<MfaSetupResponse> {
     const user = await this.prisma.user.findUnique({
@@ -171,12 +171,38 @@ export class MfaService {
       return false;
     }
 
-    // MFA is required for vendors
-    if (user.role === 'VENDOR') {
+    // Check global enforcement
+    const mfaEnforcedSetting = await this.prisma.globalSetting.findUnique({
+      where: { key: 'global_mfa_enforced' },
+    });
+    const isGlobalEnforced = mfaEnforcedSetting?.value === true;
+
+    // MFA is required if globally enforced OR for vendors OR if user enabled it
+    if (isGlobalEnforced || user.role === 'VENDOR' || user.mfaEnabled) {
       return true;
     }
 
-    return user.mfaEnabled;
+    return false;
+  }
+
+  async isMfaSetupRequired(userId: string): Promise<boolean> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { mfaEnabled: true, role: true },
+    });
+
+    if (!user || user.mfaEnabled) {
+      return false;
+    }
+
+    // Check global enforcement
+    const mfaEnforcedSetting = await this.prisma.globalSetting.findUnique({
+      where: { key: 'global_mfa_enforced' },
+    });
+    const isGlobalEnforced = mfaEnforcedSetting?.value === true;
+
+    // Setup is required if globally enforced OR for vendors BUT not yet enabled
+    return (isGlobalEnforced || user.role === 'VENDOR');
   }
 
   private generateSecret(): string {
@@ -211,7 +237,7 @@ export class MfaService {
   private base32Decode(encoded: string): Buffer {
     const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
     const cleanedInput = encoded.replace(/=+$/, '').toUpperCase();
-    
+
     let bits = 0;
     let value = 0;
     const output: number[] = [];
@@ -234,16 +260,16 @@ export class MfaService {
 
   private verifyTotp(secret: string, code: string): boolean {
     const now = Math.floor(Date.now() / 1000);
-    
+
     for (let i = -this.TOTP_WINDOW; i <= this.TOTP_WINDOW; i++) {
       const counter = Math.floor((now + i * this.TOTP_STEP) / this.TOTP_STEP);
       const expectedCode = this.generateTotp(secret, counter);
-      
+
       if (expectedCode === code) {
         return true;
       }
     }
-    
+
     return false;
   }
 

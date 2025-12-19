@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react';
 import { Card, Badge } from '../../components/ui';
 import { onboardingApi } from '../../lib/api';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Users, CheckSquare, Clock } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export function OnboardingDashboardPage() {
+    const { tenantId } = useParams<{ tenantId: string }>();
+    const navigate = useNavigate();
     const [workflows, setWorkflows] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const navigate = useNavigate();
 
     useEffect(() => {
         fetchWorkflows();
@@ -17,10 +18,13 @@ export function OnboardingDashboardPage() {
     const fetchWorkflows = async () => {
         try {
             const response = await onboardingApi.getAll();
-            // Ensure response.data is an array, otherwise default to empty array
-            setWorkflows(Array.isArray(response.data) ? response.data : []);
+            console.log('Onboarding API response:', response.data);
+            // Handle both response.data.data and response.data formats
+            const workflowsData = response.data?.data || response.data;
+            // Ensure it's an array, otherwise default to empty array
+            setWorkflows(Array.isArray(workflowsData) ? workflowsData : []);
         } catch (error) {
-            console.error(error);
+            console.error('Failed to fetch workflows:', error);
             toast.error('Failed to fetch onboarding workflows');
             setWorkflows([]); // Fallback to empty array on error
         } finally {
@@ -115,7 +119,7 @@ export function OnboardingDashboardPage() {
                             <div
                                 key={workflow.id}
                                 className="p-4 hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors cursor-pointer"
-                                onClick={() => navigate(`/onboarding/${workflow.id}`)}
+                                onClick={() => navigate(`/${tenantId}/onboarding/${workflow.id}`)}
                             >
                                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                     <div className="flex items-center gap-3">

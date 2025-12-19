@@ -12,8 +12,14 @@ async function bootstrap() {
   app.setGlobalPrefix('api/v1');
 
   // CORS
+  const allowedOrigins = [
+    process.env.WEB_URL,
+    'http://localhost:3000',
+    'http://localhost:5173',
+  ].filter(Boolean) as string[];
+
   app.enableCors({
-    origin: process.env.WEB_URL || 'http://localhost:3000',
+    origin: allowedOrigins,
     credentials: true,
   });
 
@@ -34,6 +40,16 @@ async function bootstrap() {
       },
     }),
   );
+
+  // Raw body support for Stripe Webhooks
+  const bodyParser = require('body-parser');
+  app.use(bodyParser.json({
+    verify: (req: any, res: any, buf: Buffer) => {
+      if (req.originalUrl && req.originalUrl.includes('/webhook')) {
+        req.rawBody = buf;
+      }
+    },
+  }));
 
   // Swagger API Documentation
   const config = new DocumentBuilder()
@@ -154,3 +170,4 @@ Errors return appropriate HTTP status codes with details:
 
 bootstrap();
 // Trigger rebuild 2025-12-16-11-20
+// DB Schema Sync forced rebuild

@@ -316,4 +316,115 @@ export class AnalyticsService {
 
         return sources.sort((a, b) => b.applications - a.applications);
     }
+    async getUserActivityStats(tenantId: string) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        // 1. Active Users Today (based on login or session activity)
+        const activeUsersToday = await this.prisma.user.count({
+            where: {
+                tenantId,
+                OR: [
+                    { lastLoginAt: { gte: today } },
+                    {
+                        sessions: {
+                            some: {
+                                lastActiveAt: { gte: today },
+                            },
+                        },
+                    },
+                ],
+            },
+        });
+
+        // 2. License Usage (Total Active Users)
+        const totalUsers = await this.prisma.user.count({
+            where: {
+                tenantId,
+                status: 'ACTIVE',
+            },
+        });
+        const licenseLimit = 50; // Hardcoded for now, ideally from Subscription
+
+        // 3. Most Active Users (by activity logs in last 30 days)
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+        const activityCounts = await this.prisma.activityLog.groupBy({
+            by: ['userId'],
+            where: {
+                user: { tenantId },
+                createdAt: { gte: thirtyDaysAgo },
+            },
+            _count: {
+                _all: true,
+            },
+            orderBy: {
+                _count: {
+                    userId: 'desc',
+                },
+            },
+            take: 3,
+        });
+
+        const mostActiveUsers = await Promise.all(
+            activityCounts.map(async (item) => {
+                if (!item.userId) return null;
+                const user = await this.prisma.user.findUnique({
+                    where: { id: item.userId },
+                    select: { firstName: true, lastName: true },
+                });
+                return {
+                    name: user ? `${user.firstName} ${user.lastName}` : 'Unknown User',
+                    actions: item._count._all,
+                };
+            })
+        );
+
+        // 4. Activity Trend (Last 7 Days)
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        const last7DaysActivities = await this.prisma.activityLog.findMany({
+            where: {
+                user: { tenantId },
+                createdAt: { gte: sevenDaysAgo },
+            },
+            select: { createdAt: true }
+        });
+
+        // Group by day
+        const activityTrend = Array.from({ length: 7 }).map((_, i) => {
+            const d = new Date();
+            d.setDate(d.getDate() - (6 - i));
+            const dateStr = d.toISOString().split('T')[0];
+            const count = last7DaysActivities.filter(a => a.createdAt.toISOString().split('T')[0] === dateStr).length;
+            return { date: dateStr, count };
+        });
+
+        // 5. Action Breakdown (by type)
+        const breakdown = await this.prisma.activityLog.groupBy({
+            by: ['action'],
+            where: {
+                user: { tenantId },
+                createdAt: { gte: thirtyDaysAgo },
+            },
+            _count: { _all: true },
+            orderBy: { _count: { action: 'desc' } },
+            take: 5
+        });
+
+        const actionBreakdown = breakdown.map(b => ({
+            action: b.action,
+            count: b._count._all
+        }));
+
+        return {
+            activeUsersToday,
+            totalUsers,
+            licenseLimit,
+            mostActiveUsers: mostActiveUsers.filter(u => u !== null),
+            activityTrend,
+            actionBreakdown
+        };
+    }
 }

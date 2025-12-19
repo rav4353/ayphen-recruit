@@ -40,6 +40,10 @@ api.interceptors.response.use(
       i18n.changeLanguage('en');
       window.location.href = '/login';
     }
+
+    if (error.response?.status === 503 && error.response.data?.maintenance) {
+      window.location.href = '/maintenance';
+    }
     return Promise.reject(error);
   }
 );
@@ -110,10 +114,12 @@ export const authApi = {
 
   // MFA
   getMfaStatus: () => api.get('/auth/mfa/status'),
-  setupMfa: () => api.post('/auth/mfa/setup'),
-  confirmMfa: (code: string) => api.post('/auth/mfa/confirm', { code }),
-  verifyMfa: (code: string, rememberDevice?: boolean) =>
-    api.post('/auth/mfa/verify', { code, rememberDevice }),
+  setupMfa: (token?: string) =>
+    api.post('/auth/mfa/setup', {}, token ? { headers: { Authorization: `Bearer ${token}` } } : {}),
+  confirmMfa: (code: string, token?: string) =>
+    api.post('/auth/mfa/confirm', { code }, token ? { headers: { Authorization: `Bearer ${token}` } } : {}),
+  verifyMfa: (code: string, rememberDevice?: boolean, token?: string) =>
+    api.post('/auth/mfa/verify', { code, rememberDevice }, token ? { headers: { Authorization: `Bearer ${token}` } } : {}),
   disableMfa: (data: { code: string; password: string }) =>
     api.post('/auth/mfa/disable', data),
 
@@ -280,6 +286,7 @@ export const analyticsApi = {
   getRecentActivity: () => api.get('/analytics/recent-activity'),
   getHiringFunnel: (jobId?: string) => api.get('/analytics/hiring-funnel', { params: { jobId } }),
   getSourceEffectiveness: () => api.get('/analytics/source-effectiveness'),
+  getUserActivity: () => api.get('/analytics/user-activity'),
 };
 
 export const reportsApi = {
@@ -472,6 +479,7 @@ export const interviewsApi = {
 // Onboarding API
 export const onboardingApi = {
   create: (data: { applicationId: string }) => api.post('/onboarding/initialize', data),
+  initialize: (data: { applicationId: string }) => api.post('/onboarding/initialize', data),
   getAll: () => api.get('/onboarding'),
   getOne: (id: string) => api.get(`/onboarding/${id}`),
   updateTask: (taskId: string, data: { status: 'PENDING' | 'COMPLETED' }) => api.patch(`/onboarding/tasks/${taskId}`, data),
@@ -1456,4 +1464,79 @@ export const auditLogApi = {
   exportLogs: (params?: { action?: string; startDate?: string; endDate?: string }) =>
     api.get('/audit-logs/export', { params, responseType: 'blob' }),
 };
+
+// Saved Jobs API
+export const savedJobsApi = {
+  getAll: () => api.get<any[]>('/saved-jobs'),
+  save: (jobId: string) => api.post('/saved-jobs', { jobId }),
+  unsave: (jobId: string) => api.delete(`/saved-jobs/${jobId}`),
+  checkSaved: (jobId: string) => api.get<boolean>(`/saved-jobs/${jobId}/check`),
+};
+
+// Payments API
+export const paymentsApi = {
+  getSubscription: () => api.get('/payments/subscription'),
+  getInvoices: () => api.get('/payments/invoices'),
+  createCheckoutSession: (priceId: string) => api.post<{ url: string }>('/payments/checkout', { priceId }),
+  createPortalSession: () => api.post<{ url: string }>('/payments/portal', {}),
+};
+
+// Announcements API (User Facing)
+export const announcementsApi = {
+  getActive: () => api.get('/announcements/active'),
+  markAsRead: (id: string) => api.post(`/announcements/${id}/read`),
+};
+
+// Super Admin API
+export const superAdminApi = {
+  // Announcements
+  getAnnouncements: () => api.get('/super-admin/announcements'),
+  createAnnouncement: (data: any) => api.post('/super-admin/announcements', data),
+  updateAnnouncement: (id: string, data: any) => api.patch(`/super-admin/announcements/${id}`, data),
+  deleteAnnouncement: (id: string) => api.delete(`/super-admin/announcements/${id}`),
+  publishAnnouncement: (id: string) => api.post(`/super-admin/announcements/${id}/publish`),
+
+  // Audit Logs (Super Admin Context)
+  getAuditLogs: (params?: any) => api.get('/super-admin/audit-logs', { params }),
+  getAuditLog: (id: string) => api.get(`/super-admin/audit-logs/${id}`),
+
+  // Tenants
+  getTenants: (params?: any) => api.get('/super-admin/tenants', { params }),
+  getTenant: (id: string) => api.get(`/super-admin/tenants/${id}`),
+  createTenant: (data: any) => api.post('/super-admin/tenants', data),
+  updateTenant: (id: string, data: any) => api.patch(`/super-admin/tenants/${id}`, data),
+  suspendTenant: (id: string, reason: string) => api.post(`/super-admin/tenants/${id}/suspend`, { reason }),
+  activateTenant: (id: string) => api.post(`/super-admin/tenants/${id}/activate`),
+
+  // Support
+  getSupportTickets: (params?: any) => api.get('/super-admin/support/tickets', { params }),
+  getSupportTicket: (id: string) => api.get(`/super-admin/support/tickets/${id}`),
+  updateTicketStatus: (id: string, status: string) => api.patch(`/super-admin/support/tickets/${id}/status`, { status }),
+  addTicketMessage: (id: string, message: string, isInternal?: boolean) => api.post(`/super-admin/support/tickets/${id}/messages`, { content: message, isInternal }),
+
+  // Security
+  getSecurityAlerts: () => api.get('/super-admin/security/alerts'),
+  resolveSecurityAlert: (id: string) => api.post(`/super-admin/security/alerts/${id}/resolve`),
+  getBlockedIps: () => api.get('/super-admin/security/blocked-ips'),
+  blockIp: (ipAddress: string, reason: string) => api.post('/super-admin/security/blocked-ips', { ipAddress, reason }),
+  unblockIp: (id: string) => api.delete(`/super-admin/security/blocked-ips/${id}`),
+  getActiveSessions: () => api.get('/super-admin/security/sessions'),
+  revokeSession: (id: string) => api.delete(`/super-admin/security/sessions/${id}`),
+
+  // Billing
+  getInvoices: (params?: any) => api.get('/super-admin/billing/invoices', { params }),
+  getGateways: () => api.get('/super-admin/billing/gateways'),
+  updateGateway: (data: any) => api.post('/super-admin/billing/gateways', data),
+  getSubscriptionStats: () => api.get('/super-admin/subscriptions/stats'),
+  getSubscriptionPlans: () => api.get('/super-admin/subscriptions/plans'),
+  createSubscriptionPlan: (data: any) => api.post('/super-admin/subscriptions/plans', data),
+  updateSubscriptionPlan: (id: string, data: any) => api.patch(`/super-admin/subscriptions/plans/${id}`, data),
+  deleteSubscriptionPlan: (id: string) => api.delete(`/super-admin/subscriptions/plans/${id}`),
+
+  getBackups: () => api.get('/super-admin/data/backups'),
+  getApiKeys: () => api.get('/super-admin/api/keys'),
+  createApiKey: (name: string, scopes: string[]) => api.post('/super-admin/api/keys', { name, scopes }),
+  revokeApiKey: (id: string) => api.delete(`/super-admin/api/keys/${id}`),
+};
+
 

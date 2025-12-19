@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Send, Trash2, CheckCircle, XCircle, Clock } from 'lucide-react';
-import { offersApi } from '../../lib/api';
+import { ArrowLeft, Send, Trash2, CheckCircle, XCircle, Clock, UserPlus } from 'lucide-react';
+import { offersApi, onboardingApi } from '../../lib/api';
 import { Button, Card, Badge, Input, ConfirmationModal, RejectionModal } from '../../components/ui';
 import { usePermissions } from '../../hooks/usePermissions';
 import { Permission } from '../../lib/permissions';
@@ -16,6 +16,7 @@ export function OfferDetailPage() {
     const { user, can } = usePermissions();
     const [offer, setOffer] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [hasOnboarding, setHasOnboarding] = useState(false);
 
     // Confirmation states
     const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
@@ -23,9 +24,11 @@ export function OfferDetailPage() {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [showApproveConfirm, setShowApproveConfirm] = useState(false);
     const [showRejectModal, setShowRejectModal] = useState(false);
+    const [showOnboardingConfirm, setShowOnboardingConfirm] = useState(false);
 
     // Loading states
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isInitializingOnboarding, setIsInitializingOnboarding] = useState(false);
     const [isSending, setIsSending] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [isApproving, setIsApproving] = useState(false);
@@ -38,7 +41,20 @@ export function OfferDetailPage() {
     const fetchOffer = async () => {
         try {
             const response = await offersApi.getOne(id!);
-            setOffer(response.data.data || response.data);
+            const offerData = response.data.data || response.data;
+            setOffer(offerData);
+
+            // Check if onboarding workflow exists for this offer
+            if (offerData.applicationId) {
+                try {
+                    const workflowsResponse = await onboardingApi.getAll();
+                    const workflows = workflowsResponse.data?.data || workflowsResponse.data || [];
+                    const existingWorkflow = workflows.find((w: any) => w.applicationId === offerData.applicationId);
+                    setHasOnboarding(!!existingWorkflow);
+                } catch (err) {
+                    console.error('Failed to check onboarding status', err);
+                }
+            }
         } catch (error) {
             console.error('Failed to fetch offer', error);
             toast.error(t('offers.detail.loadError'));
@@ -52,6 +68,7 @@ export function OfferDetailPage() {
     const handleDeleteClick = () => setShowDeleteConfirm(true);
     const handleApproveClick = () => setShowApproveConfirm(true);
     const handleRejectClick = () => setShowRejectModal(true);
+    const handleInitializeOnboarding = () => setShowOnboardingConfirm(true);
 
     const confirmSubmit = async () => {
         setIsSubmitting(true);
@@ -127,6 +144,47 @@ export function OfferDetailPage() {
         }
     };
 
+    const confirmInitializeOnboarding = async () => {
+        setIsInitializingOnboarding(true);
+        try {
+            const response = await onboardingApi.initialize({ applicationId: offer.applicationId });
+            const workflowId = response.data?.data?.id || response.data?.id;
+            toast.success('Onboarding workflow created successfully!');
+            setShowOnboardingConfirm(false);
+            // Navigate to onboarding detail page
+            if (workflowId) {
+                navigate(`/${tenantId}/onboarding/${workflowId}`);
+            }
+        } catch (error: any) {
+            console.error('Failed to initialize onboarding', error);
+            const errorMsg = error?.response?.data?.message || 'Failed to initialize onboarding';
+
+            // Check if workflow already exists
+            if (errorMsg.includes('already exists')) {
+                // Try to find and navigate to existing workflow
+                try {
+                    const workflowsResponse = await onboardingApi.getAll();
+                    const workflows = workflowsResponse.data?.data || workflowsResponse.data || [];
+                    const existingWorkflow = workflows.find((w: any) => w.applicationId === offer.applicationId);
+
+                    if (existingWorkflow) {
+                        toast.success('Navigating to existing onboarding workflow');
+                        navigate(`/${tenantId}/onboarding/${existingWorkflow.id}`);
+                    } else {
+                        toast.error('Onboarding workflow exists but could not be found');
+                    }
+                } catch (findError) {
+                    toast.error('Onboarding workflow already exists');
+                }
+            } else {
+                toast.error(errorMsg);
+            }
+        } finally {
+            setIsInitializingOnboarding(false);
+            setShowOnboardingConfirm(false);
+        }
+    };
+
     const isAssignedApprover = offer?.approvals?.some((a: any) => a.approverId === user?.id && a.status === 'PENDING');
     const canApprove = offer?.status === 'PENDING_APPROVAL' && (isAssignedApprover || can(Permission.OFFER_APPROVE));
 
@@ -177,6 +235,12 @@ export function OfferDetailPage() {
                         <Button variant="secondary" onClick={handleSendClick} disabled={isSending}>
                             <Send size={16} className="mr-2" />
                             {t('offers.detail.sendToCandidate')}
+                        </Button>
+                    )}
+                    {offer.status === 'ACCEPTED' && (
+                        <Button variant="success" onClick={handleInitializeOnboarding} disabled={isInitializingOnboarding}>
+                            <UserPlus size={16} className="mr-2" />
+                            {hasOnboarding ? 'View Onboarding' : 'Initialize Onboarding'}
                         </Button>
                     )}
                 </div>
@@ -352,6 +416,18 @@ export function OfferDetailPage() {
                 cancelLabel={t('common.cancel')}
                 isLoading={isDeleting}
                 variant="danger"
+            />
+
+            <ConfirmationModal
+                isOpen={showOnboardingConfirm}
+                onCancel={() => setShowOnboardingConfirm(false)}
+                onConfirm={confirmInitializeOnboarding}
+                title="Initialize Onboarding"
+                message="This will create an onboarding workflow for this candidate and send them a welcome email with their onboarding checklist. Continue?"
+                confirmLabel="Initialize Onboarding"
+                cancelLabel={t('common.cancel')}
+                isLoading={isInitializingOnboarding}
+                variant="success"
             />
         </div>
     );

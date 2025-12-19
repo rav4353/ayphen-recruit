@@ -28,39 +28,135 @@ export class OnboardingService {
             throw new BadRequestException('Onboarding workflow already exists for this application');
         }
 
-        // Default tasks template
+
+        // Default tasks template - Comprehensive document collection
         const defaultTasks = [
+            // Educational Documents
             {
-                title: 'Upload Profile Photo',
-                description: 'Please upload a professional photo for your ID badge.',
+                title: 'Upload Marksheets',
+                description: 'Upload all educational marksheets (10th, 12th, Diploma, Degree, etc.). Please upload as a single PDF or multiple files.',
                 assigneeRole: OnboardingAssigneeRole.CANDIDATE,
                 order: 1,
                 isRequiredDoc: true,
             },
             {
-                title: 'Complete Personal Information',
-                description: 'Verify your contact details and emergency contacts.',
+                title: 'Upload Transfer Certificate',
+                description: 'Upload your Transfer Certificate (TC) from your previous educational institution.',
                 assigneeRole: OnboardingAssigneeRole.CANDIDATE,
                 order: 2,
-            },
-            {
-                title: 'Provision Laptop',
-                description: 'Prepare and ship laptop to new hire.',
-                assigneeRole: OnboardingAssigneeRole.IT,
-                order: 3,
-            },
-            {
-                title: 'Schedule Welcome Lunch',
-                description: 'Organize a team lunch for the first day.',
-                assigneeRole: OnboardingAssigneeRole.MANAGER,
-                order: 4,
-            },
-            {
-                title: 'Verify Documents',
-                description: 'Check ID and tax forms.',
-                assigneeRole: OnboardingAssigneeRole.HR,
-                order: 5,
                 isRequiredDoc: true,
+            },
+
+            // Identity Documents
+            {
+                title: 'Upload ID Proof with Address',
+                description: 'Upload a valid government-issued ID proof with address (Aadhaar Card, Driving License, Voter ID, or Passport). Ensure both sides are clearly visible.',
+                assigneeRole: OnboardingAssigneeRole.CANDIDATE,
+                order: 3,
+                isRequiredDoc: true,
+            },
+            {
+                title: 'Upload Passport (If Available)',
+                description: 'If you have a passport, please upload the first and last page. This is optional but recommended for future reference.',
+                assigneeRole: OnboardingAssigneeRole.CANDIDATE,
+                order: 4,
+                isRequiredDoc: false, // Optional
+            },
+
+            // Experience Documents (for experienced candidates)
+            {
+                title: 'Upload Experience Certificates',
+                description: 'Upload experience/relieving letters from all previous employers. If you are a fresher, you can skip this task.',
+                assigneeRole: OnboardingAssigneeRole.CANDIDATE,
+                order: 5,
+                isRequiredDoc: false, // Optional for freshers
+            },
+
+            // Banking & Statutory Documents
+            {
+                title: 'Upload Bank Details',
+                description: 'Upload a cancelled cheque or bank passbook first page showing your name, account number, and IFSC code.',
+                assigneeRole: OnboardingAssigneeRole.CANDIDATE,
+                order: 6,
+                isRequiredDoc: true,
+            },
+            {
+                title: 'Upload PAN Card',
+                description: 'Upload a clear copy of your PAN card for tax purposes.',
+                assigneeRole: OnboardingAssigneeRole.CANDIDATE,
+                order: 7,
+                isRequiredDoc: true,
+            },
+            {
+                title: 'Provide PF Details (If Applicable)',
+                description: 'If you have a previous PF (Provident Fund) account, upload your UAN card or PF passbook. If this is your first job, you can skip this.',
+                assigneeRole: OnboardingAssigneeRole.CANDIDATE,
+                order: 8,
+                isRequiredDoc: false, // Optional for first-time employees
+            },
+
+            // Profile & Personal Information
+            {
+                title: 'Upload Profile Photo',
+                description: 'Upload a professional passport-size photograph for your employee ID card.',
+                assigneeRole: OnboardingAssigneeRole.CANDIDATE,
+                order: 9,
+                isRequiredDoc: true,
+            },
+            {
+                title: 'Complete Personal Information Form',
+                description: 'Fill in your emergency contact details, permanent address, and other personal information.',
+                assigneeRole: OnboardingAssigneeRole.CANDIDATE,
+                order: 10,
+                isRequiredDoc: false,
+            },
+
+            // HR Tasks
+            {
+                title: 'Verify All Documents',
+                description: 'Review and verify all uploaded documents for authenticity and completeness.',
+                assigneeRole: OnboardingAssigneeRole.HR,
+                order: 11,
+                isRequiredDoc: false,
+            },
+            {
+                title: 'Create Employee ID',
+                description: 'Generate employee ID card and email credentials.',
+                assigneeRole: OnboardingAssigneeRole.HR,
+                order: 12,
+                isRequiredDoc: false,
+            },
+
+            // IT Tasks
+            {
+                title: 'Provision Laptop & Accessories',
+                description: 'Prepare and ship laptop, mouse, headset, and other required equipment to the new hire.',
+                assigneeRole: OnboardingAssigneeRole.IT,
+                order: 13,
+                isRequiredDoc: false,
+            },
+            {
+                title: 'Setup Email & System Access',
+                description: 'Create email account and provide access to necessary systems and tools.',
+                assigneeRole: OnboardingAssigneeRole.IT,
+                order: 14,
+                isRequiredDoc: false,
+            },
+
+            // Manager Tasks
+            {
+                title: 'Schedule Welcome Meeting',
+                description: 'Organize a welcome meeting or team lunch for the new hire on their first day.',
+                assigneeRole: OnboardingAssigneeRole.MANAGER,
+                order: 15,
+                isRequiredDoc: false,
+            },
+            {
+                title: 'Assign Buddy/Mentor',
+                description: 'Assign an onboarding buddy to help the new hire settle in.',
+                assigneeRole: OnboardingAssigneeRole.MANAGER,
+                order: 16,
+                isRequiredDoc: false,
             },
         ];
 
@@ -132,12 +228,15 @@ export class OnboardingService {
                                 </a>
                             </div>
                             <div style="background: white; padding: 20px; border-radius: 8px; margin: 30px 0; border-left: 4px solid #667eea;">
-                                <h3 style="margin: 0 0 10px 0; color: #1f2937; font-size: 16px;">📋 What's Next?</h3>
-                                <ul style="color: #6b7280; margin: 10px 0; padding-left: 20px;">
-                                    <li style="margin-bottom: 8px;">Complete your personal information</li>
-                                    <li style="margin-bottom: 8px;">Upload required documents</li>
-                                    <li style="margin-bottom: 8px;">Review company policies</li>
-                                    <li style="margin-bottom: 8px;">Set up your workspace</li>
+                                <h3 style="margin: 0 0 10px 0; color: #1f2937; font-size: 16px;">📋 Documents to Upload</h3>
+                                <p style="color: #6b7280; margin: 10px 0 15px 0; font-size: 14px;">Please prepare and upload the following documents:</p>
+                                <ul style="color: #6b7280; margin: 10px 0; padding-left: 20px; font-size: 14px;">
+                                    <li style="margin-bottom: 8px;"><strong>Educational:</strong> Marksheets (10th, 12th, Degree), Transfer Certificate</li>
+                                    <li style="margin-bottom: 8px;"><strong>Identity:</strong> ID Proof with Address (Aadhaar/DL/Voter ID), Passport (if available)</li>
+                                    <li style="margin-bottom: 8px;"><strong>Experience:</strong> Experience/Relieving certificates (if applicable)</li>
+                                    <li style="margin-bottom: 8px;"><strong>Banking:</strong> Cancelled cheque or bank passbook first page</li>
+                                    <li style="margin-bottom: 8px;"><strong>Statutory:</strong> PAN Card, PF details (if applicable)</li>
+                                    <li style="margin-bottom: 8px;"><strong>Photo:</strong> Professional passport-size photograph</li>
                                 </ul>
                             </div>
                             <p style="font-size: 14px; color: #6b7280; margin-top: 30px;">

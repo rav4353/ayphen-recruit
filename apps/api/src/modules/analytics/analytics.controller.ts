@@ -37,4 +37,8 @@ export class AnalyticsController {
     async getSourceEffectiveness(@Request() req: any) {
         return this.analyticsService.getSourceEffectiveness(req.user.tenantId);
     }
+    @Get('user-activity')
+    async getUserActivityStats(@Request() req: any) {
+        return this.analyticsService.getUserActivityStats(req.user.tenantId);
+    }
 }

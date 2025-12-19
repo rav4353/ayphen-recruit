@@ -4,6 +4,7 @@ import { RecruiterDashboard } from '../../components/dashboard/RecruiterDashboar
 import { HiringManagerDashboard } from '../../components/dashboard/HiringManagerDashboard';
 import { AdminDashboard } from '../../components/dashboard/AdminDashboard';
 import { CandidateDashboard } from '../../components/dashboard/CandidateDashboard';
+import { AnnouncementsWidget } from '../../components/dashboard/AnnouncementsWidget';
 
 export const DashboardPage = () => {
     const { t } = useTranslation();
@@ -37,6 +38,9 @@ export const DashboardPage = () => {
                     {t('dashboard.title')}
                 </h1>
             </div>
+
+            {/* Announcements */}
+            <AnnouncementsWidget />
 
             <div className="min-h-[400px] sm:min-h-[600px]">
                 {renderDashboard()}

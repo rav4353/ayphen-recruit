@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
+
 import toast from 'react-hot-toast';
 import { Card, Button, Input, Modal } from '../../components/ui';
 import { Search, Plus, ExternalLink, Users, Linkedin, Globe, Database, Upload, RefreshCw, Star, MapPin, Briefcase, Mail, Trash2, UserPlus, Send, CheckCircle, Clock, MessageSquare } from 'lucide-react';
@@ -68,7 +68,6 @@ const SOURCING_CHANNELS = [
 ];
 
 export function SourcingPage() {
-    const { t } = useTranslation();
     const user = useAuthStore((state) => state.user);
     const tenantId = user?.tenantId || '';
 
@@ -207,16 +206,6 @@ export function SourcingPage() {
         }
     };
 
-    const handleUpdateStatus = async (candidate: SourcedCandidate, status: string) => {
-        try {
-            await sourcingApi.update(candidate.id, { status });
-            toast.success('Status updated');
-            fetchData();
-        } catch (error) {
-            toast.error('Failed to update status');
-        }
-    };
-
     const handleDeleteCandidate = async (candidate: SourcedCandidate) => {
         if (!confirm(`Delete ${candidate.firstName} ${candidate.lastName}?`)) return;
         try {
@@ -238,11 +227,6 @@ export function SourcingPage() {
             case 'ADDED_TO_PIPELINE': return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400';
             default: return 'bg-neutral-100 text-neutral-700';
         }
-    };
-
-    const getSourceIcon = (source: string) => {
-        const channel = SOURCING_CHANNELS.find(c => c.id === source);
-        return channel?.icon || Globe;
     };
 
     return (
@@ -318,9 +302,9 @@ export function SourcingPage() {
             {/* Sourcing Channels */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 {SOURCING_CHANNELS.map((channel) => (
-                    <Card 
-                        key={channel.id} 
-                        className={`p-4 cursor-pointer transition-all hover:shadow-md ${selectedSource === channel.id ? 'ring-2 ring-blue-500' : ''}`} 
+                    <Card
+                        key={channel.id}
+                        className={`p-4 cursor-pointer transition-all hover:shadow-md ${selectedSource === channel.id ? 'ring-2 ring-blue-500' : ''}`}
                         onClick={() => setSelectedSource(selectedSource === channel.id ? null : channel.id)}
                     >
                         <div className="flex items-center gap-3">
@@ -462,21 +446,21 @@ export function SourcingPage() {
                                                     <ExternalLink size={16} />
                                                 </a>
                                             )}
-                                            <button 
+                                            <button
                                                 className="p-2 text-neutral-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/30 rounded"
                                                 onClick={() => { setSelectedCandidate(candidate); setShowOutreachModal(true); }}
                                             >
                                                 <Mail size={16} />
                                             </button>
-                                            <button 
+                                            <button
                                                 className="p-2 text-neutral-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded"
                                                 onClick={() => handleDeleteCandidate(candidate)}
                                             >
                                                 <Trash2 size={16} />
                                             </button>
                                             {candidate.status !== 'ADDED_TO_PIPELINE' && (
-                                                <Button 
-                                                    size="sm" 
+                                                <Button
+                                                    size="sm"
                                                     variant="outline"
                                                     onClick={() => { setSelectedCandidate(candidate); setShowPipelineModal(true); }}
                                                 >
@@ -592,7 +576,7 @@ export function SourcingPage() {
                     </div>
                     <div className="flex justify-end gap-2 pt-4">
                         <Button variant="outline" onClick={() => setShowAddModal(false)}>Cancel</Button>
-                        <Button 
+                        <Button
                             onClick={handleAddCandidate}
                             disabled={!newCandidate.firstName || !newCandidate.lastName || !newCandidate.email}
                         >

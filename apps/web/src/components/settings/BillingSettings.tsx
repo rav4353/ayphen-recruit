@@ -1,11 +1,9 @@
-import { useState } from 'react';
-import { Card, CardHeader, Button, Input, Modal } from '../ui';
+import { useState, useEffect } from 'react';
+import { Card, CardHeader, Button } from '../ui';
 import {
     CreditCard,
     CheckCircle2,
     Download,
-    Plus,
-    Trash2,
     Star,
     Zap,
     Building2,
@@ -14,12 +12,14 @@ import {
     HardDrive,
     Clock,
     Check,
-    AlertCircle
+    AlertCircle,
+    ExternalLink
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
+import { analyticsApi, extractData, paymentsApi } from '../../lib/api';
 
-interface Plan {
+export interface Plan {
     id: string;
     name: string;
     price: number;
@@ -32,15 +32,7 @@ interface Plan {
         storage: string;
     };
     popular?: boolean;
-}
-
-interface PaymentMethod {
-    id: string;
-    type: 'visa' | 'mastercard' | 'amex';
-    last4: string;
-    expMonth: number;
-    expYear: number;
-    isDefault: boolean;
+    stripePriceId?: string;
 }
 
 interface Invoice {
@@ -52,17 +44,7 @@ interface Invoice {
     pdfUrl?: string;
 }
 
-interface BillingAddress {
-    company: string;
-    address: string;
-    city: string;
-    state: string;
-    postalCode: string;
-    country: string;
-    taxId?: string;
-}
-
-const plans: Plan[] = [
+export const plans: Plan[] = [
     {
         id: 'starter',
         name: 'Starter',
@@ -81,6 +63,7 @@ const plans: Plan[] = [
             users: 2,
             storage: '5GB',
         },
+        stripePriceId: 'price_starter_placeholder',
     },
     {
         id: 'pro',
@@ -103,6 +86,7 @@ const plans: Plan[] = [
             storage: '50GB',
         },
         popular: true,
+        stripePriceId: 'price_pro_placeholder',
     },
     {
         id: 'enterprise',
@@ -126,51 +110,95 @@ const plans: Plan[] = [
             users: 'unlimited',
             storage: 'Unlimited',
         },
+        stripePriceId: 'price_enterprise_placeholder',
     },
 ];
 
 export function BillingSettings() {
     const { t } = useTranslation();
-    const [currentPlan] = useState<string>('pro');
+    const [currentPlan, setCurrentPlan] = useState<string>('starter');
     const [billingInterval, setBillingInterval] = useState<'month' | 'year'>('month');
-    const [showAddCardModal, setShowAddCardModal] = useState(false);
-    const [showAddressModal, setShowAddressModal] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    const [isSavingAddress, setIsSavingAddress] = useState(false);
-    const [isAddingCard, setIsAddingCard] = useState(false);
+    const [isPortalLoading, setIsPortalLoading] = useState(false);
 
-    // Mock data - in real app, fetch from API
-    const [paymentMethods] = useState<PaymentMethod[]>([
-        { id: '1', type: 'visa', last4: '4242', expMonth: 12, expYear: 2025, isDefault: true },
-    ]);
+    const [invoices, setInvoices] = useState<Invoice[]>([]);
 
-    const [invoices] = useState<Invoice[]>([
-        { id: 'inv_001', date: '2024-12-01', amount: 49.00, currency: 'USD', status: 'paid' },
-        { id: 'inv_002', date: '2024-11-01', amount: 49.00, currency: 'USD', status: 'paid' },
-        { id: 'inv_003', date: '2024-10-01', amount: 49.00, currency: 'USD', status: 'paid' },
-        { id: 'inv_004', date: '2024-09-01', amount: 49.00, currency: 'USD', status: 'paid' },
-    ]);
-
-    const [billingAddress, setBillingAddress] = useState<BillingAddress>({
-        company: 'Acme Corporation',
-        address: '123 Business Street',
-        city: 'San Francisco',
-        state: 'CA',
-        postalCode: '94102',
-        country: 'United States',
-        taxId: '',
+    // Usage stats
+    const [usage, setUsage] = useState({
+        jobs: { used: 0, limit: 3 as number | 'unlimited' },
+        users: { used: 0, limit: 2 as number | 'unlimited' },
+        storage: { used: 0, limit: 5 as number | 'unlimited' | string, unit: 'GB' },
     });
 
-    // Current usage mock data
-    const usage = {
-        jobs: { used: 5, limit: 10 },
-        users: { used: 8, limit: 20 },
-        storage: { used: 12, limit: 50, unit: 'GB' },
-    };
+    // Fetch real data
+    useEffect(() => {
+        const loadData = async () => {
+            try {
+                const [subRes, invRes, summaryRes, userActivityRes] = await Promise.all([
+                    paymentsApi.getSubscription(),
+                    paymentsApi.getInvoices(),
+                    analyticsApi.getSummary(),
+                    analyticsApi.getUserActivity()
+                ]);
 
-    const getCardIcon = (_type: string) => {
-        return <CreditCard size={20} className="text-neutral-500" />;
-    };
+                const subData: any = extractData(subRes);
+                const summaryData: any = extractData(summaryRes);
+                const userActivityData: any = extractData(userActivityRes);
+
+                // Set Plan
+                if (subData?.plan) {
+                    // Try to match by ID first, then name
+                    const planName = subData.plan.name?.toLowerCase();
+                    const matchedPlan = plans.find(p => p.id === planName || p.name.toLowerCase() === planName);
+
+                    if (matchedPlan) {
+                        setCurrentPlan(matchedPlan.id);
+                        // Use limits from the matched static plan def for now to ensure consistency, 
+                        // or use subData.plan.limits if valid.
+                        // Using matched plan limits:
+                        setUsage(prev => ({
+                            ...prev,
+                            jobs: { ...prev.jobs, limit: matchedPlan.limits.jobs },
+                            users: { ...prev.users, limit: matchedPlan.limits.users },
+                            storage: { ...prev.storage, limit: matchedPlan.limits.storage.replace('GB', '').replace('Unlimited', 'unlimited') } // Normalize
+                        }));
+                    }
+                } else if (subData?.planId) {
+                    setCurrentPlan(subData.planId.toLowerCase());
+                }
+
+                // Set Usage
+                if (summaryData) {
+                    setUsage(prev => ({
+                        ...prev,
+                        jobs: { ...prev.jobs, used: summaryData.activeJobs || 0 },
+                    }));
+                }
+
+                if (userActivityData) {
+                    setUsage(prev => ({
+                        ...prev,
+                        users: { ...prev.users, used: userActivityData.totalUsers || 0 },
+                    }));
+                }
+
+                const invData: any = extractData(invRes);
+                if (Array.isArray(invData)) {
+                    setInvoices(invData.map((inv: any) => ({
+                        id: inv.stripeInvoiceId || inv.id,
+                        date: inv.periodStart,
+                        amount: inv.amount / 100, // Amount is in cents
+                        currency: inv.currency.toUpperCase(),
+                        status: inv.status,
+                        pdfUrl: inv.pdfUrl
+                    })));
+                }
+            } catch (err) {
+                console.error('Failed to load billing info', err);
+            }
+        };
+        loadData();
+    }, []);
 
     const formatDate = (dateStr: string) => {
         return new Date(dateStr).toLocaleDateString('en-US', {
@@ -181,37 +209,66 @@ export function BillingSettings() {
     };
 
     const handleUpgrade = async (planId: string) => {
+        const plan = plans.find(p => p.id === planId);
+        if (!plan || !plan.stripePriceId) {
+            toast.error('Invalid plan selected');
+            return;
+        }
+
         setIsLoading(true);
         try {
-            // Simulate API call
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            toast.success(`Upgraded to ${planId.charAt(0).toUpperCase() + planId.slice(1)} plan!`);
-        } catch {
-            toast.error('Failed to upgrade plan');
+            const response = await paymentsApi.createCheckoutSession(plan.stripePriceId);
+            const { url } = extractData<{ url: string }>(response);
+            if (url) {
+                window.location.href = url;
+            } else {
+                toast.error('Failed to start checkout - no URL received');
+            }
+        } catch (error: any) {
+            console.error('Upgrade error:', error);
+            const errorMessage = error?.response?.data?.message || error?.message || 'Failed to upgrade plan';
+
+            if (errorMessage.includes('STRIPE')) {
+                toast.error('Billing system is not configured. Please contact support.');
+            } else {
+                toast.error(errorMessage);
+            }
         } finally {
             setIsLoading(false);
         }
     };
 
-    const handleDownloadInvoice = (invoiceId: string) => {
-        toast.success(`Downloading invoice ${invoiceId}...`);
-    };
-
-    const handleDeleteCard = (_cardId: string) => {
-        toast.success('Payment method removed');
-    };
-
-    const handleSaveAddress = async () => {
-        setIsSavingAddress(true);
+    const handleManageSubscription = async () => {
+        setIsPortalLoading(true);
         try {
-            // Simulate API call
-            await new Promise(resolve => setTimeout(resolve, 500));
-            toast.success('Billing address updated');
-            setShowAddressModal(false);
-        } catch {
-            toast.error('Failed to update billing address');
+            const response = await paymentsApi.createPortalSession();
+            const { url } = extractData<{ url: string }>(response);
+            if (url) {
+                window.location.href = url;
+            } else {
+                toast.error('No billing portal URL received');
+            }
+        } catch (error: any) {
+            console.error('Billing portal error:', error);
+            const errorMessage = error?.response?.data?.message || error?.message || 'Failed to load billing portal';
+
+            if (errorMessage.includes('No billing account')) {
+                toast.error('No billing account found. Please contact support to set up billing.');
+            } else if (errorMessage.includes('STRIPE')) {
+                toast.error('Billing system is not configured. Please contact support.');
+            } else {
+                toast.error(errorMessage);
+            }
         } finally {
-            setIsSavingAddress(false);
+            setIsPortalLoading(false);
+        }
+    }
+
+    const handleDownloadInvoice = (invoiceId: string, url?: string) => {
+        if (url) {
+            window.open(url, '_blank');
+        } else {
+            toast.success(`Downloading invoice ${invoiceId}...`);
         }
     };
 
@@ -233,18 +290,28 @@ export function BillingSettings() {
                             </div>
                             <div>
                                 <div className="flex items-center gap-2">
-                                    <h3 className="text-xl font-bold text-neutral-900 dark:text-white">Pro Plan</h3>
+                                    <h3 className="text-xl font-bold text-neutral-900 dark:text-white">
+                                        {plans.find(p => p.id === currentPlan)?.name || 'Starter'} Plan
+                                    </h3>
                                     <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs font-medium rounded-full">
                                         Active
                                     </span>
                                 </div>
-                                <p className="text-neutral-500">$49/month • Renews on Jan 1, 2025</p>
+                                <p className="text-neutral-500">
+                                    {currentPlan === 'starter' ? 'Free Forever' : '$49/month • Renews on Jan 1, 2025'}
+                                </p>
                             </div>
                         </div>
-                        <Button variant="secondary">Manage Subscription</Button>
+                        <Button
+                            variant="secondary"
+                            onClick={handleManageSubscription}
+                            isLoading={isPortalLoading}
+                        >
+                            Manage Subscription
+                        </Button>
                     </div>
 
-                    {/* Usage Stats */}
+                    {/* Usage Stats (Mocked for now) */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="p-4 bg-neutral-50 dark:bg-neutral-800/50 rounded-xl border border-neutral-200 dark:border-neutral-700">
                             <div className="flex items-center gap-2 mb-2">
@@ -252,12 +319,12 @@ export function BillingSettings() {
                                 <span className="text-sm text-neutral-500">Active Jobs</span>
                             </div>
                             <div className="text-2xl font-bold text-neutral-900 dark:text-white">
-                                {usage.jobs.used} / {usage.jobs.limit}
+                                {usage.jobs.used} / {usage.jobs.limit === 'unlimited' ? '∞' : usage.jobs.limit}
                             </div>
                             <div className="w-full bg-neutral-200 dark:bg-neutral-700 h-2 rounded-full mt-3">
                                 <div
                                     className="bg-blue-600 h-2 rounded-full transition-all"
-                                    style={{ width: `${(usage.jobs.used / usage.jobs.limit) * 100}%` }}
+                                    style={{ width: `${usage.jobs.limit === 'unlimited' ? 0 : Math.min(100, (usage.jobs.used / Number(usage.jobs.limit)) * 100)}%` }}
                                 />
                             </div>
                         </div>
@@ -267,12 +334,12 @@ export function BillingSettings() {
                                 <span className="text-sm text-neutral-500">Team Members</span>
                             </div>
                             <div className="text-2xl font-bold text-neutral-900 dark:text-white">
-                                {usage.users.used} / {usage.users.limit}
+                                {usage.users.used} / {usage.users.limit === 'unlimited' ? '∞' : usage.users.limit}
                             </div>
                             <div className="w-full bg-neutral-200 dark:bg-neutral-700 h-2 rounded-full mt-3">
                                 <div
                                     className="bg-green-600 h-2 rounded-full transition-all"
-                                    style={{ width: `${(usage.users.used / usage.users.limit) * 100}%` }}
+                                    style={{ width: `${usage.users.limit === 'unlimited' ? 0 : Math.min(100, (usage.users.used / Number(usage.users.limit)) * 100)}%` }}
                                 />
                             </div>
                         </div>
@@ -287,7 +354,11 @@ export function BillingSettings() {
                             <div className="w-full bg-neutral-200 dark:bg-neutral-700 h-2 rounded-full mt-3">
                                 <div
                                     className="bg-purple-600 h-2 rounded-full transition-all"
-                                    style={{ width: `${(usage.storage.used / usage.storage.limit) * 100}%` }}
+                                    style={{
+                                        width: `${usage.storage.limit === 'unlimited'
+                                            ? 0
+                                            : Math.min(100, (usage.storage.used / Number(String(usage.storage.limit).replace(/[^0-9.]/g, ''))) * 100)}%`
+                                    }}
                                 />
                             </div>
                         </div>
@@ -401,88 +472,26 @@ export function BillingSettings() {
                 </div>
             </Card>
 
-            {/* Payment Methods */}
+            {/* Billing Management via Portal */}
             <Card>
                 <CardHeader
-                    title={t('settings.billing.paymentMethods', 'Payment Methods')}
-                    description={t('settings.billing.paymentMethodsDesc', 'Manage your payment cards and billing details')}
+                    title={t('settings.billing.management', 'Billing Management')}
+                    description="Manage your payment methods, billing address, and tax information securely via the Client Portal."
                     action={
-                        <Button variant="secondary" size="sm" onClick={() => setShowAddCardModal(true)}>
-                            <Plus size={16} className="mr-1" /> Add Card
-                        </Button>
-                    }
-                />
-                <div className="p-6 pt-0 space-y-3">
-                    {paymentMethods.map((method) => (
-                        <div
-                            key={method.id}
-                            className="flex items-center justify-between p-4 border border-neutral-200 dark:border-neutral-700 rounded-xl hover:border-neutral-300 dark:hover:border-neutral-600 transition-colors"
-                        >
-                            <div className="flex items-center gap-4">
-                                <div className="w-12 h-8 bg-neutral-100 dark:bg-neutral-800 rounded-lg flex items-center justify-center">
-                                    {getCardIcon(method.type)}
-                                </div>
-                                <div>
-                                    <div className="flex items-center gap-2">
-                                        <span className="font-medium text-neutral-900 dark:text-white capitalize">
-                                            {method.type} •••• {method.last4}
-                                        </span>
-                                        {method.isDefault && (
-                                            <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs font-medium rounded">
-                                                Default
-                                            </span>
-                                        )}
-                                    </div>
-                                    <span className="text-sm text-neutral-500">
-                                        Expires {method.expMonth}/{method.expYear}
-                                    </span>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <Button variant="ghost" size="sm">Edit</Button>
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
-                                    onClick={() => handleDeleteCard(method.id)}
-                                >
-                                    <Trash2 size={16} />
-                                </Button>
-                            </div>
-                        </div>
-                    ))}
-
-                    {paymentMethods.length === 0 && (
-                        <div className="text-center py-8 text-neutral-500">
-                            <CreditCard size={40} className="mx-auto mb-3 opacity-50" />
-                            <p>No payment methods added yet</p>
-                        </div>
-                    )}
-                </div>
-            </Card>
-
-            {/* Billing Address */}
-            <Card>
-                <CardHeader
-                    title={t('settings.billing.billingAddress', 'Billing Address')}
-                    description={t('settings.billing.billingAddressDesc', 'This address will appear on your invoices')}
-                    action={
-                        <Button variant="ghost" size="sm" onClick={() => setShowAddressModal(true)}>
-                            Edit
+                        <Button variant="secondary" size="sm" onClick={handleManageSubscription} isLoading={isPortalLoading}>
+                            <ExternalLink size={16} className="mr-1" /> Open Portal
                         </Button>
                     }
                 />
                 <div className="p-6 pt-0">
-                    <div className="p-4 bg-neutral-50 dark:bg-neutral-800/50 rounded-xl border border-neutral-200 dark:border-neutral-700">
-                        <p className="font-medium text-neutral-900 dark:text-white">{billingAddress.company}</p>
-                        <p className="text-neutral-600 dark:text-neutral-400">{billingAddress.address}</p>
-                        <p className="text-neutral-600 dark:text-neutral-400">
-                            {billingAddress.city}, {billingAddress.state} {billingAddress.postalCode}
-                        </p>
-                        <p className="text-neutral-600 dark:text-neutral-400">{billingAddress.country}</p>
-                        {billingAddress.taxId && (
-                            <p className="text-neutral-500 text-sm mt-2">Tax ID: {billingAddress.taxId}</p>
-                        )}
+                    <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-900/50 flex items-start gap-3">
+                        <CreditCard className="text-blue-600 dark:text-blue-400 mt-1 flex-shrink-0" size={20} />
+                        <div>
+                            <p className="text-sm text-blue-900 dark:text-blue-200 font-medium">Secure Billing Portal</p>
+                            <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                                All sensitive billing information, including credit cards and billing addresses, is handled securely by Stripe. We do not store your payment details on our servers.
+                            </p>
+                        </div>
                     </div>
                 </div>
             </Card>
@@ -494,58 +503,64 @@ export function BillingSettings() {
                     description={t('settings.billing.historyDesc', 'View and download your past invoices')}
                 />
                 <div className="p-6 pt-0">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left text-sm">
-                            <thead>
-                                <tr className="border-b border-neutral-200 dark:border-neutral-700">
-                                    <th className="pb-3 font-medium text-neutral-500">Invoice</th>
-                                    <th className="pb-3 font-medium text-neutral-500">Date</th>
-                                    <th className="pb-3 font-medium text-neutral-500">Amount</th>
-                                    <th className="pb-3 font-medium text-neutral-500">Status</th>
-                                    <th className="pb-3 font-medium text-neutral-500 text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-neutral-200 dark:divide-neutral-700">
-                                {invoices.map((invoice) => (
-                                    <tr key={invoice.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800/50">
-                                        <td className="py-4">
-                                            <span className="font-medium text-neutral-900 dark:text-white">
-                                                {invoice.id.toUpperCase()}
-                                            </span>
-                                        </td>
-                                        <td className="py-4 text-neutral-600 dark:text-neutral-400">
-                                            {formatDate(invoice.date)}
-                                        </td>
-                                        <td className="py-4 text-neutral-900 dark:text-white font-medium">
-                                            ${invoice.amount.toFixed(2)} {invoice.currency}
-                                        </td>
-                                        <td className="py-4">
-                                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${invoice.status === 'paid'
-                                                ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400'
-                                                : invoice.status === 'pending'
-                                                    ? 'bg-yellow-50 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400'
-                                                    : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400'
-                                                }`}>
-                                                {invoice.status === 'paid' && <CheckCircle2 size={12} />}
-                                                {invoice.status === 'pending' && <Clock size={12} />}
-                                                {invoice.status === 'failed' && <AlertCircle size={12} />}
-                                                {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
-                                            </span>
-                                        </td>
-                                        <td className="py-4 text-right">
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => handleDownloadInvoice(invoice.id)}
-                                            >
-                                                <Download size={16} className="mr-1" /> Download
-                                            </Button>
-                                        </td>
+                    {invoices.length > 0 ? (
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left text-sm">
+                                <thead>
+                                    <tr className="border-b border-neutral-200 dark:border-neutral-700">
+                                        <th className="pb-3 font-medium text-neutral-500">Invoice</th>
+                                        <th className="pb-3 font-medium text-neutral-500">Date</th>
+                                        <th className="pb-3 font-medium text-neutral-500">Amount</th>
+                                        <th className="pb-3 font-medium text-neutral-500">Status</th>
+                                        <th className="pb-3 font-medium text-neutral-500 text-right">Actions</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                                </thead>
+                                <tbody className="divide-y divide-neutral-200 dark:divide-neutral-700">
+                                    {invoices.map((invoice) => (
+                                        <tr key={invoice.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800/50">
+                                            <td className="py-4">
+                                                <span className="font-medium text-neutral-900 dark:text-white">
+                                                    {invoice.id.slice(0, 8).toUpperCase()}
+                                                </span>
+                                            </td>
+                                            <td className="py-4 text-neutral-600 dark:text-neutral-400">
+                                                {formatDate(invoice.date)}
+                                            </td>
+                                            <td className="py-4 text-neutral-900 dark:text-white font-medium">
+                                                ${invoice.amount.toFixed(2)} {invoice.currency}
+                                            </td>
+                                            <td className="py-4">
+                                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${invoice.status === 'paid'
+                                                    ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400'
+                                                    : invoice.status === 'pending'
+                                                        ? 'bg-yellow-50 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400'
+                                                        : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400'
+                                                    }`}>
+                                                    {invoice.status === 'paid' && <CheckCircle2 size={12} />}
+                                                    {invoice.status === 'pending' && <Clock size={12} />}
+                                                    {invoice.status === 'failed' && <AlertCircle size={12} />}
+                                                    {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
+                                                </span>
+                                            </td>
+                                            <td className="py-4 text-right">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => handleDownloadInvoice(invoice.id, invoice.pdfUrl)}
+                                                >
+                                                    <Download size={16} className="mr-1" /> Download
+                                                </Button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    ) : (
+                        <div className="text-center py-8 text-neutral-500">
+                            <p>No invoices found.</p>
+                        </div>
+                    )}
                 </div>
             </Card>
 
@@ -619,85 +634,6 @@ export function BillingSettings() {
                     </table>
                 </div>
             </Card>
-
-            {/* Add Card Modal */}
-            <Modal isOpen={showAddCardModal} onClose={() => setShowAddCardModal(false)} title="Add Payment Method">
-                <div className="space-y-4">
-                    <Input label="Card Number" placeholder="1234 5678 9012 3456" />
-                    <div className="grid grid-cols-2 gap-4">
-                        <Input label="Expiry Date" placeholder="MM/YY" />
-                        <Input label="CVC" placeholder="123" />
-                    </div>
-                    <Input label="Cardholder Name" placeholder="John Doe" />
-                    <div className="flex justify-end gap-3 pt-4 border-t border-neutral-200 dark:border-neutral-700">
-                        <Button variant="secondary" onClick={() => setShowAddCardModal(false)} disabled={isAddingCard}>Cancel</Button>
-                        <Button isLoading={isAddingCard} onClick={async () => {
-                            setIsAddingCard(true);
-                            try {
-                                await new Promise(resolve => setTimeout(resolve, 500));
-                                setShowAddCardModal(false);
-                                toast.success('Card added successfully');
-                            } catch {
-                                toast.error('Failed to add card');
-                            } finally {
-                                setIsAddingCard(false);
-                            }
-                        }}>
-                            Add Card
-                        </Button>
-                    </div>
-                </div>
-            </Modal>
-
-            {/* Billing Address Modal */}
-            <Modal isOpen={showAddressModal} onClose={() => setShowAddressModal(false)} title="Edit Billing Address">
-                <div className="space-y-4">
-                    <Input
-                        label="Company Name"
-                        value={billingAddress.company}
-                        onChange={(e) => setBillingAddress(prev => ({ ...prev, company: e.target.value }))}
-                    />
-                    <Input
-                        label="Address"
-                        value={billingAddress.address}
-                        onChange={(e) => setBillingAddress(prev => ({ ...prev, address: e.target.value }))}
-                    />
-                    <div className="grid grid-cols-2 gap-4">
-                        <Input
-                            label="City"
-                            value={billingAddress.city}
-                            onChange={(e) => setBillingAddress(prev => ({ ...prev, city: e.target.value }))}
-                        />
-                        <Input
-                            label="State/Province"
-                            value={billingAddress.state}
-                            onChange={(e) => setBillingAddress(prev => ({ ...prev, state: e.target.value }))}
-                        />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                        <Input
-                            label="Postal Code"
-                            value={billingAddress.postalCode}
-                            onChange={(e) => setBillingAddress(prev => ({ ...prev, postalCode: e.target.value }))}
-                        />
-                        <Input
-                            label="Country"
-                            value={billingAddress.country}
-                            onChange={(e) => setBillingAddress(prev => ({ ...prev, country: e.target.value }))}
-                        />
-                    </div>
-                    <Input
-                        label="Tax ID (optional)"
-                        value={billingAddress.taxId || ''}
-                        onChange={(e) => setBillingAddress(prev => ({ ...prev, taxId: e.target.value }))}
-                        placeholder="VAT, GST, or EIN"
-                    />
-                    <div className="flex justify-end gap-3 pt-4 border-t border-neutral-200 dark:border-neutral-700">
-                        <Button variant="secondary" onClick={() => setShowAddressModal(false)} disabled={isSavingAddress}>Cancel</Button>
-                        <Button onClick={handleSaveAddress} isLoading={isSavingAddress}>Save Address</Button>
-                    </div>
-                </div>
-            </Modal>
         </div>
     );
 }

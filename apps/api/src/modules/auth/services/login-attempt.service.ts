@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { SuperAdminSecurityService } from '../../super-admin/services/super-admin-security.service';
 
 @Injectable()
 export class LoginAttemptService {
@@ -7,7 +8,10 @@ export class LoginAttemptService {
   private readonly LOCKOUT_DURATION_MINUTES = 15;
   private readonly ATTEMPT_WINDOW_MINUTES = 15;
 
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly securityService: SuperAdminSecurityService,
+  ) { }
 
   async recordAttempt(
     email: string,
@@ -27,6 +31,13 @@ export class LoginAttemptService {
     // If successful, clear failed attempts
     if (success) {
       await this.clearFailedAttempts(email, tenantId);
+    } else {
+      // Check for security spikes
+      try {
+        await this.securityService.checkSecuritySpikes(ipAddress);
+      } catch (error) {
+        console.error('Failed to check security spikes:', error);
+      }
     }
   }
 

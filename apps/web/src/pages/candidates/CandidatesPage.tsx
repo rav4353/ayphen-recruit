@@ -1,89 +1,70 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Plus, Search, Filter, Mail, Phone, Trash2, X, ChevronDown, Download } from 'lucide-react';
+import { Plus, Search, Filter, Mail, Phone, Trash2, X, ChevronDown, Download, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { candidatesApi } from '../../lib/api';
-import type { Candidate } from '../../lib/types';
 import { CandidateFilterModal } from '../../components/candidates/CandidateFilterModal';
 import { BulkEmailModal } from '../../components/candidates/BulkEmailModal';
 import { Button, ConfirmationModal } from '../../components/ui';
 import { SavedViews } from '../../components/common/SavedViews';
+import { useCandidates, useBulkDeleteCandidates, useSendBulkEmail } from '../../hooks/queries';
+import { logger } from '../../lib/logger';
+
+const log = logger.component('CandidatesPage');
+
+const LIMIT = 12;
 
 export function CandidatesPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { tenantId } = useParams<{ tenantId: string }>();
+  
+  // Filter state
   const [searchQuery, setSearchQuery] = useState('');
-  const [candidates, setCandidates] = useState<Candidate[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [sortBy, setSortBy] = useState('createdAt');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
   const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
-  const LIMIT = 12;
-
   const [filters, setFilters] = useState<{ location?: string; skills?: string[]; status?: string; source?: string }>({});
-
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
 
-  const fetchCandidates = async () => {
-    setIsLoading(true);
-    try {
-      const response = await candidatesApi.getAll({
-        page,
-        take: LIMIT,
-        skip: (page - 1) * LIMIT,
-        search: searchQuery,
-        sortBy,
-        sortOrder,
-        location: filters.location,
-        skills: filters.skills,
-        status: filters.status,
-        source: filters.source,
-      });
-      console.log('Candidates API Response:', response);
-
-      let data = response.data;
-      // Handle wrapped response from global interceptor
-      if (data && data.data) {
-        data = data.data;
-      }
-
-      if (data && Array.isArray(data.candidates)) {
-        console.log('Setting candidates:', data.candidates.length);
-        setCandidates(data.candidates);
-        setTotalCount(data.total || 0);
-        setTotalPages(Math.ceil((data.total || 0) / LIMIT));
-      } else {
-        console.warn('Unexpected response format:', response.data);
-        setCandidates([]);
-        setTotalCount(0);
-        setTotalPages(1);
-      }
-    } catch (error) {
-      console.error('Failed to fetch candidates', error);
-      setCandidates([]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
+  // Debounce search
   useEffect(() => {
     const timeout = setTimeout(() => {
-      fetchCandidates();
+      setDebouncedSearch(searchQuery);
+      setPage(1);
     }, 300);
-
     return () => clearTimeout(timeout);
-  }, [searchQuery, sortBy, sortOrder, filters, page]);
+  }, [searchQuery]);
+
+  // React Query hooks
+  const {
+    data: candidatesData,
+    isLoading,
+    refetch,
+  } = useCandidates({
+    page,
+    take: LIMIT,
+    search: debouncedSearch,
+    sortBy,
+    sortOrder,
+    location: filters.location,
+    skills: filters.skills,
+    status: filters.status,
+    source: filters.source,
+  });
+
+  const bulkDeleteMutation = useBulkDeleteCandidates();
+  const bulkEmailMutation = useSendBulkEmail();
+
+  // Derived state
+  const candidates = candidatesData?.candidates || [];
+  const totalCount = candidatesData?.total || 0;
+  const totalPages = Math.ceil(totalCount / LIMIT);
 
   const toggleSelection = (id: string) => {
     setSelectedIds((prev) =>
@@ -103,42 +84,43 @@ export function CandidatesPage() {
     setShowBulkDeleteConfirm(true);
   };
 
-  const confirmBulkDelete = async () => {
-    setIsDeleting(true);
-    try {
-      await candidatesApi.bulkDelete(selectedIds);
-      toast.success(t('candidates.bulkDeleteSuccess'));
-      setSelectedIds([]);
-      fetchCandidates();
-    } catch (error) {
-      console.error('Bulk delete error', error);
-      toast.error(t('candidates.bulkDeleteError'));
-    } finally {
-      setIsDeleting(false);
-      setShowBulkDeleteConfirm(false);
-    }
+  const confirmBulkDelete = () => {
+    log.info('Bulk deleting candidates', { count: selectedIds.length });
+    bulkDeleteMutation.mutate(selectedIds, {
+      onSuccess: () => {
+        setSelectedIds([]);
+        setShowBulkDeleteConfirm(false);
+      },
+      onSettled: () => {
+        setShowBulkDeleteConfirm(false);
+      },
+    });
   };
 
   const handleSendEmail = async (subject: string, message: string) => {
-    try {
-      const response = await candidatesApi.sendBulkEmail({
-        ids: selectedIds,
-        subject,
-        message,
-      });
-      const { count } = response.data.data;
-      toast.success(t('candidates.bulkEmailSuccess', { count }));
-      setSelectedIds([]);
-    } catch (error) {
-      console.error('Bulk email error', error);
-      toast.error(t('candidates.bulkEmailError'));
-    }
+    log.info('Sending bulk email', { count: selectedIds.length });
+    return new Promise<void>((resolve) => {
+      bulkEmailMutation.mutate(
+        { ids: selectedIds, subject, message },
+        {
+          onSuccess: () => {
+            setSelectedIds([]);
+            setIsEmailModalOpen(false);
+            resolve();
+          },
+          onError: () => {
+            resolve();
+          },
+        }
+      );
+    });
   };
 
   const handleExport = async () => {
     try {
+      log.info('Exporting candidates');
       const response = await candidatesApi.export({
-        search: searchQuery,
+        search: debouncedSearch,
         sortBy,
         sortOrder,
         location: filters.location,
@@ -152,28 +134,33 @@ export function CandidatesPage() {
       document.body.appendChild(link);
       link.click();
       link.remove();
+      toast.success(t('candidates.exportSuccess'));
     } catch (error) {
-      console.error('Export failed', error);
+      log.error('Export failed', error);
       toast.error(t('candidates.exportError'));
     }
   };
 
-  const handleApplyView = (viewFilters: Record<string, any>) => {
-    if (viewFilters.search !== undefined) setSearchQuery(viewFilters.search);
-    if (viewFilters.sortBy) setSortBy(viewFilters.sortBy);
-    if (viewFilters.sortOrder) setSortOrder(viewFilters.sortOrder);
+  const handleApplyView = (viewFilters: Record<string, unknown>) => {
+    if (viewFilters.search !== undefined) {
+      setSearchQuery(viewFilters.search as string);
+      setDebouncedSearch(viewFilters.search as string);
+    }
+    if (viewFilters.sortBy) setSortBy(viewFilters.sortBy as string);
+    if (viewFilters.sortOrder) setSortOrder(viewFilters.sortOrder as 'asc' | 'desc');
 
-    const newFilters: any = {};
-    if (viewFilters.location) newFilters.location = viewFilters.location;
-    if (viewFilters.skills) newFilters.skills = viewFilters.skills;
-    if (viewFilters.status) newFilters.status = viewFilters.status;
-    if (viewFilters.source) newFilters.source = viewFilters.source;
+    const newFilters: { location?: string; skills?: string[]; status?: string; source?: string } = {};
+    if (viewFilters.location) newFilters.location = viewFilters.location as string;
+    if (viewFilters.skills) newFilters.skills = viewFilters.skills as string[];
+    if (viewFilters.status) newFilters.status = viewFilters.status as string;
+    if (viewFilters.source) newFilters.source = viewFilters.source as string;
     setFilters(newFilters);
     setPage(1); // Reset to first page on filter change
   };
 
   const handleResetView = () => {
     setSearchQuery('');
+    setDebouncedSearch('');
     setSortBy('createdAt');
     setSortOrder('desc');
     setFilters({});
@@ -217,6 +204,15 @@ export function CandidatesPage() {
           <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">{t('candidates.manageTalentPool')}</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => refetch()}
+            disabled={isLoading}
+          >
+            <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
+            <span className="hidden sm:inline">{t('common.refresh', 'Refresh')}</span>
+          </Button>
           <Button
             variant="outline"
             className="gap-2"
@@ -455,7 +451,7 @@ export function CandidatesPage() {
         message={t('candidates.bulkDeleteConfirm')}
         confirmLabel={t('common.delete')}
         cancelLabel={t('common.cancel')}
-        isLoading={isDeleting}
+        isLoading={bulkDeleteMutation.isPending}
         variant="danger"
       />
     </div>

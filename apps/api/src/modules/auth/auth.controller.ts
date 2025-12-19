@@ -104,11 +104,22 @@ export class AuthController {
       // Check if MFA is required
       const user = result.user;
 
-      if (user && await this.mfaService.isMfaRequired(user.id)) {
-        return {
-          requiresMfa: true,
-          mfaToken: result.accessToken, // Temporary token for MFA verification
-        };
+      if (user) {
+        // First check if setup is needed
+        if (await this.mfaService.isMfaSetupRequired(user.id)) {
+          return {
+            requiresMfaSetup: true,
+            mfaToken: result.accessToken, // Token to access setup endpoints
+          };
+        }
+
+        // Then check if verification is needed
+        if (await this.mfaService.isMfaRequired(user.id)) {
+          return {
+            requiresMfa: true,
+            mfaToken: result.accessToken, // Token to access verify endpoints
+          };
+        }
       }
 
       // Create session

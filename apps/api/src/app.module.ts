@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer, RequestMethod } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ServeStaticModule } from '@nestjs/serve-static';
@@ -47,6 +47,13 @@ import { SourcingModule } from './modules/sourcing/sourcing.module';
 import { TalentPoolsModule } from './modules/talent-pools/talent-pools.module';
 import { BulkEmailModule } from './modules/bulk-email/bulk-email.module';
 import { EmailTrackingModule } from './modules/email-tracking/email-tracking.module';
+import { SuperAdminModule } from './modules/super-admin/super-admin.module';
+import { SavedJobsModule } from './modules/saved-jobs/saved-jobs.module';
+import { PaymentsModule } from './modules/payments/payments.module';
+import { AnnouncementsModule } from './modules/announcements/announcements.module';
+
+import { BlockedIpMiddleware } from './common/middleware/blocked-ip.middleware';
+import { MaintenanceMiddleware } from './common/middleware/maintenance.middleware';
 
 @Module({
   imports: [
@@ -109,7 +116,10 @@ import { EmailTrackingModule } from './modules/email-tracking/email-tracking.mod
     SourcingModule,
     TalentPoolsModule,
     BulkEmailModule,
-    EmailTrackingModule,
+    SuperAdminModule,
+    SavedJobsModule,
+    PaymentsModule,
+    AnnouncementsModule,
 
     // Serve static files (uploads)
     ServeStaticModule.forRoot({
@@ -120,5 +130,10 @@ import { EmailTrackingModule } from './modules/email-tracking/email-tracking.mod
     RolesModule,
   ],
 })
-export class AppModule { }
-// Force rebuild 2025-12-15-16-56
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(BlockedIpMiddleware, MaintenanceMiddleware)
+      .forRoutes({ path: '*', method: RequestMethod.ALL });
+  }
+}

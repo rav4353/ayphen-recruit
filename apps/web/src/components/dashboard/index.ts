@@ -11,7 +11,7 @@ export * from './InterviewScheduleWidget';
 export * from './TimeToFillMetric';
 export * from './NewHiresWidget';
 export * from './HiringManagerDashboard';
-export * from './SystemHealthWidget';
+export * from './SystemHealth';
 export * from './UserActivityWidget';
 export * from './ComplianceAlertsWidget';
 export * from './RecentAuditLogsWidget';

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -8,6 +8,7 @@ import { Button, Input, Card, CardHeader, Alert } from '../ui';
 import { PhoneInput } from '../ui/PhoneInput';
 import { ResumeUpload } from './ResumeUpload';
 import { useUnsavedChanges } from '../../hooks/useUnsavedChanges';
+import { settingsApi } from '../../lib/api';
 
 export interface Experience {
     title: string;
@@ -40,6 +41,7 @@ export interface CandidateFormData {
     resumeUrl?: string;
     experience: Experience[];
     education: Education[];
+    customFields?: Record<string, any>; // Custom field values
 }
 
 interface CandidateFormProps {
@@ -49,6 +51,7 @@ interface CandidateFormProps {
     submitLabel?: string;
     error?: string;
     enableUnsavedWarning?: boolean;
+    publicTenantId?: string; // For public job application pages
 }
 
 export function CandidateForm({
@@ -58,6 +61,7 @@ export function CandidateForm({
     submitLabel,
     error,
     enableUnsavedWarning = false,
+    publicTenantId, // New prop for public context
 }: CandidateFormProps) {
     const { t } = useTranslation();
     const navigate = useNavigate();
@@ -88,6 +92,36 @@ export function CandidateForm({
     });
 
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [customFields, setCustomFields] = useState<any[]>([]);
+
+    // Load custom fields configuration
+    useEffect(() => {
+        const fetchCustomFields = async () => {
+            try {
+                let res;
+                // Use public API if publicTenantId is provided (for job application pages)
+                if (publicTenantId) {
+                    res = await settingsApi.getPublic(publicTenantId);
+                    // Extract candidateFormConfig from public settings
+                    const candidateFormConfig = res.data?.data?.find((s: any) => s.key === 'candidateFormConfig');
+                    if (candidateFormConfig?.value?.customFields) {
+                        setCustomFields(candidateFormConfig.value.customFields);
+                    }
+                } else {
+                    // Use authenticated API for internal candidate creation
+                    res = await settingsApi.getByKey('candidateFormConfig');
+                    if (res.data?.data?.value?.customFields) {
+                        setCustomFields(res.data.data.value.customFields);
+                    }
+                }
+            } catch (error: any) {
+                if (error.response?.status !== 404) {
+                    console.error('Failed to load custom fields:', error);
+                }
+            }
+        };
+        fetchCustomFields();
+    }, [publicTenantId]);
 
     // Warn about unsaved changes
     useUnsavedChanges({
@@ -426,6 +460,169 @@ export function CandidateForm({
                         )}
                     </div>
                 </Card>
+
+                {/* Custom Fields Section */}
+                {customFields.length > 0 && (
+                    <Card>
+                        <CardHeader
+                            title="Additional Information"
+                            description="Please provide the following additional details."
+                        />
+                        <div className="p-6 pt-0">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {customFields.map((field) => {
+                                    const fieldName = `customFields.${field.key}` as const;
+                                    const validationRules: any = {};
+
+                                    if (field.required) {
+                                        validationRules.required = `${field.label} is required`;
+                                    }
+
+                                    if (field.validationRegex) {
+                                        validationRules.pattern = {
+                                            value: new RegExp(field.validationRegex),
+                                            message: field.validationMessage || 'Invalid format'
+                                        };
+                                    }
+
+                                    if (field.minLength) {
+                                        validationRules.minLength = {
+                                            value: field.minLength,
+                                            message: `Minimum ${field.minLength} characters required`
+                                        };
+                                    }
+
+                                    if (field.maxLength) {
+                                        validationRules.maxLength = {
+                                            value: field.maxLength,
+                                            message: `Maximum ${field.maxLength} characters allowed`
+                                        };
+                                    }
+
+                                    // Render based on field type
+                                    switch (field.type) {
+                                        case 'textarea':
+                                            return (
+                                                <div key={field.id} className="md:col-span-2">
+                                                    <label className="text-sm font-medium text-neutral-700 dark:text-neutral-200">
+                                                        {field.label} {field.required && <span className="text-red-500">*</span>}
+                                                    </label>
+                                                    {field.helpText && (
+                                                        <p className="text-xs text-neutral-500 mt-0.5 mb-1">{field.helpText}</p>
+                                                    )}
+                                                    <textarea
+                                                        className="mt-1 w-full px-3 py-2 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg text-sm text-neutral-900 dark:text-white min-h-[100px]"
+                                                        placeholder={field.placeholder}
+                                                        {...register(fieldName, validationRules)}
+                                                    />
+                                                    {errors.customFields?.[field.key] && (
+                                                        <p className="text-sm text-red-500 mt-1">{String(errors.customFields[field.key]?.message || '')}</p>
+                                                    )}
+                                                </div>
+                                            );
+
+                                        case 'select':
+                                            return (
+                                                <div key={field.id}>
+                                                    <label className="text-sm font-medium text-neutral-700 dark:text-neutral-200">
+                                                        {field.label} {field.required && <span className="text-red-500">*</span>}
+                                                    </label>
+                                                    {field.helpText && (
+                                                        <p className="text-xs text-neutral-500 mt-0.5 mb-1">{field.helpText}</p>
+                                                    )}
+                                                    <select
+                                                        className="mt-1 w-full px-3 py-2 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg text-sm text-neutral-900 dark:text-white"
+                                                        {...register(fieldName, validationRules)}
+                                                    >
+                                                        <option value="">Select...</option>
+                                                        {field.options?.map((opt: string) => (
+                                                            <option key={opt} value={opt}>{opt}</option>
+                                                        ))}
+                                                    </select>
+                                                    {errors.customFields?.[field.key] && (
+                                                        <p className="text-sm text-red-500 mt-1">{String(errors.customFields[field.key]?.message || '')}</p>
+                                                    )}
+                                                </div>
+                                            );
+
+                                        case 'boolean':
+                                            return (
+                                                <div key={field.id} className="md:col-span-2">
+                                                    <div className="flex items-start gap-2">
+                                                        <input
+                                                            type="checkbox"
+                                                            id={field.key}
+                                                            className="w-4 h-4 text-primary-600 rounded border-neutral-300 focus:ring-primary-500 mt-0.5"
+                                                            {...register(fieldName, validationRules)}
+                                                        />
+                                                        <div>
+                                                            <label htmlFor={field.key} className="text-sm font-medium text-neutral-700 dark:text-neutral-200">
+                                                                {field.label} {field.required && <span className="text-red-500">*</span>}
+                                                            </label>
+                                                            {field.helpText && (
+                                                                <p className="text-xs text-neutral-500 mt-0.5">{field.helpText}</p>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    {errors.customFields?.[field.key] && (
+                                                        <p className="text-sm text-red-500 mt-1">{String(errors.customFields[field.key]?.message || '')}</p>
+                                                    )}
+                                                </div>
+                                            );
+
+                                        case 'date':
+                                            return (
+                                                <div key={field.id}>
+                                                    <Input
+                                                        type="date"
+                                                        label={field.label + (field.required ? ' *' : '')}
+                                                        placeholder={field.placeholder}
+                                                        {...register(fieldName, validationRules)}
+                                                        error={errors.customFields?.[field.key]?.message as string}
+                                                    />
+                                                    {field.helpText && (
+                                                        <p className="text-xs text-neutral-500 mt-1">{field.helpText}</p>
+                                                    )}
+                                                </div>
+                                            );
+
+                                        case 'number':
+                                            return (
+                                                <div key={field.id}>
+                                                    <Input
+                                                        type="number"
+                                                        label={field.label + (field.required ? ' *' : '')}
+                                                        placeholder={field.placeholder}
+                                                        {...register(fieldName, { ...validationRules, valueAsNumber: true })}
+                                                        error={errors.customFields?.[field.key]?.message as string}
+                                                    />
+                                                    {field.helpText && (
+                                                        <p className="text-xs text-neutral-500 mt-1">{field.helpText}</p>
+                                                    )}
+                                                </div>
+                                            );
+
+                                        default: // text, email, phone, url
+                                            return (
+                                                <div key={field.id}>
+                                                    <Input
+                                                        type={field.type === 'email' ? 'email' : field.type === 'url' ? 'url' : 'text'}
+                                                        label={field.label + (field.required ? ' *' : '')}
+                                                        placeholder={field.placeholder}
+                                                        {...register(fieldName, validationRules)}
+                                                        error={errors.customFields?.[field.key]?.message as string}
+                                                    />
+                                                    {field.helpText && (
+                                                        <p className="text-xs text-neutral-500 mt-1">{field.helpText}</p>
+                                                    )}
+                                                </div>
+                                            );
+                                    }
+                                })}
+                            </div>
+                        </div>
+                    </Card>
+                )}
 
                 <Card>
                     <div className="p-6">

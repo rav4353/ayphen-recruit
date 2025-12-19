@@ -16,6 +16,15 @@ import { OtpType } from './dto/otp.dto';
 
 import { ROLE_PERMISSIONS } from '../../common/constants/permissions';
 
+function toSlug(value: string) {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '')
+    .slice(0, 48);
+}
+
 export interface JwtPayload {
   sub: string;
   email: string;
@@ -120,11 +129,15 @@ export class AuthService {
         }
       } else {
         // Create new tenant
+        const slugBase = dto.email.split('@')[1].toLowerCase();
+        const slug = `${toSlug(slugBase)}-${uuidv4().slice(0, 8)}`;
         const newTenant = await this.prisma.tenant.create({
           data: {
             name: `${dto.firstName}'s Organization`,
+            slug,
             domain,
-          },
+            status: 'ACTIVE',
+          } as any,
         });
         tenantId = newTenant.id;
         isNewTenant = true;
@@ -193,6 +206,9 @@ export class AuthService {
     if (user.status !== 'ACTIVE') {
       throw new UnauthorizedException('Email not verified');
     }
+
+    // We no longer throw here. The controller will check MFA requirements
+    // and decide whether to return tokens or an MFA setup/verify challenge.
 
     // Update last login
     await this.prisma.user.update({

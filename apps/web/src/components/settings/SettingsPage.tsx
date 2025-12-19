@@ -16,12 +16,12 @@ import { NotificationSettings } from './NotificationSettings';
 import { SkillsSettings } from './SkillsSettings';
 import { SecuritySettings } from './SecuritySettings';
 import { AutomationSettings } from './AutomationSettings';
-import { JobFormSettings } from './JobFormSettings';
 import { KeyboardShortcutsSettings } from './KeyboardShortcutsSettings';
 import { BulkImportManager } from './BulkImportManager';
 import { AuditLogViewer } from './AuditLogViewer';
 import { CareerSiteBuilder } from './CareerSiteBuilder';
 import { BackgroundCheckManager } from './BackgroundCheckManager';
+import { FormsSettings } from './FormsSettings';
 
 // Define all searchable settings items - comprehensive list
 const settingsItems = [
@@ -32,7 +32,7 @@ const settingsItems = [
     { id: 'tab-appearance', label: 'Appearance', description: 'Theme and status color customization', tabId: 'appearance', keywords: ['appearance', 'theme', 'colors', 'style'] },
     { id: 'tab-users', label: 'Users', description: 'User management and roles', tabId: 'users', keywords: ['users', 'team', 'members', 'roles'] },
     { id: 'tab-hiring', label: 'Hiring', description: 'Hiring process configuration', tabId: 'hiring', keywords: ['hiring', 'process', 'pipeline', 'workflow'] },
-    { id: 'tab-jobForm', label: 'Job Form', description: 'Custom fields for job forms', tabId: 'jobForm', keywords: ['job form', 'custom fields', 'form builder'] },
+    { id: 'tab-forms', label: 'Form Customization', description: 'Customize job and candidate forms', tabId: 'forms', keywords: ['form', 'customization', 'fields', 'job', 'candidate'] },
     { id: 'tab-automations', label: 'Automations', description: 'Workflow automation settings', tabId: 'automations', keywords: ['automations', 'triggers', 'workflows'] },
     { id: 'tab-skills', label: 'Skills', description: 'Skills taxonomy management', tabId: 'skills', keywords: ['skills', 'competencies', 'taxonomy'] },
     { id: 'tab-templates', label: 'Templates', description: 'Email, offer, and scorecard templates', tabId: 'templates', keywords: ['templates', 'email templates', 'offer templates'] },
@@ -129,11 +129,11 @@ const settingsItems = [
     { id: 'offer-approval-workflow', label: 'Offer Approval', description: 'Who approves offers', tabId: 'hiring', keywords: ['offer', 'approval', 'approver'] },
 
     // === JOB FORM SETTINGS ===
-    { id: 'job-form-settings', label: 'Job Form Settings', description: 'Customize job posting forms', tabId: 'jobForm', keywords: ['job', 'form', 'settings', 'customize'] },
-    { id: 'custom-fields', label: 'Custom Fields', description: 'Add custom fields to job forms', tabId: 'jobForm', keywords: ['custom', 'field', 'form', 'add'] },
-    { id: 'field-type', label: 'Field Type', description: 'Type of custom field (text, dropdown, etc.)', tabId: 'jobForm', keywords: ['type', 'text', 'dropdown', 'checkbox', 'number'] },
-    { id: 'required-fields', label: 'Required Fields', description: 'Make fields mandatory', tabId: 'jobForm', keywords: ['required', 'mandatory', 'validation'] },
-    { id: 'field-placement', label: 'Field Placement', description: 'Where to show custom fields', tabId: 'jobForm', keywords: ['placement', 'section', 'location'] },
+    { id: 'job-form-settings', label: 'Job Form Settings', description: 'Customize job posting forms', tabId: 'forms', keywords: ['job', 'form', 'settings', 'customize'] },
+    { id: 'custom-fields', label: 'Custom Fields', description: 'Add custom fields to job forms', tabId: 'forms', keywords: ['custom', 'field', 'form', 'add'] },
+    { id: 'field-type', label: 'Field Type', description: 'Type of custom field (text, dropdown, etc.)', tabId: 'forms', keywords: ['type', 'text', 'dropdown', 'checkbox', 'number'] },
+    { id: 'required-fields', label: 'Required Fields', description: 'Make fields mandatory', tabId: 'forms', keywords: ['required', 'mandatory', 'validation'] },
+    { id: 'field-placement', label: 'Field Placement', description: 'Where to show custom fields', tabId: 'forms', keywords: ['placement', 'section', 'location'] },
 
     // === AUTOMATION SETTINGS ===
     { id: 'automation-settings', label: 'Automation Settings', description: 'Configure automated workflows', tabId: 'automations', keywords: ['automation', 'settings', 'workflow'] },
@@ -223,20 +223,20 @@ export function SettingsPage() {
     }, [urlTab, storedTab, setSearchParams]);
 
     // Tabs definition
-    const tabs = [
+    const allTabs = [
         { id: 'general', label: t('settings.tabs.general'), icon: <Settings size={18} /> },
         { id: 'security', label: t('settings.tabs.security'), icon: <Shield size={18} /> },
         { id: 'notifications', label: t('settings.tabs.notifications', 'Notifications'), icon: <Bell size={18} /> },
         { id: 'appearance', label: t('settings.tabs.appearance'), icon: <Palette size={18} /> },
         { id: 'users', label: t('settings.tabs.users'), icon: <Users size={18} /> },
         { id: 'hiring', label: t('settings.tabs.hiring'), icon: <GitBranch size={18} /> },
-        { id: 'jobForm', label: t('settings.tabs.jobForm', 'Job Form'), icon: <Layout size={18} /> },
+        { id: 'forms', label: t('settings.tabs.forms', 'Form Customization'), icon: <Layout size={18} /> },
         { id: 'automations', label: t('settings.tabs.automations'), icon: <Zap size={18} /> },
         { id: 'skills', label: t('settings.tabs.skills'), icon: <FileText size={18} /> },
         { id: 'templates', label: t('settings.tabs.templates', 'Templates'), icon: <FileText size={18} /> },
         { id: 'integrations', label: t('settings.tabs.integrations'), icon: <Plug size={18} /> },
         { id: 'compliance', label: t('settings.tabs.compliance'), icon: <Shield size={18} /> },
-        { id: 'billing', label: t('settings.tabs.billing'), icon: <CreditCard size={18} /> },
+        { id: 'billing', label: t('settings.tabs.billing'), icon: <CreditCard size={18} />, restricted: true },
         { id: 'careerSite', label: t('settings.tabs.careerSite', 'Career Site'), icon: <Globe size={18} /> },
         { id: 'import', label: t('settings.tabs.import', 'Bulk Import'), icon: <Upload size={18} /> },
         { id: 'shortcuts', label: t('settings.tabs.shortcuts', 'Shortcuts'), icon: <Keyboard size={18} /> },
@@ -244,15 +244,21 @@ export function SettingsPage() {
         { id: 'bgv', label: t('settings.tabs.bgv', 'Background Checks'), icon: <Shield size={18} /> },
     ];
 
+    const tabs = allTabs.filter(tab => !tab.restricted || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN');
+
     // Filter settings items based on search query
     const filteredItems = searchQuery.trim() === ''
         ? []
-        : settingsItems.filter(item => {
-            const query = searchQuery.toLowerCase();
-            return item.label.toLowerCase().includes(query) ||
-                item.description.toLowerCase().includes(query) ||
-                item.keywords.some(keyword => keyword.toLowerCase().includes(query));
-        });
+        : settingsItems
+            .filter(item => {
+                if (item.tabId === 'billing' && user?.role !== 'ADMIN' && user?.role !== 'SUPER_ADMIN') {
+                    return false;
+                }
+                const query = searchQuery.toLowerCase();
+                return item.label.toLowerCase().includes(query) ||
+                    item.description.toLowerCase().includes(query) ||
+                    item.keywords.some(keyword => keyword.toLowerCase().includes(query));
+            });
 
     const handleTabChange = (tabId: string, fromSearch: boolean = false) => {
         setSearchParams(prev => {
@@ -413,7 +419,7 @@ export function SettingsPage() {
                             {activeTab === 'appearance' && <StatusSettings />}
                             {activeTab === 'users' && <UserManagementSettings />}
                             {activeTab === 'hiring' && <HiringProcessSettings />}
-                            {activeTab === 'jobForm' && <JobFormSettings />}
+                            {activeTab === 'forms' && <FormsSettings />}
                             {activeTab === 'automations' && <AutomationSettings />}
                             {activeTab === 'skills' && <SkillsSettings />}
                             {activeTab === 'templates' && <TemplateSettings />}

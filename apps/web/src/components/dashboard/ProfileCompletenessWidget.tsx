@@ -1,13 +1,23 @@
 import { Card, Button } from '../ui';
 import { CheckCircle2, Circle } from 'lucide-react';
+import { useAuthStore } from '../../stores/auth';
+import { useNavigate } from 'react-router-dom';
+
+interface Step {
+    label: string;
+    completed: boolean;
+}
 
 export function ProfileCompletenessWidget() {
-    const steps = [
-        { label: 'Basic Info', completed: true },
-        { label: 'Experience', completed: true },
-        { label: 'Education', completed: true },
-        { label: 'Skills', completed: false },
-        { label: 'Resume', completed: true },
+    const user = useAuthStore((state) => state.user);
+    const navigate = useNavigate();
+
+    const steps: Step[] = [
+        { label: 'Basic Info', completed: !!(user?.firstName && user?.lastName && user?.email) },
+        { label: 'Role Setup', completed: !!user?.role },
+        { label: 'Experience', completed: false }, // Placeholder until profile API
+        { label: 'Skills', completed: false }, // Placeholder until profile API
+        { label: 'Resume', completed: false }, // Placeholder until profile API
     ];
 
     const completedCount = steps.filter(s => s.completed).length;
@@ -46,7 +56,10 @@ export function ProfileCompletenessWidget() {
                     ))}
                 </div>
 
-                <Button className="w-full bg-white text-blue-600 hover:bg-blue-50 border-0">
+                <Button
+                    className="w-full bg-white text-blue-600 hover:bg-blue-50 border-0"
+                    onClick={() => navigate('/settings/profile')}
+                >
                     Complete Profile
                 </Button>
             </div>

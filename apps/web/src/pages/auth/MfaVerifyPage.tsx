@@ -61,7 +61,7 @@ export function MfaVerifyPage() {
     setError('');
 
     try {
-      const response = await authApi.verifyMfa(verificationCode, rememberDevice);
+      const response = await authApi.verifyMfa(verificationCode, rememberDevice, mfaToken);
       // API returns { success, data: { accessToken, refreshToken } }
       const responseData = response.data.data || response.data;
       const { accessToken, refreshToken } = responseData;

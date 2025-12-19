@@ -3,8 +3,10 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { Mail, User, Lock, Check, X } from 'lucide-react';
+import { m } from 'framer-motion';
 import { authApi } from '../../lib/api';
-import { Button, Input, Card, CardContent, Alert, Divider } from '../../components/ui';
+import { Button, Input, Alert } from '../../components/ui';
+import { PremiumAuthLayout } from '../../components/auth/PremiumAuthLayout';
 
 interface RegisterForm {
   firstName: string;
@@ -81,20 +83,11 @@ export function RegisterPage() {
   };
 
   return (
-    <Card className="w-full max-w-lg mx-4 sm:mx-0 shadow-2xl border-0 dark:border-0 bg-white dark:bg-white overflow-hidden">
-      {/* Header Section with gradient accent - Compact padding */}
-      <div className="relative px-6 pt-6 pb-4 text-center">
-        <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary-500 via-primary-600 to-primary-500" />
-        <h1 className="text-xl font-bold text-neutral-900">
-          {t('auth.register.title')}
-        </h1>
-        <p className="mt-1.5 text-neutral-500 text-sm">
-          {t('auth.register.description')}
-        </p>
-      </div>
-
-      <CardContent className="px-6 pb-6 pt-0">
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-3.5">
+    <PremiumAuthLayout
+      title={t('auth.register.title')}
+      subtitle={t('auth.register.description')}
+    >
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
           {error && (
             <Alert variant="error" className="animate-in fade-in slide-in-from-top-1 duration-200">
               {error}
@@ -102,62 +95,72 @@ export function RegisterPage() {
           )}
 
           {/* Name Fields */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-neutral-700">
+          <m.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.4, delay: 0.1 }}
+            className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+          >
+            <div className="space-y-2">
+              <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 uppercase tracking-wide">
                 {t('auth.register.firstName')}
               </label>
               <div className="relative group">
                 <User
-                  size={16}
+                  size={18}
                   className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 group-focus-within:text-primary-500 transition-colors"
                 />
                 <Input
                   placeholder={t('auth.register.firstNamePlaceholder')}
                   error={errors.firstName?.message}
-                  className="pl-10 h-10 text-sm bg-white dark:bg-white border-neutral-300 dark:border-neutral-300 text-neutral-900 dark:text-neutral-900 placeholder:text-neutral-400 dark:placeholder:text-neutral-400 focus:border-primary-500 focus:ring-0 dark:focus:border-primary-500 dark:focus:ring-0"
+                  className="pl-11 h-12 text-base border-neutral-200 dark:border-neutral-700 focus:border-primary-500 focus:ring-primary-500/20 rounded-xl"
                   {...register('firstName', {
                     required: t('auth.validation.firstNameRequired'),
                   })}
                 />
               </div>
             </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-neutral-700">
+            <div className="space-y-2">
+              <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 uppercase tracking-wide">
                 {t('auth.register.lastName')}
               </label>
               <div className="relative group">
                 <User
-                  size={16}
+                  size={18}
                   className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 group-focus-within:text-primary-500 transition-colors"
                 />
                 <Input
                   placeholder={t('auth.register.lastNamePlaceholder')}
                   error={errors.lastName?.message}
-                  className="pl-10 h-10 text-sm bg-white dark:bg-white border-neutral-300 dark:border-neutral-300 text-neutral-900 dark:text-neutral-900 placeholder:text-neutral-400 dark:placeholder:text-neutral-400 focus:border-primary-500 focus:ring-0 dark:focus:border-primary-500 dark:focus:ring-0"
+                  className="pl-11 h-12 text-base border-neutral-200 dark:border-neutral-700 focus:border-primary-500 focus:ring-primary-500/20 rounded-xl"
                   {...register('lastName', {
                     required: t('auth.validation.lastNameRequired'),
                   })}
                 />
               </div>
             </div>
-          </div>
+          </m.div>
 
           {/* Email Field */}
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-neutral-700">
+          <m.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.4, delay: 0.2 }}
+            className="space-y-2"
+          >
+            <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 uppercase tracking-wide">
               {t('auth.register.email')}
             </label>
             <div className="relative group">
               <Mail
-                size={16}
+                size={18}
                 className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 group-focus-within:text-primary-500 transition-colors"
               />
               <Input
                 type="email"
                 placeholder={t('auth.register.emailPlaceholder')}
                 error={errors.email?.message}
-                className="pl-10 h-10 text-sm bg-white dark:bg-white border-neutral-300 dark:border-neutral-300 text-neutral-900 dark:text-neutral-900 placeholder:text-neutral-400 dark:placeholder:text-neutral-400 focus:border-primary-500 focus:ring-0 dark:focus:border-primary-500 dark:focus:ring-0"
+                className="pl-11 h-12 text-base border-neutral-200 dark:border-neutral-700 focus:border-primary-500 focus:ring-primary-500/20 rounded-xl"
                 {...register('email', {
                   required: t('auth.validation.emailRequired'),
                   pattern: {
@@ -167,23 +170,28 @@ export function RegisterPage() {
                 })}
               />
             </div>
-          </div>
+          </m.div>
 
           {/* Password Field with Strength Indicator */}
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-neutral-700">
+          <m.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.4, delay: 0.3 }}
+            className="space-y-2"
+          >
+            <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 uppercase tracking-wide">
               {t('auth.register.password')}
             </label>
             <div className="relative group">
               <Lock
-                size={16}
+                size={18}
                 className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 group-focus-within:text-primary-500 transition-colors"
               />
               <Input
                 type="password"
                 placeholder={t('auth.register.passwordPlaceholder')}
                 error={errors.password?.message}
-                className="pl-10 h-10 text-sm bg-white dark:bg-white border-neutral-300 dark:border-neutral-300 text-neutral-900 dark:text-neutral-900 placeholder:text-neutral-400 dark:placeholder:text-neutral-400 focus:border-primary-500 focus:ring-0 dark:focus:border-primary-500 dark:focus:ring-0"
+                className="pl-11 h-12 text-base border-neutral-200 dark:border-neutral-700 focus:border-primary-500 focus:ring-primary-500/20 rounded-xl"
                 {...register('password', {
                   required: t('auth.validation.passwordRequired'),
                   minLength: {
@@ -220,7 +228,7 @@ export function RegisterPage() {
                 </div>
 
                 {/* Password Requirements - Compact */}
-                <div className="grid grid-cols-2 gap-x-2 gap-y-1 p-2 rounded-md bg-neutral-50 text-[11px]">
+                <div className="grid grid-cols-2 gap-x-2 gap-y-1 p-2.5 rounded-lg bg-neutral-50 dark:bg-neutral-800/50 text-[11px]">
                   <PasswordCheck passed={checks.length} label="8+ chars" />
                   <PasswordCheck passed={checks.lowercase} label="Lowercase" />
                   <PasswordCheck passed={checks.uppercase} label="Uppercase" />
@@ -229,57 +237,84 @@ export function RegisterPage() {
                 </div>
               </div>
             )}
-          </div>
+          </m.div>
 
           {/* Confirm Password Field */}
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-neutral-700">
+          <m.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.4, delay: 0.4 }}
+            className="space-y-2"
+          >
+            <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 uppercase tracking-wide">
               {t('auth.register.confirmPassword')}
             </label>
             <div className="relative group">
               <Lock
-                size={16}
+                size={18}
                 className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 group-focus-within:text-primary-500 transition-colors"
               />
               <Input
                 type="password"
                 placeholder={t('auth.register.confirmPasswordPlaceholder')}
                 error={errors.confirmPassword?.message}
-                className="pl-10 h-10 text-sm bg-white dark:bg-white border-neutral-300 dark:border-neutral-300 text-neutral-900 dark:text-neutral-900 placeholder:text-neutral-400 dark:placeholder:text-neutral-400 focus:border-primary-500 focus:ring-0 dark:focus:border-primary-500 dark:focus:ring-0"
+                className="pl-11 h-12 text-base border-neutral-200 dark:border-neutral-700 focus:border-primary-500 focus:ring-primary-500/20 rounded-xl"
                 {...register('confirmPassword', {
                   required: t('auth.validation.passwordRequired'),
                   validate: (value) => value === password || t('auth.validation.passwordsDoNotMatch'),
                 })}
               />
             </div>
-          </div>
+          </m.div>
 
           {/* Submit Button */}
-          <Button
-            type="submit"
-            isLoading={isLoading}
-            className="w-full h-11 text-sm font-semibold shadow-lg shadow-primary-500/25 hover:shadow-primary-500/40 transition-shadow mt-2"
+          <m.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.5 }}
+            className="pt-2"
           >
-            {isLoading ? t('auth.register.creatingAccount') : t('auth.register.createAccount')}
-          </Button>
-
-          <Divider
-            text={t('common.or')}
-            className="my-3 [&_span]:dark:bg-white [&_div]:dark:border-neutral-200"
-          />
+            <Button
+              type="submit"
+              isLoading={isLoading}
+              className="relative w-full h-12 text-base font-semibold bg-gradient-to-r from-primary-600 to-primary-500 hover:from-primary-700 hover:to-primary-600 shadow-soft-lg hover:shadow-primary-500/30 overflow-hidden group rounded-xl transition-all"
+            >
+              <m.div
+                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
+                animate={{
+                  x: ['-100%', '200%'],
+                }}
+                transition={{
+                  duration: 3,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                  repeatDelay: 1,
+                }}
+              />
+              <span className="relative">
+                {isLoading ? t('auth.register.creatingAccount') : t('auth.register.createAccount')}
+              </span>
+            </Button>
+          </m.div>
 
           {/* Sign In Link */}
-          <p className="text-center text-neutral-600 text-sm">
-            {t('auth.register.hasAccount')}{' '}
-            <Link
-              to="/login"
-              className="font-semibold text-primary-600 hover:text-primary-700 transition-colors"
-            >
-              {t('auth.register.signIn')}
-            </Link>
-          </p>
+          <m.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4, delay: 0.6 }}
+            className="text-center pt-2"
+          >
+            <p className="text-sm text-neutral-600 dark:text-neutral-400">
+              {t('auth.register.hasAccount')}{' '}
+              <Link
+                to="/login"
+                className="font-semibold text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors hover:underline"
+              >
+                {t('auth.register.signIn')}
+              </Link>
+            </p>
+          </m.div>
         </form>
-      </CardContent>
-    </Card>
+    </PremiumAuthLayout>
   );
 }

@@ -12,10 +12,12 @@ import { OtpService } from './services/otp.service';
 import { MfaService } from './services/mfa.service';
 import { SessionService } from './services/session.service';
 import { LoginAttemptService } from './services/login-attempt.service';
+import { SuperAdminModule } from '../super-admin/super-admin.module';
 
 @Module({
   imports: [
     UsersModule,
+    forwardRef(() => SuperAdminModule),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -48,4 +50,4 @@ import { LoginAttemptService } from './services/login-attempt.service';
     LoginAttemptService,
   ],
 })
-export class AuthModule {}
+export class AuthModule { }

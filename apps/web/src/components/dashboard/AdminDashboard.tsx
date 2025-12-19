@@ -1,4 +1,4 @@
-import { SystemHealthWidget } from './SystemHealthWidget';
+
 import { UserActivityWidget } from './UserActivityWidget';
 import { ComplianceAlertsWidget } from './ComplianceAlertsWidget';
 import { RecentAuditLogsWidget } from './RecentAuditLogsWidget';
@@ -17,8 +17,7 @@ export function AdminDashboard() {
                 <p className="text-neutral-500 dark:text-neutral-400 mt-1">{t('dashboard.subtitle.admin')}</p>
             </div>
 
-            {/* System Health - Full Width */}
-            <SystemHealthWidget />
+
 
             {/* Main Grid Layout */}
             <div className="grid grid-cols-1 gap-4 sm:gap-6">

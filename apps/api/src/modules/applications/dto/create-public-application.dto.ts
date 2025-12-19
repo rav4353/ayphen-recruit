@@ -1,4 +1,4 @@
-import { IsEmail, IsString, IsOptional, IsBoolean } from 'class-validator';
+import { IsEmail, IsString, IsOptional, IsBoolean, IsArray } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreatePublicApplicationDto {
@@ -26,6 +26,21 @@ export class CreatePublicApplicationDto {
     @ApiPropertyOptional()
     @IsOptional()
     @IsString()
+    currentTitle?: string;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsString()
+    currentCompany?: string;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsString()
+    location?: string;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsString()
     linkedinUrl?: string;
 
     @ApiPropertyOptional()
@@ -36,12 +51,36 @@ export class CreatePublicApplicationDto {
     @ApiPropertyOptional()
     @IsOptional()
     @IsString()
+    summary?: string;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsString()
+    skills?: string;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsString()
     resumeUrl?: string;
 
     @ApiPropertyOptional()
     @IsOptional()
     @IsString()
     coverLetter?: string;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsArray()
+    experience?: any[];
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsArray()
+    education?: any[];
+
+    @ApiPropertyOptional({ description: 'Custom field values as key-value pairs' })
+    @IsOptional()
+    customFields?: Record<string, any>;
 
     @ApiPropertyOptional()
     @IsOptional()

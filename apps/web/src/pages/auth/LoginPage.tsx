@@ -3,9 +3,12 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { Mail, Lock, KeyRound } from 'lucide-react';
+import { m } from 'framer-motion';
 import { useAuthStore } from '../../stores/auth';
 import { authApi } from '../../lib/api';
-import { Button, Input, Card, CardContent, Alert, Divider } from '../../components/ui';
+import { Button, Input, Alert } from '../../components/ui';
+import { PremiumAuthLayout } from '../../components/auth/PremiumAuthLayout';
+
 
 interface LoginForm {
   email: string;
@@ -88,6 +91,11 @@ export function LoginPage() {
 
       console.log('responseData.requirePasswordChange:', responseData.requirePasswordChange);
 
+      if (responseData.requiresMfaSetup) {
+        navigate('/auth/mfa-onboarding', { state: { mfaToken: responseData.mfaToken } });
+        return;
+      }
+
       if (responseData.requiresMfa) {
         navigate('/auth/mfa', { state: { mfaToken: responseData.mfaToken } });
         return;
@@ -167,152 +175,202 @@ export function LoginPage() {
   };
 
   return (
-    <Card className="w-full max-w-md mx-4 sm:mx-0 shadow-2xl border-0 dark:border-0 bg-white dark:bg-white overflow-hidden">
-      {/* Header Section with gradient accent */}
-      <div className="relative px-8 pt-6 pb-5 text-center">
-        <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary-500 via-primary-600 to-primary-500" />
-        <h1 className="text-2xl font-bold text-neutral-900">
-          {t('auth.login.title')}
-        </h1>
-        <p className="mt-2 text-neutral-500 text-sm">
-          {t('auth.login.description')}
-        </p>
-      </div>
+    <PremiumAuthLayout
+      title={t('auth.login.title')}
+      subtitle={t('auth.login.description')}
+    >
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+        {error && (
+          <Alert variant="error" className="animate-in fade-in slide-in-from-top-1 duration-200">
+            {error}
+          </Alert>
+        )}
 
-      <CardContent className="px-8 pb-6 pt-0">
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-          {error && (
-            <Alert variant="error" className="animate-in fade-in slide-in-from-top-1 duration-200">
-              {error}
-            </Alert>
-          )}
-
-          {/* Email Field */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-neutral-700">
-              {t('auth.login.email')}
-            </label>
-            <div className="relative group">
-              <Mail
-                size={18}
-                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 group-focus-within:text-primary-500 transition-colors"
-              />
-              <Input
-                type="email"
-                placeholder={t('auth.login.emailPlaceholder')}
-                error={errors.email?.message}
-                autoComplete="username"
-                className="pl-11 h-12 text-base bg-white dark:bg-white border-neutral-200 dark:border-neutral-200 text-neutral-900 dark:text-neutral-900 placeholder:text-neutral-400 dark:placeholder:text-neutral-400 focus:border-primary-500 focus:ring-0 dark:focus:border-primary-500 dark:focus:ring-0"
-                {...register('email', {
-                  required: t('auth.validation.emailRequired'),
-                  pattern: {
-                    value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                    message: t('auth.validation.emailInvalid'),
-                  },
-                })}
-              />
-            </div>
+        {/* Email Field */}
+        <m.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.4, delay: 0.1 }}
+          className="space-y-2"
+        >
+          <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 uppercase tracking-wide">
+            {t('auth.login.email')}
+          </label>
+          <div className="relative group">
+            <Mail
+              size={18}
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 group-focus-within:text-primary-500 transition-colors"
+            />
+            <Input
+              type="email"
+              placeholder={t('auth.login.emailPlaceholder')}
+              error={errors.email?.message}
+              autoComplete="username"
+              className="pl-11 h-12 text-base border-neutral-200 dark:border-neutral-700 focus:border-primary-500 focus:ring-primary-500/20 rounded-xl"
+              {...register('email', {
+                required: t('auth.validation.emailRequired'),
+                pattern: {
+                  value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                  message: t('auth.validation.emailInvalid'),
+                },
+              })}
+            />
           </div>
+        </m.div>
 
-          {/* Password Field */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-neutral-700">
-              {t('auth.login.password')}
-            </label>
-            <div className="relative group">
-              <Lock
-                size={18}
-                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 group-focus-within:text-primary-500 transition-colors"
-              />
-              <Input
-                type="password"
-                placeholder={t('auth.login.passwordPlaceholder')}
-                error={errors.password?.message}
-                autoComplete="current-password"
-                className="pl-11 h-12 text-base bg-white dark:bg-white border-neutral-200 dark:border-neutral-200 text-neutral-900 dark:text-neutral-900 placeholder:text-neutral-400 dark:placeholder:text-neutral-400 focus:border-primary-500 focus:ring-0 dark:focus:border-primary-500 dark:focus:ring-0"
-                {...register('password', {
-                  required: t('auth.validation.passwordRequired'),
-                  minLength: {
-                    value: 6,
-                    message: t('auth.validation.passwordMin'),
-                  },
-                })}
-              />
-            </div>
+        {/* Password Field */}
+        <m.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.4, delay: 0.2 }}
+          className="space-y-2"
+        >
+          <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 uppercase tracking-wide">
+            {t('auth.login.password')}
+          </label>
+          <div className="relative group">
+            <Lock
+              size={18}
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 group-focus-within:text-primary-500 transition-colors"
+            />
+            <Input
+              type="password"
+              placeholder={t('auth.login.passwordPlaceholder')}
+              error={errors.password?.message}
+              autoComplete="current-password"
+              className="pl-11 h-12 text-base border-neutral-200 dark:border-neutral-700 focus:border-primary-500 focus:ring-primary-500/20 rounded-xl"
+              {...register('password', {
+                required: t('auth.validation.passwordRequired'),
+                minLength: {
+                  value: 6,
+                  message: t('auth.validation.passwordMin'),
+                },
+              })}
+            />
           </div>
+        </m.div>
 
-          {/* Remember Me & Forgot Password */}
-          <div className="flex items-center justify-between">
-            <label className="flex items-center gap-2.5 cursor-pointer group">
-              <input
-                type="checkbox"
-                className="w-4 h-4 rounded border-neutral-300 text-primary-600 focus:ring-primary-500 focus:ring-offset-0 transition-colors bg-white dark:bg-white dark:border-neutral-300"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-              />
-              <span className="text-sm text-neutral-600 group-hover:text-neutral-900 transition-colors">
-                {t('auth.login.rememberMe', 'Remember me')}
-              </span>
-            </label>
+        {/* Remember Me & Forgot Password */}
+        <m.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.4, delay: 0.3 }}
+          className="flex items-center justify-between pt-1"
+        >
+          <label className="flex items-center gap-2 cursor-pointer group">
+            <input
+              type="checkbox"
+              className="w-4 h-4 rounded border-neutral-300 dark:border-neutral-600 text-primary-600 focus:ring-primary-500 focus:ring-offset-0 transition-colors"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+            />
+            <span className="text-sm text-neutral-600 dark:text-neutral-400 group-hover:text-neutral-900 dark:group-hover:text-neutral-200 transition-colors">
+              {t('auth.login.rememberMe', 'Remember me')}
+            </span>
+          </label>
 
-            <Link
-              to="/forgot-password"
-              className="text-sm font-medium text-primary-600 hover:text-primary-700 transition-colors"
-            >
-              {t('auth.login.forgotPassword')}
-            </Link>
-          </div>
+          <Link
+            to="/forgot-password"
+            className="text-sm font-semibold text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors hover:underline"
+          >
+            {t('auth.login.forgotPassword')}
+          </Link>
+        </m.div>
 
-          {/* Sign In Button */}
+        {/* Sign In Button */}
+        <m.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.4 }}
+          className="pt-2"
+        >
           <Button
             type="submit"
             isLoading={isLoading}
-            className="w-full h-12 text-base font-semibold shadow-lg shadow-primary-500/25 hover:shadow-primary-500/40 transition-shadow"
+            className="relative w-full h-12 text-base font-semibold bg-gradient-to-r from-primary-600 to-primary-500 hover:from-primary-700 hover:to-primary-600 shadow-soft-lg hover:shadow-primary-500/30 overflow-hidden group rounded-xl transition-all"
           >
-            {isLoading ? t('auth.login.signingIn') : t('auth.login.signIn')}
+            {/* Shine effect */}
+            <m.div
+              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
+              animate={{
+                x: ['-100%', '200%'],
+              }}
+              transition={{
+                duration: 3,
+                repeat: Infinity,
+                ease: "easeInOut",
+                repeatDelay: 1,
+              }}
+            />
+            <span className="relative">
+              {isLoading ? t('auth.login.signingIn') : t('auth.login.signIn')}
+            </span>
           </Button>
+        </m.div>
 
-          <Divider
-            text={t('auth.login.orContinueWith')}
-            className="[&_span]:dark:bg-white [&_div]:dark:border-neutral-200"
-          />
-
-          {/* Alternative Sign-in Methods */}
-          <div className="grid grid-cols-2 gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              className="h-11 gap-2.5 font-medium bg-white dark:bg-white text-neutral-700 dark:text-neutral-700 border-neutral-200 dark:border-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-50 hover:text-neutral-900 dark:hover:text-neutral-900 hover:border-neutral-300 dark:hover:border-neutral-300 transition-colors opacity-60 cursor-not-allowed"
-              disabled
-              title="Coming soon"
-            >
-              <GoogleIcon />
-              <span className="hidden sm:inline">Google</span>
-            </Button>
-            <Link to="/auth/otp" className="w-full">
-              <Button
-                variant="outline"
-                className="w-full h-11 gap-2.5 font-medium bg-white dark:bg-white text-neutral-700 dark:text-neutral-700 border-neutral-200 dark:border-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-50 hover:text-neutral-900 dark:hover:text-neutral-900 hover:border-neutral-300 dark:hover:border-neutral-300 transition-colors"
-              >
-                <KeyRound size={18} />
-                <span className="hidden sm:inline">{t('auth.login.otp')}</span>
-                <span className="sm:hidden">OTP</span>
-              </Button>
-            </Link>
+        <m.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.4, delay: 0.5 }}
+          className="relative py-4"
+        >
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-neutral-200 dark:border-neutral-700"></div>
           </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-white dark:bg-neutral-900 px-3 text-neutral-500 dark:text-neutral-400 font-medium">
+              {t('auth.login.orContinueWith')}
+            </span>
+          </div>
+        </m.div>
 
-          {/* Sign Up Link */}
-          <p className="text-center text-neutral-600 text-sm pt-2">
+        {/* Alternative Sign-in Methods */}
+        <m.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.6 }}
+          className="grid grid-cols-2 gap-3"
+        >
+          <Button
+            type="button"
+            variant="outline"
+            className="h-11 gap-2 font-medium border-neutral-200 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-600 transition-all rounded-xl opacity-60 cursor-not-allowed"
+            disabled
+            title="Coming soon"
+          >
+            <GoogleIcon />
+            <span className="hidden sm:inline text-sm">Google</span>
+          </Button>
+          <Link to="/auth/otp" className="w-full">
+            <Button
+              variant="outline"
+              className="w-full h-11 gap-2 font-medium border-neutral-200 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-600 transition-all rounded-xl"
+            >
+              <KeyRound size={18} />
+              <span className="hidden sm:inline text-sm">{t('auth.login.otp')}</span>
+              <span className="sm:hidden text-sm">OTP</span>
+            </Button>
+          </Link>
+        </m.div>
+
+        {/* Sign Up Link */}
+        <m.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.4, delay: 0.7 }}
+          className="text-center pt-2"
+        >
+          <p className="text-sm text-neutral-600 dark:text-neutral-400">
             {t('auth.login.noAccount')}{' '}
             <Link
               to="/register"
-              className="font-semibold text-primary-600 hover:text-primary-700 transition-colors"
+              className="font-semibold text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors hover:underline"
             >
               {t('auth.login.signUp')}
             </Link>
           </p>
-        </form>
-      </CardContent>
-    </Card>
+        </m.div>
+      </form>
+    </PremiumAuthLayout>
   );
 }

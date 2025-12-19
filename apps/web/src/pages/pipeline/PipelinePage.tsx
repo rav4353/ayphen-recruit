@@ -1,43 +1,35 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams, useNavigate } from 'react-router-dom';
-import { jobsApi, applicationsApi } from '../../lib/api';
 import { KanbanBoard } from '../../components/applications/KanbanBoard';
-import toast from 'react-hot-toast';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, RefreshCw } from 'lucide-react';
+import { usePipelineJobs, usePipelineJob, usePipelineApplications, useMoveApplication } from '../../hooks/queries';
+import { logger } from '../../lib/logger';
+
+const log = logger.component('PipelinePage');
 
 export function PipelinePage() {
   const { t } = useTranslation();
   const { jobId, tenantId } = useParams<{ jobId: string; tenantId: string }>();
   const navigate = useNavigate();
-
-  const [jobs, setJobs] = useState<any[]>([]);
   const [selectedJobId, setSelectedJobId] = useState<string>(jobId || '');
-  const [stages, setStages] = useState<any[]>([]);
-  const [applications, setApplications] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
 
-  // Fetch jobs on mount
+  // React Query hooks
+  const { data: jobs = [], isLoading: jobsLoading } = usePipelineJobs(tenantId || '');
+  const { data: pipelineData, isLoading: pipelineLoading } = usePipelineJob(tenantId || '', selectedJobId);
+  const { data: applications = [], isLoading: appsLoading, refetch: refetchApps } = usePipelineApplications(selectedJobId);
+  const moveApplicationMutation = useMoveApplication(selectedJobId);
+
+  // Derived state
+  const stages = pipelineData?.stages || [];
+  const isLoading = jobsLoading || pipelineLoading || appsLoading;
+
+  // Auto-select first job if none selected
   useEffect(() => {
-    const fetchJobs = async () => {
-      if (!tenantId) return;
-      try {
-        const res = await jobsApi.getAll(tenantId, { limit: 100 });
-        setJobs(res.data.data);
-
-        // If no job selected, select the first one
-        if (!selectedJobId && res.data.data.length > 0) {
-          setSelectedJobId(res.data.data[0].id);
-        }
-      } catch (err) {
-        console.error('Failed to fetch jobs', err);
-        toast.error(t('pipeline.loadJobsError'));
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchJobs();
-  }, [tenantId]);
+    if (!selectedJobId && jobs.length > 0) {
+      setSelectedJobId(jobs[0].id);
+    }
+  }, [jobs, selectedJobId]);
 
   // Update URL when job changes
   useEffect(() => {
@@ -46,53 +38,12 @@ export function PipelinePage() {
     }
   }, [selectedJobId, jobId, navigate, tenantId]);
 
-  // Fetch pipeline and applications when job changes
-  useEffect(() => {
-    if (!selectedJobId || !tenantId) return;
-
-    const fetchData = async () => {
-      setIsLoading(true);
-      try {
-        // Fetch job details to get pipeline
-        const jobRes = await jobsApi.getById(tenantId, selectedJobId);
-        const pipeline = jobRes.data.data.pipeline;
-        if (pipeline && pipeline.stages) {
-          setStages(pipeline.stages);
-        } else {
-          setStages([]);
-        }
-
-        // Fetch applications
-        const appsRes = await applicationsApi.getByJob(selectedJobId);
-        setApplications(appsRes.data.data);
-      } catch (err) {
-        console.error('Failed to fetch board data', err);
-        toast.error(t('pipeline.loadBoardError'));
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchData();
-  }, [selectedJobId, tenantId]);
-
-  const handleMoveCard = async (applicationId: string, stageId: string) => {
-    // Optimistic update
-    const oldApplications = [...applications];
-    setApplications(prev => prev.map(app =>
-      app.id === applicationId ? { ...app, currentStageId: stageId } : app
-    ));
-
-    try {
-      await applicationsApi.moveToStage(applicationId, stageId);
-      toast.success(t('pipeline.moveSuccess'));
-    } catch (err) {
-      console.error('Failed to move card', err);
-      toast.error(t('pipeline.moveError'));
-      setApplications(oldApplications); // Revert
-    }
+  const handleMoveCard = (applicationId: string, stageId: string) => {
+    log.info('Moving card', { applicationId, stageId });
+    moveApplicationMutation.mutate({ applicationId, stageId });
   };
 
-  const handleCardClick = (application: any) => {
+  const handleCardClick = (application: { candidateId?: string }) => {
     if (application.candidateId) {
       navigate(`/${tenantId}/candidates/${application.candidateId}`);
     }
@@ -111,18 +62,28 @@ export function PipelinePage() {
           </p>
         </div>
 
-        {/* Job selector */}
-        <div className="relative w-full sm:w-auto">
-          <select
+        {/* Job selector and refresh */}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => refetchApps()}
+            disabled={isLoading}
+            className="p-2 rounded-lg border border-neutral-200 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors disabled:opacity-50"
+            title={t('common.refresh', 'Refresh')}
+          >
+            <RefreshCw size={16} className={`text-neutral-500 ${isLoading ? 'animate-spin' : ''}`} />
+          </button>
+          <div className="relative w-full sm:w-auto">
+            <select
             className="appearance-none w-full sm:min-w-[280px] h-10 pl-4 pr-10 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 rounded-lg border border-neutral-200 dark:border-neutral-700 text-sm font-medium hover:border-neutral-300 dark:hover:border-neutral-600 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             value={selectedJobId}
             onChange={(e) => setSelectedJobId(e.target.value)}
           >
-            {jobs.map(job => (
+            {jobs.map((job: { id: string; title: string }) => (
               <option key={job.id} value={job.id}>{job.title}</option>
             ))}
           </select>
           <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+          </div>
         </div>
       </div>
 

@@ -1,12 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { Plus, Search, Filter, Download, MoreVertical, Copy, XCircle } from 'lucide-react';
+import { Plus, Search, Filter, Download, MoreVertical, Copy, XCircle, RefreshCw } from 'lucide-react';
 import { jobsApi } from '../../lib/api';
-import type { ApiResponse, Job, PaginationMeta } from '../../lib/types';
 import { StatusBadge, Button } from '../../components/ui';
 import { SavedViews } from '../../components/common/SavedViews';
+import { useJobs, useUpdateJobStatus, useCloneJob, useSubmitJobApproval, useBulkUpdateJobStatus } from '../../hooks/queries';
+import { logger } from '../../lib/logger';
+
+const log = logger.component('JobsPage');
 
 const JOB_STATUSES = ['OPEN', 'DRAFT', 'CLOSED', 'PENDING_APPROVAL', 'APPROVED', 'ON_HOLD', 'CANCELLED'];
 
@@ -16,11 +19,9 @@ export function JobsPage() {
   const { tenantId } = useParams<{ tenantId: string }>();
   const [searchParams] = useSearchParams();
 
+  // Filter state
   const [searchQuery, setSearchQuery] = useState(() => searchParams.get('search') ?? '');
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [meta, setMeta] = useState<PaginationMeta | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
   const [selectedJobIds, setSelectedJobIds] = useState<string[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>(() => searchParams.get('status') ?? '');
   const [departmentFilter, setDepartmentFilter] = useState<string>(
@@ -37,106 +38,91 @@ export function JobsPage() {
     () => (searchParams.get('sortOrder') as 'asc' | 'desc') || 'asc'
   );
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [page, setPage] = useState(1);
 
-  const fetchJobs = async (page = 1) => {
-    if (!tenantId) return;
-    setIsLoading(true);
-    setError('');
+  // Debounce search input
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setPage(1);
+    }, 400);
+    return () => clearTimeout(timeout);
+  }, [searchQuery]);
 
-    try {
-      const response = await jobsApi.getAll(tenantId, {
-        page,
-        search: searchQuery || undefined,
-        status: statusFilter || undefined,
-        department: departmentFilter || undefined,
-        location: locationFilter || undefined,
-        employmentType: employmentTypeFilter || undefined,
-        sortBy: sortBy || undefined,
-        sortOrder: sortBy ? sortOrder : undefined,
-      });
+  // React Query hooks
+  const {
+    data: jobsData,
+    isLoading,
+    error: queryError,
+    refetch,
+  } = useJobs({
+    tenantId: tenantId || '',
+    page,
+    search: debouncedSearch,
+    status: statusFilter,
+    department: departmentFilter,
+    location: locationFilter,
+    employmentType: employmentTypeFilter,
+    sortBy,
+    sortOrder,
+  });
 
-      const apiResponse = response.data as ApiResponse<Job[]>;
-      setJobs(apiResponse.data || []);
-      if (apiResponse.meta) {
-        setMeta(apiResponse.meta);
-      }
-    } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } };
-      setError(error.response?.data?.message || 'Failed to load jobs. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const updateStatusMutation = useUpdateJobStatus(tenantId || '');
+  const cloneMutation = useCloneJob(tenantId || '');
+  const submitApprovalMutation = useSubmitJobApproval(tenantId || '');
+  const bulkUpdateMutation = useBulkUpdateJobStatus(tenantId || '');
 
-  const handleApplyView = (viewFilters: Record<string, any>) => {
-    setSearchQuery(viewFilters.search || '');
-    setStatusFilter(viewFilters.status || '');
-    setDepartmentFilter(viewFilters.department || '');
-    setLocationFilter(viewFilters.location || '');
-    setEmploymentTypeFilter(viewFilters.employmentType || '');
-    setSortBy(viewFilters.sortBy || '');
-    setSortOrder(viewFilters.sortOrder || 'asc');
+  // Derived state
+  const jobs = jobsData?.data || [];
+  const meta = jobsData?.meta || null;
+  const error = queryError ? (queryError as Error).message : '';
+
+  const handleApplyView = (viewFilters: Record<string, unknown>) => {
+    setSearchQuery((viewFilters.search as string) || '');
+    setDebouncedSearch((viewFilters.search as string) || '');
+    setStatusFilter((viewFilters.status as string) || '');
+    setDepartmentFilter((viewFilters.department as string) || '');
+    setLocationFilter((viewFilters.location as string) || '');
+    setEmploymentTypeFilter((viewFilters.employmentType as string) || '');
+    setSortBy((viewFilters.sortBy as string) || '');
+    setSortOrder((viewFilters.sortOrder as 'asc' | 'desc') || 'asc');
+    setPage(1);
     toast.success(t('jobs.savedViews.applySuccess'));
   };
 
   const handleResetView = () => {
     setSearchQuery('');
+    setDebouncedSearch('');
     setStatusFilter('');
     setDepartmentFilter('');
     setLocationFilter('');
     setEmploymentTypeFilter('');
     setSortBy('');
     setSortOrder('asc');
+    setPage(1);
   };
 
-  const handleUpdateStatus = async (jobId: string, status: string) => {
-    if (!tenantId) return;
-    setError('');
-    try {
-      await jobsApi.updateStatus(tenantId, jobId, status);
-      await fetchJobs(meta?.page || 1);
-      await fetchJobs(meta?.page || 1);
-      const message = t('jobs.statusUpdateSuccess');
-      toast.success(message);
-    } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } };
-      setError(error.response?.data?.message || 'Failed to update job status. Please try again.');
-    }
+  const handleUpdateStatus = (jobId: string, status: string) => {
+    log.info('Updating job status', { jobId, status });
+    updateStatusMutation.mutate({ jobId, status });
   };
 
-  const handleSubmitApproval = async (jobId: string) => {
-    if (!tenantId) return;
-    setError('');
-    try {
-      await jobsApi.submitApproval(tenantId, jobId);
-      await fetchJobs(meta?.page || 1);
-      toast.success(t('jobs.create.messages.submittedForApproval'));
-    } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } };
-      setError(error.response?.data?.message || 'Failed to submit for approval. Please try again.');
-    }
+  const handleSubmitApproval = (jobId: string) => {
+    log.info('Submitting job for approval', { jobId });
+    submitApprovalMutation.mutate({ jobId });
   };
 
-  const handleClone = async (jobId: string) => {
-    if (!tenantId) return;
-    setError('');
-    try {
-      await jobsApi.clone(tenantId, jobId);
-      await fetchJobs(meta?.page || 1);
-      await fetchJobs(meta?.page || 1);
-      const message = t('jobs.cloneSuccess');
-      toast.success(message);
-    } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } };
-      setError(error.response?.data?.message || 'Failed to clone job. Please try again.');
-    }
+  const handleClone = (jobId: string) => {
+    log.info('Cloning job', { jobId });
+    cloneMutation.mutate(jobId);
   };
 
   const handleExport = async (ids?: string[]) => {
     if (!tenantId) return;
     try {
+      log.info('Exporting jobs', { count: ids?.length || 'all' });
       const response = await jobsApi.export(tenantId, {
-        search: searchQuery || undefined,
+        search: debouncedSearch || undefined,
         status: statusFilter || undefined,
         department: departmentFilter || undefined,
         location: locationFilter || undefined,
@@ -155,40 +141,26 @@ export function JobsPage() {
       link.remove();
       toast.success(t('jobs.exportSuccess'));
     } catch (err) {
-      console.error(err);
+      log.error('Export failed', err);
       toast.error(t('jobs.exportError'));
     }
   };
 
-  useEffect(() => {
-    if (tenantId) {
-      fetchJobs(1);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tenantId]);
-
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      if (tenantId) {
-        fetchJobs(1);
-      }
-    }, 400);
-
-    return () => clearTimeout(timeout);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchQuery, statusFilter, departmentFilter, locationFilter, employmentTypeFilter, sortBy, sortOrder, tenantId]);
-
-  const departmentOptions = Array.from(
-    new Set((jobs || []).map((job) => job.department?.name).filter((name): name is string => Boolean(name)))
+  // Memoized filter options from current jobs data
+  const departmentOptions = useMemo(() => 
+    Array.from(new Set(jobs.map((job) => job.department?.name).filter((name): name is string => Boolean(name)))),
+    [jobs]
   );
 
-  const locationOptions = Array.from(
-    new Set((jobs || []).map((job) => job.location?.name).filter((name): name is string => Boolean(name)))
+  const locationOptions = useMemo(() =>
+    Array.from(new Set(jobs.map((job) => job.location?.name).filter((name): name is string => Boolean(name)))),
+    [jobs]
   );
 
-  const employmentTypeOptions = Array.from(
-    new Set((jobs || []).map((job) => job.employmentType).filter((value) => Boolean(value)))
-  ) as string[];
+  const employmentTypeOptions = useMemo(() =>
+    Array.from(new Set(jobs.map((job) => job.employmentType).filter((value) => Boolean(value)))) as string[],
+    [jobs]
+  );
 
   const toggleSort = (column: string) => {
     setSortBy((current) => {
@@ -218,21 +190,20 @@ export function JobsPage() {
     }
   };
 
-  const handleBulkClose = async () => {
+  const handleBulkClose = () => {
     if (selectedJobIds.length === 0 || !tenantId) return;
-
-    setError('');
-    try {
-      await Promise.all(selectedJobIds.map((jobId) => jobsApi.updateStatus(tenantId, jobId, 'CLOSED')));
-      setSelectedJobIds([]);
-      await fetchJobs(meta?.page || 1);
-      await fetchJobs(meta?.page || 1);
-      toast.success(t('jobs.bulkCloseSuccess'));
-    } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } };
-      setError(error.response?.data?.message || 'Failed to update some jobs. Please try again.');
-    }
+    log.info('Bulk closing jobs', { count: selectedJobIds.length });
+    bulkUpdateMutation.mutate(
+      { jobIds: selectedJobIds, status: 'CLOSED' },
+      { onSuccess: () => setSelectedJobIds([]) }
+    );
   };
+
+  // Check if any mutation is in progress
+  const isMutating = updateStatusMutation.isPending || 
+    cloneMutation.isPending || 
+    submitApprovalMutation.isPending || 
+    bulkUpdateMutation.isPending;
 
   return (
     <div className="h-full min-h-0 flex flex-col gap-6">
@@ -258,6 +229,15 @@ export function JobsPage() {
             onReset={handleResetView}
           />
 
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => refetch()}
+            disabled={isLoading}
+          >
+            <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
+            <span className="hidden sm:inline">{t('common.refresh', 'Refresh')}</span>
+          </Button>
           <Button
             variant="outline"
             className="gap-2"
@@ -430,6 +410,7 @@ export function JobsPage() {
                 variant="destructive"
                 size="sm"
                 onClick={handleBulkClose}
+                disabled={isMutating}
               >
                 {t('jobs.bulk.closeSelected')}
               </Button>
@@ -613,16 +594,16 @@ export function JobsPage() {
               <Button
                 variant="outline"
                 size="sm"
-                disabled={!meta.hasPrevPage}
-                onClick={() => meta?.hasPrevPage && fetchJobs(meta.page - 1)}
+                disabled={!meta.hasPrevPage || isLoading}
+                onClick={() => meta?.hasPrevPage && setPage(meta.page - 1)}
               >
                 {t('common.pagination.prev')}
               </Button>
               <Button
                 variant="outline"
                 size="sm"
-                disabled={!meta.hasNextPage}
-                onClick={() => meta?.hasNextPage && fetchJobs(meta.page + 1)}
+                disabled={!meta.hasNextPage || isLoading}
+                onClick={() => meta?.hasNextPage && setPage(meta.page + 1)}
               >
                 {t('common.pagination.next')}
               </Button>

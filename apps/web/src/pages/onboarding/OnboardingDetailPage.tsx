@@ -7,7 +7,7 @@ import toast from 'react-hot-toast';
 import { cn } from '../../lib/utils';
 
 export function OnboardingDetailPage() {
-    const { id } = useParams();
+    const { id, tenantId } = useParams<{ id: string; tenantId: string }>();
     const navigate = useNavigate();
     const [workflow, setWorkflow] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -20,10 +20,13 @@ export function OnboardingDetailPage() {
     const fetchWorkflow = async () => {
         try {
             const response = await onboardingApi.getOne(id!);
-            setWorkflow(response.data);
+            const workflowData = response.data?.data || response.data;
+            console.log('Workflow data:', workflowData); // Debug log
+            setWorkflow(workflowData);
         } catch (error) {
+            console.error('Failed to fetch workflow:', error);
             toast.error('Failed to fetch onboarding details');
-            navigate('/onboarding');
+            navigate(`/${tenantId}/onboarding`);
         } finally {
             setIsLoading(false);
         }
@@ -71,7 +74,7 @@ export function OnboardingDetailPage() {
 
     return (
         <div className="p-6 max-w-5xl mx-auto">
-            <Button variant="ghost" className="mb-4 pl-0" onClick={() => navigate('/onboarding')}>
+            <Button variant="ghost" className="mb-4 pl-0" onClick={() => navigate(`/${tenantId}/onboarding`)}>
                 <ArrowLeft size={16} className="mr-2" /> Back to Dashboard
             </Button>
 
@@ -82,7 +85,7 @@ export function OnboardingDetailPage() {
                             <div>
                                 <h1 className="text-2xl font-bold text-neutral-900 dark:text-white">Onboarding Checklist</h1>
                                 <p className="text-neutral-500 dark:text-neutral-400 mt-1">
-                                    Manage tasks for {workflow.application.candidate.firstName}
+                                    Manage tasks for {workflow.application?.candidate?.firstName || 'New Hire'}
                                 </p>
                             </div>
                             <div className="text-right">
@@ -125,7 +128,7 @@ export function OnboardingDetailPage() {
                                                 {task.title}
                                             </h4>
                                             {task.isRequiredDoc && (
-                                                <Badge variant="outline" className="bg-neutral-100 text-neutral-600 border-neutral-200">
+                                                <Badge variant="secondary" className="text-xs font-normal border border-neutral-200 dark:border-neutral-700 ml-2">
                                                     Doc Required
                                                 </Badge>
                                             )}
@@ -215,7 +218,7 @@ export function OnboardingDetailPage() {
                                 </div>
                                 <div>
                                     <p className="text-sm font-medium text-neutral-900 dark:text-white">
-                                        {workflow.application.candidate.firstName} {workflow.application.candidate.lastName}
+                                        {workflow.application?.candidate?.firstName || 'New'} {workflow.application?.candidate?.lastName || 'Hire'}
                                     </p>
                                     <p className="text-xs text-neutral-500">Candidate</p>
                                 </div>
@@ -226,7 +229,7 @@ export function OnboardingDetailPage() {
                                 </div>
                                 <div>
                                     <p className="text-sm font-medium text-neutral-900 dark:text-white">
-                                        {workflow.application.job.title}
+                                        {workflow.application?.job?.title || 'Position'}
                                     </p>
                                     <p className="text-xs text-neutral-500">Role</p>
                                 </div>

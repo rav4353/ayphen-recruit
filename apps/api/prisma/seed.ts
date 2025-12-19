@@ -17,12 +17,14 @@ async function main() {
     create: {
       id: TENANT_ID,
       name: 'Ayphen Recruit',
+      slug: 'ayphen-recruit',
       domain: 'recruit.ayphen.com',
+      status: 'ACTIVE',
       settings: {
         theme: 'light',
         currency: 'USD',
       },
-    },
+    } as any,
   });
   console.log('✅ Tenant created:', tenant.name);
 

@@ -1,3 +1,4 @@
+import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './stores/auth';
 import { InboxPage } from './pages/communication/InboxPage';
@@ -16,6 +17,7 @@ import { VerifyEmailPage } from './pages/auth//VerifyEmailPage';
 import { OtpLoginPage } from './pages/auth/OtpLoginPage';
 import { MfaVerifyPage } from './pages/auth/MfaVerifyPage';
 import { MfaSetupPage } from './pages/auth/MfaSetupPage';
+import { MfaOnboardingPage } from './pages/auth/MfaOnboardingPage';
 import { ChangePasswordPage } from './pages/auth/ChangePasswordPage';
 
 // Dashboard Pages
@@ -55,6 +57,29 @@ import { EmployeeOnboardingPortal } from './pages/portal/EmployeeOnboardingPorta
 import { SourcingPage } from './pages/sourcing/SourcingPage';
 import { TalentPoolsPage } from './pages/sourcing/TalentPoolsPage';
 import { CampaignsPage } from './pages/marketing/CampaignsPage';
+import { LandingPage } from './pages/LandingPage';
+import MaintenancePage from './pages/MaintenancePage';
+
+// Super Admin
+import { SuperAdminLayout } from './layouts/SuperAdminLayout';
+import {
+  SuperAdminLoginPage,
+  SuperAdminDashboardPage,
+  TenantsPage as SuperAdminTenantsPage,
+  SubscriptionsPage as SuperAdminSubscriptionsPage,
+  UsersPage as SuperAdminUsersPage,
+  AuditLogsPage as SuperAdminAuditLogsPage,
+  AnalyticsPage as SuperAdminAnalyticsPage,
+  SuperAdminSettingsPage,
+  SystemMonitoringPage,
+  SecurityCenterPage,
+  AnnouncementsPage,
+  SupportTicketsPage,
+  BillingManagementPage,
+  DataManagementPage,
+  ApiManagementPage,
+} from './pages/super-admin';
+import { useSuperAdminStore } from './stores/superAdmin';
 
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -64,6 +89,41 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/login" replace />;
   }
 
+  return <>{children}</>;
+}
+
+function SuperAdminProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isSessionValid, updateActivity, lastActivity, sessionTimeout } = useSuperAdminStore();
+
+  // Update activity on route access
+  React.useEffect(() => {
+    if (isAuthenticated) {
+      console.log('[SuperAdmin] Route accessed, updating activity');
+      updateActivity();
+    }
+  }, [isAuthenticated, updateActivity]);
+
+  console.log('[SuperAdmin] Protection check:', {
+    isAuthenticated,
+    lastActivity: new Date(lastActivity).toISOString(),
+    sessionTimeout,
+    minutesSinceActivity: ((Date.now() - lastActivity) / 1000 / 60).toFixed(2),
+    isValid: isSessionValid()
+  });
+
+  if (!isAuthenticated) {
+    console.log('[SuperAdmin] Not authenticated, redirecting to login');
+    return <Navigate to="/super-admin/login" replace />;
+  }
+
+  // Check session validity AFTER updating activity
+  if (!isSessionValid()) {
+    console.log('[SuperAdmin] Session invalid, logging out');
+    useSuperAdminStore.getState().logout();
+    return <Navigate to="/super-admin/login" replace />;
+  }
+
+  console.log('[SuperAdmin] Access granted');
   return <>{children}</>;
 }
 
@@ -80,6 +140,10 @@ function App() {
         <StatusColorProvider>
           <UnsavedChangesProvider>
             <Routes>
+              {/* Landing Page - Default Home */}
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/maintenance" element={<MaintenancePage />} />
+
               {/* Auth routes */}
               <Route element={<AuthLayout />}>
                 <Route path="/login" element={<LoginPage />} />
@@ -90,6 +154,7 @@ function App() {
                 <Route path="/auth/otp" element={<OtpLoginPage />} />
                 <Route path="/auth/mfa" element={<MfaVerifyPage />} />
                 <Route path="/auth/mfa-setup" element={<MfaSetupPage />} />
+                <Route path="/auth/mfa-onboarding" element={<MfaOnboardingPage />} />
                 <Route path="/change-password" element={<ChangePasswordPage />} />
               </Route>
 
@@ -105,7 +170,6 @@ function App() {
                   </ProtectedRoute>
                 }
               >
-                <Route path="/" element={<RedirectToDashboard />} />
                 <Route path="/dashboard" element={<RedirectToDashboard />} />
 
                 <Route path="/:tenantId">
@@ -150,6 +214,31 @@ function App() {
               <Route path="/offers/public/:token" element={<CandidateOfferPage />} />
               <Route path="/schedule/:token" element={<InterviewSchedulePage />} />
               <Route path="/portal/onboarding/:id" element={<EmployeeOnboardingPortal />} />
+
+              {/* Super Admin Routes */}
+              <Route path="/super-admin/login" element={<SuperAdminLoginPage />} />
+              <Route
+                element={
+                  <SuperAdminProtectedRoute>
+                    <SuperAdminLayout />
+                  </SuperAdminProtectedRoute>
+                }
+              >
+                <Route path="/super-admin/dashboard" element={<SuperAdminDashboardPage />} />
+                <Route path="/super-admin/tenants" element={<SuperAdminTenantsPage />} />
+                <Route path="/super-admin/subscriptions" element={<SuperAdminSubscriptionsPage />} />
+                <Route path="/super-admin/analytics" element={<SuperAdminAnalyticsPage />} />
+                <Route path="/super-admin/users" element={<SuperAdminUsersPage />} />
+                <Route path="/super-admin/audit-logs" element={<SuperAdminAuditLogsPage />} />
+                <Route path="/super-admin/settings" element={<SuperAdminSettingsPage />} />
+                <Route path="/super-admin/monitoring" element={<SystemMonitoringPage />} />
+                <Route path="/super-admin/security" element={<SecurityCenterPage />} />
+                <Route path="/super-admin/announcements" element={<AnnouncementsPage />} />
+                <Route path="/super-admin/support" element={<SupportTicketsPage />} />
+                <Route path="/super-admin/billing" element={<BillingManagementPage />} />
+                <Route path="/super-admin/data" element={<DataManagementPage />} />
+                <Route path="/super-admin/api" element={<ApiManagementPage />} />
+              </Route>
 
               {/* Catch all */}
               <Route path="*" element={<Navigate to="/" replace />} />

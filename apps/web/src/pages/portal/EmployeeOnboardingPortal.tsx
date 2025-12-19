@@ -19,8 +19,11 @@ export function EmployeeOnboardingPortal() {
     const fetchWorkflow = async () => {
         try {
             const response = await onboardingApi.getOne(id!);
-            setWorkflow(response.data);
+            const workflowData = response.data?.data || response.data;
+            console.log('Portal workflow data:', workflowData);
+            setWorkflow(workflowData);
         } catch (error) {
+            console.error('Failed to load workflow:', error);
             toast.error('Failed to load onboarding details');
         } finally {
             setIsLoading(false);
@@ -86,7 +89,7 @@ export function EmployeeOnboardingPortal() {
         );
     }
 
-    const candidateTasks = workflow.tasks.filter((t: any) => t.assigneeRole === 'CANDIDATE');
+    const candidateTasks = workflow.tasks?.filter((t: any) => t.assigneeRole === 'CANDIDATE') || [];
     const completedCount = candidateTasks.filter((t: any) => t.status === 'COMPLETED').length;
     const progress = candidateTasks.length > 0 ? (completedCount / candidateTasks.length) * 100 : 0;
 
@@ -97,15 +100,15 @@ export function EmployeeOnboardingPortal() {
                 <div className="max-w-4xl mx-auto px-6 py-6">
                     <div className="flex items-center gap-4">
                         <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-xl font-bold shadow-lg">
-                            {workflow.application.candidate.firstName?.[0]}
-                            {workflow.application.candidate.lastName?.[0]}
+                            {workflow.application?.candidate?.firstName?.[0] || 'N'}
+                            {workflow.application?.candidate?.lastName?.[0] || 'H'}
                         </div>
                         <div>
                             <h1 className="text-2xl font-bold text-neutral-900 dark:text-white">
-                                Welcome, {workflow.application.candidate.firstName}! 🎉
+                                Welcome, {workflow.application?.candidate?.firstName || 'New Hire'}! 🎉
                             </h1>
                             <p className="text-neutral-600 dark:text-neutral-400 mt-1">
-                                {workflow.application.job.title} • Starting {new Date(workflow.startDate).toLocaleDateString()}
+                                {workflow.application?.job?.title || 'Position'} • Starting {new Date(workflow.startDate).toLocaleDateString()}
                             </p>
                         </div>
                     </div>

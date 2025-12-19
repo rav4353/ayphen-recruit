@@ -10,6 +10,15 @@ import { PrismaService } from '../../../prisma/prisma.service';
 import { EmailService } from '../../../common/services/email.service';
 import { RequestOtpDto, VerifyOtpDto, OtpType } from '../dto/otp.dto';
 
+function toSlug(value: string) {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '')
+    .slice(0, 48);
+}
+
 export interface AuthTokens {
   accessToken: string;
   refreshToken: string;
@@ -180,11 +189,15 @@ export class OtpService {
             domain = `${domain}-${uuidv4()}`;
           }
 
+          const slug = `${toSlug(domain)}-${uuidv4().slice(0, 8)}`;
+
           const newTenant = await this.prisma.tenant.create({
             data: {
               name: 'New Organization',
+              slug,
               domain: domain,
-            },
+              status: 'ACTIVE',
+            } as any,
           });
           tenantId = newTenant.id;
         }

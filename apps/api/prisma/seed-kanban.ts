@@ -23,9 +23,11 @@ async function main() {
     const tenant = await prisma.tenant.create({
         data: {
             name: 'Ayphen Recruit',
+            slug: `ayphen-recruit-${Date.now()}`,
             domain: domain,
+            status: 'ACTIVE',
             settings: {},
-        }
+        } as any
     });
 
     console.log(`Created Tenant: ${tenant.name} (ID: ${tenant.id})`);

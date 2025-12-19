@@ -105,8 +105,11 @@ enum OfferStatus {
 model Tenant {
   id        String   @id @default(uuid())
   name      String
+  slug      String   @unique
   domain    String?  @unique
+  stripeCustomerId String?
   logo      String?
+  status    String   @default("ACTIVE") // ACTIVE, SUSPENDED, PENDING
   settings  Json     @default("{}")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -130,7 +133,13 @@ model Tenant {
   roles        Role[]
   esignatureSettings ESignatureSettings?
   bgvSettings  BGVSettings?
+  subscription Subscription?
+  supportTickets SupportTicket[]
+  apiKeys        ApiKey[]
+  webhookSubscriptions WebhookSubscription[]
+  apiUsage       ApiUsage[]
 
+  @@index([status])
   @@map("tenants")
 }
 
@@ -194,6 +203,9 @@ model User {
   // Password history
   passwordHistory PasswordHistory[]
 
+  supportTickets SupportTicket[]
+  supportMessages SupportTicketMessage[]
+
   // User sessions
   sessions UserSession[]
 
@@ -229,6 +241,12 @@ model User {
   notifications           Notification[]
   notificationPreferences NotificationPreference?
 
+  // Saved jobs
+  savedJobs SavedJob[]
+
+  // Announcements
+  readAnnouncements AnnouncementReadStatus[]
+
   @@unique([email, tenantId])
   @@index([tenantId])
   @@index([email])
@@ -252,6 +270,21 @@ model Role {
   @@unique([name, tenantId])
   @@index([tenantId])
   @@map("roles")
+}
+
+model SavedJob {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  jobId     String
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, jobId])
+  @@index([userId])
+  @@map("saved_jobs")
 }
 
 model RefreshToken {
@@ -452,6 +485,8 @@ model Job {
   scorecardTemplateId String?
   scorecardTemplate   ScorecardTemplate? @relation(fields: [scorecardTemplateId], references: [id])
 
+  savedByUsers SavedJob[]
+
   // Vector embedding for semantic search
   embedding Unsupported("vector(1536)")?
 
@@ -557,6 +592,7 @@ model Candidate {
   skills         String[]
   experience     Json?    // Structured work history
   education      Json?    // Structured education
+  customFieldValues Json? // Custom field values from settings
   resumeUrl      String?
   resumeText     String?  @db.Text
   source         String?  // Where they came from
@@ -1390,3 +1426,370 @@ model EmailTrackingLink {
   @@index([campaignId])
   @@map("email_tracking_links")
 }
+
+// ============================================
+// SUPER ADMIN (Platform-Level)
+// ============================================
+
+enum SuperAdminStatus {
+  ACTIVE
+  LOCKED
+  DISABLED
+}
+
+model SuperAdmin {
+  id              String           @id @default(uuid())
+  email           String           @unique
+  passwordHash    String
+  name            String
+  status          SuperAdminStatus @default(ACTIVE)
+  mfaEnabled      Boolean          @default(false)
+  mfaSecret       String?
+  lastLoginAt     DateTime?
+  lastLoginIp     String?
+  failedAttempts  Int              @default(0)
+  lockedUntil     DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  // Refresh tokens
+  refreshTokens SuperAdminRefreshToken[]
+
+  // Audit logs
+  auditLogs SuperAdminAuditLog[]
+  supportMessages SupportTicketMessage[]
+  
+  @@index([email])
+  @@index([status])
+  @@map("super_admins")
+}
+
+model GlobalSetting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     Json
+  category  String?  // general, email, security, features
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  @@map("global_settings")
+}
+
+model SuperAdminRefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  superAdminId String
+  superAdmin   SuperAdmin @relation(fields: [superAdminId], references: [id], onDelete: Cascade)
+
+  @@index([superAdminId])
+  @@map("super_admin_refresh_tokens")
+}
+
+model SuperAdminAuditLog {
+  id           String   @id @default(uuid())
+  action       String   // LOGIN, LOGOUT, VIEW_TENANT, SUSPEND_TENANT, etc.
+  entityType   String?  // TENANT, USER, SUBSCRIPTION, etc.
+  entityId     String?
+  details      Json?
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+
+  superAdminId String
+  superAdmin   SuperAdmin @relation(fields: [superAdminId], references: [id], onDelete: Cascade)
+
+  @@index([superAdminId])
+  @@index([action])
+  @@index([entityType])
+  @@index([createdAt])
+
+  @@map("super_admin_audit_logs")
+}
+
+// ============================================
+// ADVANCED SUPER ADMIN ENTITIES
+// ============================================
+
+model Announcement {
+  id        String   @id @default(uuid())
+  title     String
+  content   String   @db.Text
+  type      String   // info, warning, success, critical
+  priority  String   @default("medium") // low, medium, high
+  status    String   // draft, scheduled, active, expired
+  audience  String   @default("all") // all, admins, specific_tenants
+  targetTenantIds String[] // Array of tenant IDs
+  dismissible Boolean @default(true)
+  showBanner Boolean @default(false)
+  scheduledAt DateTime?
+  expiresAt DateTime?
+  publishedAt DateTime?
+  authorId  String
+  viewCount Int      @default(0)
+  dismissCount Int   @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  readBy    AnnouncementReadStatus[]
+
+  @@map("announcements")
+}
+
+model AnnouncementReadStatus {
+  id             String       @id @default(uuid())
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  announcementId String
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  readAt         DateTime     @default(now())
+  isDismissed    Boolean      @default(false)
+
+  @@unique([userId, announcementId])
+  @@map("announcement_read_status")
+}
+
+model SupportTicket {
+  id        String   @id @default(uuid())
+  subject   String
+  description String @db.Text
+  status    String   // open, in_progress, resolved, closed
+  priority  String   // low, medium, high, urgent
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  assignedToId String? // Super admin user ID
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  messages  SupportTicketMessage[]
+  
+  @@map("support_tickets")
+}
+
+model SupportTicketMessage {
+  id        String   @id @default(uuid())
+  ticketId  String
+  ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  senderId  String?
+  sender    User?    @relation(fields: [senderId], references: [id])
+  adminId   String?
+  admin     SuperAdmin? @relation(fields: [adminId], references: [id])
+  message   String   @db.Text
+  isInternal Boolean @default(false)
+  createdAt DateTime @default(now())
+  
+  @@map("support_ticket_messages")
+}
+
+model SecurityAlert {
+  id        String   @id @default(uuid())
+  type      String   // BRUTE_FORCE, UNUSUAL_LOCATION, MFA_FAILURE, etc.
+  severity  String   // low, medium, high, critical
+  message   String
+  metadata  Json?    // Detailed event data (e.g., userAgent, location)
+  sourceIp  String?
+  tenantId  String?
+  userId    String?
+  status    String   @default("OPEN") // OPEN, RESOLVED, IGNORED, FALSE_POSITIVE
+  createdAt DateTime @default(now())
+  resolvedAt DateTime?
+  resolvedById String? // Super admin ID
+  
+  @@index([status])
+  @@index([createdAt])
+  @@map("security_alerts")
+}
+
+model BlockedIp {
+  id        String   @id @default(uuid())
+  ipAddress String   @unique
+  reason    String?
+  blockedAt DateTime @default(now())
+  expiresAt DateTime?
+  blockedBy String?
+  
+  @@map("blocked_ips")
+}
+
+model ApiKey {
+  id        String   @id @default(uuid())
+  name      String
+  key       String   @unique
+  scopes    String[]
+  tenantId  String?
+  tenant    Tenant?  @relation(fields: [tenantId], references: [id])
+  isActive  Boolean  @default(true)
+  lastUsedAt DateTime?
+  expiresAt DateTime?
+  createdAt DateTime @default(now())
+  
+  @@map("api_keys")
+}
+
+model WebhookSubscription {
+  id          String   @id @default(uuid())
+  url         String
+  events      String[] // e.g., ["candidate.created", "job.updated"]
+  secret      String   // Webhook secret for signing payloads
+  isActive    Boolean  @default(true)
+  tenantId    String?
+  tenant      Tenant?  @relation(fields: [tenantId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("webhook_subscriptions")
+}
+
+model ApiUsage {
+  id          String   @id @default(uuid())
+  tenantId    String?
+  tenant      Tenant?  @relation(fields: [tenantId], references: [id])
+  endpoint    String
+  method      String
+  status      Int
+  duration    Int      // in ms
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([createdAt])
+  @@map("api_usage")
+}
+
+model SystemMetric {
+  id        String   @id @default(uuid())
+  type      String   // CPU, MEMORY, DISK, LATENCY, REQ_RATE, ERROR_RATE
+  value     Float
+  unit      String   // PERCENT, MB, MS, COUNT
+  label     String?  // Optional label (e.g., core ID, endpoint)
+  timestamp DateTime @default(now())
+
+  @@index([type, timestamp])
+  @@map("system_metrics")
+}
+
+model SystemLog {
+  id        String   @id @default(uuid())
+  level     String   // info, warn, error, fatal
+  message   String   @db.Text
+  stack     String?  @db.Text
+  context   String?  // The component/service that logged it
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([level])
+  @@index([createdAt])
+  @@map("system_logs")
+}
+
+// ============================================
+// SUBSCRIPTIONS & BILLING
+// ============================================
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  EXPIRED
+}
+
+enum BillingCycle {
+  MONTHLY
+  YEARLY
+}
+
+model SubscriptionPlan {
+  id            String   @id @default(uuid())
+  name          String   @unique // STARTER, PROFESSIONAL, ENTERPRISE
+  displayName   String
+  description   String?
+  monthlyPrice  Int      // in cents
+  yearlyPrice   Int      // in cents
+  currency      String   @default("USD")
+  features      Json     @default("[]")
+  limits        Json     @default("{}") // { users: 5, jobs: 10, candidates: 500 }
+  isActive      Boolean  @default(true)
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  subscriptions Subscription[]
+
+  @@map("subscription_plans")
+}
+
+model Subscription {
+  id                 String             @id @default(uuid())
+  status             SubscriptionStatus @default(TRIAL)
+  billingCycle       BillingCycle       @default(MONTHLY)
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  trialEndsAt        DateTime?
+  cancelledAt        DateTime?
+  cancelReason       String?
+  stripeSubscriptionId String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  tenantId String   @unique
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  planId String
+  plan   SubscriptionPlan @relation(fields: [planId], references: [id])
+
+  payments Payment[]
+  invoices Invoice[]
+
+  @@index([status])
+  @@index([currentPeriodEnd])
+  @@map("subscriptions")
+}
+
+model Payment {
+  id            String   @id @default(uuid())
+  amount        Float
+  currency      String
+  status        String
+  stripePaymentId String?
+  subscriptionId String
+  subscription  Subscription @relation(fields: [subscriptionId], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@map("payments")
+}
+
+model Invoice {
+  id          String   @id @default(uuid())
+  amount      Float
+  currency    String
+  status      String   // paid, open, void, uncollectible
+  stripeInvoiceId String? @unique
+  pdfUrl      String?
+  periodStart DateTime
+  periodEnd   DateTime
+  subscriptionId String
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("invoices")
+}
+
+model PaymentGatewayConfig {
+  id          String   @id @default(uuid())
+  provider    String   // STRIPE, GPAY, PAYTM
+  isActive    Boolean  @default(false)
+  config      Json     // encrypted keys: apiKey, secretKey, merchantId, etc.
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([provider])
+  @@map("payment_gateway_configs")
+}
+

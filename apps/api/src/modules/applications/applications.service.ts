@@ -117,11 +117,11 @@ export class ApplicationsService {
     try {
       const job = application.job;
       const recipientIds: string[] = [];
-      
+
       // Notify recruiter and hiring manager
       if (job.recruiterId) recipientIds.push(job.recruiterId);
       if (job.hiringManagerId) recipientIds.push(job.hiringManagerId);
-      
+
       if (recipientIds.length > 0) {
         await this.notificationsService.notifyNewApplication(
           application,
@@ -162,26 +162,50 @@ export class ApplicationsService {
     });
 
     if (!candidate) {
+      // Parse skills if provided as comma-separated string
+      const skillsArray = dto.skills ? dto.skills.split(',').map(s => s.trim()).filter(Boolean) : [];
+
       candidate = await this.prisma.candidate.create({
         data: {
           firstName: dto.firstName,
           lastName: dto.lastName,
           email: dto.email,
           phone: dto.phone,
+          currentTitle: dto.currentTitle,
+          currentCompany: dto.currentCompany,
+          location: dto.location,
           linkedinUrl: dto.linkedinUrl,
           portfolioUrl: dto.portfolioUrl,
+          summary: dto.summary,
+          skills: skillsArray,
           resumeUrl: dto.resumeUrl,
+          experience: dto.experience as any,
+          education: dto.education as any,
+          customFieldValues: dto.customFields as any,
           gdprConsent: dto.gdprConsent || false,
           tenantId: job.tenantId,
           source: 'Career Page',
         },
       });
     } else {
-      // Update resume if provided
-      if (dto.resumeUrl) {
+      // Update candidate with new information if provided
+      const skillsArray = dto.skills ? dto.skills.split(',').map(s => s.trim()).filter(Boolean) : undefined;
+
+      const updateData: any = {};
+      if (dto.resumeUrl) updateData.resumeUrl = dto.resumeUrl;
+      if (dto.currentTitle) updateData.currentTitle = dto.currentTitle;
+      if (dto.currentCompany) updateData.currentCompany = dto.currentCompany;
+      if (dto.location) updateData.location = dto.location;
+      if (dto.summary) updateData.summary = dto.summary;
+      if (skillsArray) updateData.skills = skillsArray;
+      if (dto.experience) updateData.experience = dto.experience;
+      if (dto.education) updateData.education = dto.education;
+      if (dto.customFields) updateData.customFieldValues = dto.customFields;
+
+      if (Object.keys(updateData).length > 0) {
         await this.prisma.candidate.update({
           where: { id: candidate.id },
-          data: { resumeUrl: dto.resumeUrl },
+          data: updateData,
         });
       }
     }
@@ -1640,9 +1664,9 @@ export class ApplicationsService {
 
     // Sort based on selected criteria
     const sortKey = sortBy === 'composite' ? 'composite' :
-                    sortBy === 'matchScore' ? 'matchScore' :
-                    sortBy === 'rating' ? 'rating' :
-                    sortBy === 'skillMatch' ? 'skillMatch' : 'stageProgress';
+      sortBy === 'matchScore' ? 'matchScore' :
+        sortBy === 'rating' ? 'rating' :
+          sortBy === 'skillMatch' ? 'skillMatch' : 'stageProgress';
 
     rankedCandidates.sort((a, b) => b.scores[sortKey] - a.scores[sortKey]);
 

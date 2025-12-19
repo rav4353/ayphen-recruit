@@ -44,6 +44,18 @@ export function DashboardLayout() {
 
   // Enable global keyboard shortcuts
   useGlobalShortcuts();
+
+  // Validate tenantId - if it's a route segment like "onboarding", "jobs", etc., redirect to login
+  useEffect(() => {
+    const invalidTenantIds = ['onboarding', 'jobs', 'candidates', 'dashboard', 'settings', 'pipeline', 'interviews', 'offers', 'inbox', 'campaigns', 'reports', 'sourcing', 'talent-pools', 'referrals'];
+
+    if (tenantId && invalidTenantIds.includes(tenantId.toLowerCase())) {
+      console.error('Invalid tenantId detected:', tenantId);
+      logout();
+      navigate('/login', { replace: true });
+    }
+  }, [tenantId, logout, navigate]);
+
   const allNavigation = [
     { name: 'dashboard.title', href: `/${tenantId}/dashboard`, icon: LayoutDashboard, roles: ['ADMIN', 'RECRUITER', 'HIRING_MANAGER'] },
     { name: 'jobs.title', href: `/${tenantId}/jobs`, icon: Briefcase, roles: ['ADMIN', 'RECRUITER', 'HIRING_MANAGER'] },

@@ -411,7 +411,6 @@ async def parse_resume(file: UploadFile = File(...)):
     llm_skills = extract_skills_llm(text)
     print(f"LLM skills found: {llm_skills}")
     
-    # Merge and deduplicate (case-insensitive)
     existing_lower = {s.lower() for s in skills}
     for s in llm_skills:
         if isinstance(s, str) and s.lower() not in existing_lower:

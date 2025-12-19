@@ -71,3 +71,5 @@ export * from './EmptyState';
 export * from './Pagination';
 export * from './SearchInput';
 export * from './Spinner';
+export * from './PageHeader';
+export * from './Skeleton';

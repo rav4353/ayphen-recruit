@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Check, ChevronRight, ChevronLeft, Wand2, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Button, Input, Card, SkillSelector, Modal } from '../ui';
-import { aiApi, usersApi, referenceApi, pipelinesApi, settingsApi, scorecardTemplatesApi } from '../../lib/api';
+import { aiApi, usersApi, referenceApi, pipelinesApi, settingsApi, scorecardTemplatesApi, departmentsApi } from '../../lib/api';
 import { useUnsavedChanges } from '../../hooks/useUnsavedChanges';
 import { ScorecardModal } from '../settings/ScorecardModal';
 import { DepartmentModal } from './DepartmentModal';
@@ -222,7 +222,7 @@ export function JobForm({ initialData, mode, onSubmit, onCancel, isSubmitting = 
     // Fetch departments
     const fetchDepartments = async () => {
         try {
-            const res = await referenceApi.getDepartments();
+            const res = await departmentsApi.getAll();
             const data = Array.isArray(res.data) ? res.data : (res.data?.data || []);
             setDepartments(data);
         } catch (err) {
@@ -237,7 +237,7 @@ export function JobForm({ initialData, mode, onSubmit, onCancel, isSubmitting = 
     const handleCreateDepartment = async (data: any) => {
         setIsCreatingDepartment(true);
         try {
-            const res = await referenceApi.createDepartment(data);
+            const res = await departmentsApi.create(data);
             toast.success(t('settings.departments.createSuccess', 'Department created successfully'));
             setIsCreateDepartmentModalOpen(false);
 

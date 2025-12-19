@@ -19,7 +19,7 @@ import {
 } from '../ui';
 import { PhoneInput } from '../ui/PhoneInput';
 import { Plus, Trash2, Upload, Building2, Languages, MapPin, Users, Edit, Calendar, Globe } from 'lucide-react';
-import { settingsApi, storageApi, referenceApi } from '../../lib/api';
+import { settingsApi, storageApi, referenceApi, departmentsApi } from '../../lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Modal, ConfirmationModal } from '../ui';
 import { useOrganizationStore } from '../../stores/organization';
@@ -491,13 +491,13 @@ export function GeneralSettings() {
     const { data: departments = [], isLoading: departmentsLoading } = useQuery({
         queryKey: ['departments'],
         queryFn: async () => {
-            const response = await referenceApi.getDepartments();
+            const response = await departmentsApi.getAll();
             return response.data?.data || response.data || [];
         },
     });
 
     const createDepartmentMutation = useMutation({
-        mutationFn: (data: any) => referenceApi.createDepartment(data),
+        mutationFn: (data: any) => departmentsApi.create(data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['departments'] });
             toast.success('Department created successfully');
@@ -515,7 +515,7 @@ export function GeneralSettings() {
     });
 
     const updateDepartmentMutation = useMutation({
-        mutationFn: ({ id, data }: { id: string; data: any }) => referenceApi.updateDepartment(id, data),
+        mutationFn: ({ id, data }: { id: string; data: any }) => departmentsApi.update(id, data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['departments'] });
             toast.success('Department updated successfully');
@@ -526,7 +526,7 @@ export function GeneralSettings() {
     });
 
     const deleteDepartmentMutation = useMutation({
-        mutationFn: (id: string) => referenceApi.deleteDepartment(id),
+        mutationFn: (id: string) => departmentsApi.delete(id),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['departments'] });
             toast.success('Department deleted successfully');

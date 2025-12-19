@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateJobDto } from './dto/create-job.dto';
 import { UpdateJobDto } from './dto/update-job.dto';
 import { JobQueryDto } from './dto/job-query.dto';
+import * as crypto from 'crypto';
 
 import { JobBoardsService } from '../integrations/job-boards.service';
 import { SettingsService } from '../settings/settings.service';
@@ -696,7 +697,8 @@ export class JobsService {
   }
 
   private async generateJobCode() {
-    return `JOB-${Math.floor(100000 + Math.random() * 900000)}`;
+    const randomNum = crypto.randomInt(100000, 999999);
+    return `JOB-${randomNum}`;
   }
 
   /**
@@ -719,7 +721,7 @@ export class JobsService {
       employmentType?: string;
     },
   ) {
-    const requisitionId = `REQ-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+    const requisitionId = `REQ-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
 
     // Create requisition as activity log entry
     const requisition = await this.prisma.activityLog.create({

@@ -69,15 +69,72 @@ export class SuperAdminMonitoringService {
         };
     }
 
-    // In a real app, this would query BullMQ or another queue provider
+    // Get real job/task statistics from the database
     async getJobStats() {
-        return {
-            active: Math.floor(Math.random() * 10),
-            waiting: Math.floor(Math.random() * 50),
-            completed: Math.floor(Math.random() * 1000),
-            failed: Math.floor(Math.random() * 20),
-            delayed: Math.floor(Math.random() * 5),
-        };
+        try {
+            const now = new Date();
+            const last24Hours = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+            const lastHour = new Date(now.getTime() - 60 * 60 * 1000);
+
+            // Count active applications in processing stages
+            const [
+                activeApplications,
+                pendingInterviews,
+                completedToday,
+                failedEmails,
+                scheduledInterviews,
+            ] = await Promise.all([
+                // Active: Applications currently being processed (not in terminal state)
+                this.prisma.application.count({
+                    where: {
+                        status: { in: ['SCREENING', 'PHONE_SCREEN', 'INTERVIEW'] },
+                        updatedAt: { gte: lastHour },
+                    },
+                }),
+                // Waiting: Pending interviews
+                this.prisma.interview.count({
+                    where: { status: 'SCHEDULED', scheduledAt: { gte: now } },
+                }),
+                // Completed: Applications that moved to terminal state today
+                this.prisma.application.count({
+                    where: {
+                        status: { in: ['HIRED', 'REJECTED', 'WITHDRAWN'] },
+                        updatedAt: { gte: last24Hours },
+                    },
+                }),
+                // Failed: Failed email sends in last 24 hours
+                this.prisma.email.count({
+                    where: {
+                        status: 'FAILED',
+                        createdAt: { gte: last24Hours },
+                    },
+                }),
+                // Delayed: Interviews scheduled for future
+                this.prisma.interview.count({
+                    where: {
+                        status: 'SCHEDULED',
+                        scheduledAt: { gt: new Date(now.getTime() + 24 * 60 * 60 * 1000) },
+                    },
+                }),
+            ]);
+
+            return {
+                active: activeApplications,
+                waiting: pendingInterviews,
+                completed: completedToday,
+                failed: failedEmails,
+                delayed: scheduledInterviews,
+            };
+        } catch (error) {
+            console.error('Failed to get job stats:', error);
+            return {
+                active: 0,
+                waiting: 0,
+                completed: 0,
+                failed: 0,
+                delayed: 0,
+            };
+        }
     }
 
     @Interval(5000)

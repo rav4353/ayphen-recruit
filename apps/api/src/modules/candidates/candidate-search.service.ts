@@ -500,7 +500,7 @@ export class CandidateSearchService {
         description: `Saved search: ${name}`,
         userId,
         metadata: {
-          searchId: `search-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          searchId: `search-${Date.now()}-${require('crypto').randomBytes(6).toString('hex')}`,
           tenantId,
           name,
           query: JSON.parse(JSON.stringify(query)),

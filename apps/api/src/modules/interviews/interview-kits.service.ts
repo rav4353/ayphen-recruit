@@ -32,7 +32,8 @@ export class InterviewKitsService {
   constructor(private readonly prisma: PrismaService) {}
 
   private generateId(prefix: string): string {
-    return `${prefix}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const crypto = require('crypto');
+    return `${prefix}-${Date.now()}-${crypto.randomBytes(6).toString('hex')}`;
   }
 
   /**

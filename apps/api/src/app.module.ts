@@ -17,7 +17,6 @@ import { PipelinesModule } from './modules/pipelines/pipelines.module';
 import { SavedViewsModule } from './modules/saved-views/saved-views.module';
 import { WorkflowsModule } from './modules/workflows/workflows.module';
 import { SlaModule } from './modules/sla/sla.module';
-import { DispositionModule } from './modules/disposition/disposition.module';
 import { AiModule } from './modules/ai/ai.module';
 import { IntegrationsModule } from './modules/integrations/integrations.module';
 import { SettingsModule } from './modules/settings/settings.module';
@@ -90,7 +89,6 @@ import { MaintenanceMiddleware } from './common/middleware/maintenance.middlewar
     SavedViewsModule,
     WorkflowsModule,
     SlaModule,
-    DispositionModule,
     AiModule,
     IntegrationsModule,
     SettingsModule,

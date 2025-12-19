@@ -171,31 +171,184 @@ export class JobBoardsService {
 
     async postToLinkedIn(job: Job, config?: JobBoardConfig): Promise<string> {
         this.logger.log(`Posting job ${job.id} to LinkedIn...`);
-        // In real implementation, use LinkedIn Jobs API
-        // https://docs.microsoft.com/en-us/linkedin/talent/job-postings
-        return `https://www.linkedin.com/jobs/view/mock-${job.id}`;
+        
+        if (!config?.apiKey || !config?.companyId) {
+            throw new BadRequestException('LinkedIn API key and company ID required');
+        }
+
+        // LinkedIn Jobs API - POST to job postings endpoint
+        const response = await fetch('https://api.linkedin.com/v2/simpleJobPostings', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${config.apiKey}`,
+                'Content-Type': 'application/json',
+                'X-Restli-Protocol-Version': '2.0.0',
+            },
+            body: JSON.stringify({
+                companyId: config.companyId,
+                title: job.title,
+                description: job.description,
+                location: job.locationId || 'Remote',
+                employmentType: this.mapEmploymentType(job.employmentType, 'LINKEDIN'),
+                listedAt: Date.now(),
+            }),
+        });
+
+        if (!response.ok) {
+            const error = await response.text();
+            this.logger.error(`LinkedIn API error: ${error}`);
+            throw new Error(`LinkedIn posting failed: ${response.status}`);
+        }
+
+        const result = await response.json() as { id?: string };
+        return `https://www.linkedin.com/jobs/view/${result.id || job.id}`;
     }
 
     async postToIndeed(job: Job, config?: JobBoardConfig): Promise<string> {
         this.logger.log(`Posting job ${job.id} to Indeed...`);
-        // In real implementation, use Indeed Publisher API or XML feed
-        return `https://www.indeed.com/job/mock-${job.id}`;
+        
+        if (!config?.apiKey) {
+            throw new BadRequestException('Indeed API key required');
+        }
+
+        // Indeed Sponsored Jobs API
+        const response = await fetch('https://apis.indeed.com/v2/jobs', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${config.apiKey}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                jobTitle: job.title,
+                jobDescription: job.description,
+                company: config.companyId || 'Company',
+                location: job.locationId || 'Remote',
+                jobType: this.mapEmploymentType(job.employmentType, 'INDEED'),
+                salary: job.salaryMax ? { max: Number(job.salaryMax), currency: 'USD' } : undefined,
+            }),
+        });
+
+        if (!response.ok) {
+            const error = await response.text();
+            this.logger.error(`Indeed API error: ${error}`);
+            throw new Error(`Indeed posting failed: ${response.status}`);
+        }
+
+        const result = await response.json() as { jobKey?: string };
+        return `https://www.indeed.com/viewjob?jk=${result.jobKey || job.id}`;
     }
 
     async postToZipRecruiter(job: Job, config?: JobBoardConfig): Promise<string> {
         this.logger.log(`Posting job ${job.id} to ZipRecruiter...`);
-        // In real implementation, use ZipRecruiter API
-        return `https://www.ziprecruiter.com/job/mock-${job.id}`;
+        
+        if (!config?.apiKey) {
+            throw new BadRequestException('ZipRecruiter API key required');
+        }
+
+        const apiUrl = config.sandboxMode 
+            ? 'https://api.sandbox.ziprecruiter.com/jobs/v1/jobs'
+            : 'https://api.ziprecruiter.com/jobs/v1/jobs';
+
+        const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${config.apiKey}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                job_title: job.title,
+                job_description: job.description,
+                company_name: config.companyId || 'Company',
+                job_type: this.mapEmploymentType(job.employmentType, 'ZIPRECRUITER'),
+            }),
+        });
+
+        if (!response.ok) {
+            const error = await response.text();
+            this.logger.error(`ZipRecruiter API error: ${error}`);
+            throw new Error(`ZipRecruiter posting failed: ${response.status}`);
+        }
+
+        const result = await response.json() as { id?: string; url?: string };
+        return result.url || `https://www.ziprecruiter.com/jobs/${result.id || job.id}`;
     }
 
     async postToGlassdoor(job: Job, config?: JobBoardConfig): Promise<string> {
         this.logger.log(`Posting job ${job.id} to Glassdoor...`);
-        return `https://www.glassdoor.com/job/mock-${job.id}`;
+        
+        if (!config?.apiKey || !config?.companyId) {
+            throw new BadRequestException('Glassdoor API key and company ID required');
+        }
+
+        // Glassdoor Job Posting API
+        const response = await fetch('https://api.glassdoor.com/api/v1/jobs', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Basic ${Buffer.from(`${config.apiKey}:`).toString('base64')}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                employerId: config.companyId,
+                jobTitle: job.title,
+                jobDescription: job.description,
+                location: job.locationId || 'Remote',
+                jobType: this.mapEmploymentType(job.employmentType, 'GLASSDOOR'),
+            }),
+        });
+
+        if (!response.ok) {
+            const error = await response.text();
+            this.logger.error(`Glassdoor API error: ${error}`);
+            throw new Error(`Glassdoor posting failed: ${response.status}`);
+        }
+
+        const result = await response.json() as { jobId?: string };
+        return `https://www.glassdoor.com/job-listing/${result.jobId || job.id}`;
     }
 
     async postToMonster(job: Job, config?: JobBoardConfig): Promise<string> {
         this.logger.log(`Posting job ${job.id} to Monster...`);
-        return `https://www.monster.com/job/mock-${job.id}`;
+        
+        if (!config?.apiKey) {
+            throw new BadRequestException('Monster API key required');
+        }
+
+        // Monster Job Posting API
+        const response = await fetch('https://api.monster.com/v2/job', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${config.apiKey}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                jobTitle: job.title,
+                jobDescription: job.description,
+                companyName: config.companyId || 'Company',
+                location: job.locationId || 'Remote',
+                jobType: this.mapEmploymentType(job.employmentType, 'MONSTER'),
+            }),
+        });
+
+        if (!response.ok) {
+            const error = await response.text();
+            this.logger.error(`Monster API error: ${error}`);
+            throw new Error(`Monster posting failed: ${response.status}`);
+        }
+
+        const result = await response.json() as { jobId?: string };
+        return `https://www.monster.com/job-openings/${result.jobId || job.id}`;
+    }
+
+    private mapEmploymentType(type: string | null, provider: string): string {
+        const typeUpper = (type || 'FULL_TIME').toUpperCase();
+        const mappings: Record<string, Record<string, string>> = {
+            LINKEDIN: { FULL_TIME: 'FULL_TIME', PART_TIME: 'PART_TIME', CONTRACT: 'CONTRACT', INTERNSHIP: 'INTERNSHIP' },
+            INDEED: { FULL_TIME: 'fulltime', PART_TIME: 'parttime', CONTRACT: 'contract', INTERNSHIP: 'internship' },
+            ZIPRECRUITER: { FULL_TIME: 'full_time', PART_TIME: 'part_time', CONTRACT: 'contract', INTERNSHIP: 'internship' },
+            GLASSDOOR: { FULL_TIME: 'FULLTIME', PART_TIME: 'PARTTIME', CONTRACT: 'CONTRACT', INTERNSHIP: 'INTERN' },
+            MONSTER: { FULL_TIME: 'Full-Time', PART_TIME: 'Part-Time', CONTRACT: 'Contract', INTERNSHIP: 'Internship' },
+        };
+        return mappings[provider]?.[typeUpper] || typeUpper;
     }
 
     /**

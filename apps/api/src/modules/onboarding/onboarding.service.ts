@@ -501,4 +501,341 @@ export class OnboardingService {
             },
         });
     }
+
+    // ==================== TEMPLATE MANAGEMENT ====================
+
+    /**
+     * Get all onboarding templates for a tenant
+     */
+    async getTemplates(tenantId: string) {
+        const templates = await this.prisma.globalSetting.findMany({
+            where: {
+                key: { startsWith: `onboarding_template_${tenantId}_` },
+            },
+        });
+
+        if (templates.length === 0) {
+            // Return default template
+            return [{
+                id: 'default',
+                name: 'Default Onboarding Template',
+                description: 'Comprehensive document collection template',
+                tasks: this.getDefaultTasks(),
+                isDefault: true,
+            }];
+        }
+
+        return templates.map(t => {
+            const value = t.value as any;
+            return {
+                id: t.key.replace(`onboarding_template_${tenantId}_`, ''),
+                name: value.name,
+                description: value.description,
+                tasks: value.tasks,
+                isDefault: value.isDefault || false,
+            };
+        });
+    }
+
+    /**
+     * Create a custom onboarding template
+     */
+    async createTemplate(tenantId: string, data: {
+        name: string;
+        description?: string;
+        tasks: Array<{
+            title: string;
+            description: string;
+            assigneeRole: OnboardingAssigneeRole;
+            isRequiredDoc?: boolean;
+        }>;
+    }) {
+        const templateId = `${Date.now()}`;
+        const key = `onboarding_template_${tenantId}_${templateId}`;
+
+        const tasksWithOrder = data.tasks.map((task, index) => ({
+            ...task,
+            order: index + 1,
+            isRequiredDoc: task.isRequiredDoc ?? false,
+        }));
+
+        await this.prisma.globalSetting.create({
+            data: {
+                key,
+                value: {
+                    name: data.name,
+                    description: data.description || '',
+                    tasks: tasksWithOrder,
+                    isDefault: false,
+                    createdAt: new Date().toISOString(),
+                },
+                category: 'onboarding',
+            },
+        });
+
+        return {
+            id: templateId,
+            name: data.name,
+            description: data.description,
+            tasks: tasksWithOrder,
+        };
+    }
+
+    /**
+     * Update an existing onboarding template
+     */
+    async updateTemplate(tenantId: string, templateId: string, data: {
+        name?: string;
+        description?: string;
+        tasks?: Array<{
+            title: string;
+            description: string;
+            assigneeRole: OnboardingAssigneeRole;
+            isRequiredDoc?: boolean;
+        }>;
+    }) {
+        const key = `onboarding_template_${tenantId}_${templateId}`;
+        
+        const existing = await this.prisma.globalSetting.findUnique({
+            where: { key },
+        });
+
+        if (!existing) {
+            throw new NotFoundException('Template not found');
+        }
+
+        const existingValue = existing.value as any;
+        const tasksWithOrder = data.tasks 
+            ? data.tasks.map((task, index) => ({
+                ...task,
+                order: index + 1,
+                isRequiredDoc: task.isRequiredDoc ?? false,
+            }))
+            : existingValue.tasks;
+
+        await this.prisma.globalSetting.update({
+            where: { key },
+            data: {
+                value: {
+                    name: data.name || existingValue.name,
+                    description: data.description ?? existingValue.description,
+                    tasks: tasksWithOrder,
+                    isDefault: existingValue.isDefault,
+                    createdAt: existingValue.createdAt,
+                    updatedAt: new Date().toISOString(),
+                },
+            },
+        });
+
+        return {
+            id: templateId,
+            name: data.name || existingValue.name,
+            description: data.description ?? existingValue.description,
+            tasks: tasksWithOrder,
+        };
+    }
+
+    /**
+     * Delete an onboarding template
+     */
+    async deleteTemplate(tenantId: string, templateId: string) {
+        if (templateId === 'default') {
+            throw new BadRequestException('Cannot delete default template');
+        }
+
+        const key = `onboarding_template_${tenantId}_${templateId}`;
+        
+        const existing = await this.prisma.globalSetting.findUnique({
+            where: { key },
+        });
+
+        if (!existing) {
+            throw new NotFoundException('Template not found');
+        }
+
+        await this.prisma.globalSetting.delete({
+            where: { key },
+        });
+
+        return { success: true };
+    }
+
+    /**
+     * Create onboarding workflow from a specific template
+     */
+    async createFromTemplate(applicationId: string, templateId: string, tenantId: string) {
+        // Check if workflow already exists
+        const existing = await this.prisma.onboardingWorkflow.findUnique({
+            where: { applicationId },
+        });
+
+        if (existing) {
+            throw new BadRequestException('Onboarding workflow already exists for this application');
+        }
+
+        // Get tasks from template
+        let tasks: any[];
+        if (templateId === 'default') {
+            tasks = this.getDefaultTasks();
+        } else {
+            const key = `onboarding_template_${tenantId}_${templateId}`;
+            const template = await this.prisma.globalSetting.findUnique({
+                where: { key },
+            });
+
+            if (!template) {
+                throw new NotFoundException('Template not found');
+            }
+
+            tasks = (template.value as any).tasks;
+        }
+
+        const workflow = await this.prisma.onboardingWorkflow.create({
+            data: {
+                tenantId,
+                applicationId,
+                status: OnboardingStatus.IN_PROGRESS,
+                startDate: new Date(),
+                tasks: {
+                    create: tasks,
+                },
+            },
+            include: {
+                tasks: true,
+                application: {
+                    include: {
+                        candidate: true,
+                        job: {
+                            include: { tenant: true },
+                        },
+                    },
+                },
+            },
+        });
+
+        // Send welcome email
+        await this.sendOnboardingWelcomeEmail(workflow);
+
+        return workflow;
+    }
+
+    /**
+     * Add a custom task to an existing workflow
+     */
+    async addTask(workflowId: string, taskData: {
+        title: string;
+        description: string;
+        assigneeRole: OnboardingAssigneeRole;
+        isRequiredDoc?: boolean;
+    }) {
+        const workflow = await this.prisma.onboardingWorkflow.findUnique({
+            where: { id: workflowId },
+            include: { tasks: true },
+        });
+
+        if (!workflow) {
+            throw new NotFoundException('Workflow not found');
+        }
+
+        const maxOrder = Math.max(...workflow.tasks.map(t => t.order), 0);
+
+        const task = await this.prisma.onboardingTask.create({
+            data: {
+                workflowId,
+                title: taskData.title,
+                description: taskData.description,
+                assigneeRole: taskData.assigneeRole,
+                isRequiredDoc: taskData.isRequiredDoc ?? false,
+                order: maxOrder + 1,
+                status: OnboardingTaskStatus.PENDING,
+            },
+        });
+
+        await this.updateWorkflowProgress(workflowId);
+
+        return task;
+    }
+
+    /**
+     * Remove a task from a workflow
+     */
+    async removeTask(taskId: string) {
+        const task = await this.prisma.onboardingTask.findUnique({
+            where: { id: taskId },
+        });
+
+        if (!task) {
+            throw new NotFoundException('Task not found');
+        }
+
+        await this.prisma.onboardingTask.delete({
+            where: { id: taskId },
+        });
+
+        await this.updateWorkflowProgress(task.workflowId);
+
+        return { success: true };
+    }
+
+    private getDefaultTasks() {
+        return [
+            { title: 'Upload Marksheets', description: 'Upload all educational marksheets (10th, 12th, Diploma, Degree, etc.).', assigneeRole: OnboardingAssigneeRole.CANDIDATE, order: 1, isRequiredDoc: true },
+            { title: 'Upload Transfer Certificate', description: 'Upload your Transfer Certificate (TC) from your previous educational institution.', assigneeRole: OnboardingAssigneeRole.CANDIDATE, order: 2, isRequiredDoc: true },
+            { title: 'Upload ID Proof with Address', description: 'Upload a valid government-issued ID proof with address (Aadhaar Card, Driving License, Voter ID, or Passport).', assigneeRole: OnboardingAssigneeRole.CANDIDATE, order: 3, isRequiredDoc: true },
+            { title: 'Upload Passport (If Available)', description: 'If you have a passport, please upload the first and last page. This is optional.', assigneeRole: OnboardingAssigneeRole.CANDIDATE, order: 4, isRequiredDoc: false },
+            { title: 'Upload Experience Certificates', description: 'Upload experience/relieving letters from all previous employers. Freshers can skip this.', assigneeRole: OnboardingAssigneeRole.CANDIDATE, order: 5, isRequiredDoc: false },
+            { title: 'Upload Bank Details', description: 'Upload a cancelled cheque or bank passbook first page showing your name, account number, and IFSC code.', assigneeRole: OnboardingAssigneeRole.CANDIDATE, order: 6, isRequiredDoc: true },
+            { title: 'Upload PAN Card', description: 'Upload a clear copy of your PAN card for tax purposes.', assigneeRole: OnboardingAssigneeRole.CANDIDATE, order: 7, isRequiredDoc: true },
+            { title: 'Provide PF Details (If Applicable)', description: 'If you have a previous PF account, upload your UAN card or PF passbook.', assigneeRole: OnboardingAssigneeRole.CANDIDATE, order: 8, isRequiredDoc: false },
+            { title: 'Upload Profile Photo', description: 'Upload a professional passport-size photograph for your employee ID card.', assigneeRole: OnboardingAssigneeRole.CANDIDATE, order: 9, isRequiredDoc: true },
+            { title: 'Complete Personal Information Form', description: 'Fill in your emergency contact details, permanent address, and other personal information.', assigneeRole: OnboardingAssigneeRole.CANDIDATE, order: 10, isRequiredDoc: false },
+            { title: 'Verify All Documents', description: 'Review and verify all uploaded documents for authenticity and completeness.', assigneeRole: OnboardingAssigneeRole.HR, order: 11, isRequiredDoc: false },
+            { title: 'Create Employee ID', description: 'Generate employee ID card and email credentials.', assigneeRole: OnboardingAssigneeRole.HR, order: 12, isRequiredDoc: false },
+            { title: 'Provision Laptop & Accessories', description: 'Prepare and ship laptop, mouse, headset, and other required equipment to the new hire.', assigneeRole: OnboardingAssigneeRole.IT, order: 13, isRequiredDoc: false },
+            { title: 'Setup Email & System Access', description: 'Create email account and provide access to necessary systems and tools.', assigneeRole: OnboardingAssigneeRole.IT, order: 14, isRequiredDoc: false },
+            { title: 'Schedule Welcome Meeting', description: 'Organize a welcome meeting or team lunch for the new hire on their first day.', assigneeRole: OnboardingAssigneeRole.MANAGER, order: 15, isRequiredDoc: false },
+            { title: 'Assign Buddy/Mentor', description: 'Assign an onboarding buddy to help the new hire settle in.', assigneeRole: OnboardingAssigneeRole.MANAGER, order: 16, isRequiredDoc: false },
+        ];
+    }
+
+    private async sendOnboardingWelcomeEmail(workflow: any) {
+        try {
+            const webUrl = this.configService.get<string>('WEB_URL') || 'http://localhost:3000';
+            const portalLink = `${webUrl}/portal/onboarding/${workflow.id}`;
+            const candidate = workflow.application.candidate;
+            const job = workflow.application.job;
+            const candidateTasks = workflow.tasks.filter((t: any) => t.assigneeRole === OnboardingAssigneeRole.CANDIDATE);
+
+            await this.emailService.sendEmail({
+                to: candidate.email,
+                subject: `Welcome to ${job.tenant.name}! Complete Your Onboarding`,
+                html: `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 20px; text-align: center; border-radius: 8px 8px 0 0;">
+                            <h1 style="color: white; margin: 0; font-size: 28px;">🎉 Welcome to the Team!</h1>
+                        </div>
+                        <div style="background: #f9fafb; padding: 40px 30px; border-radius: 0 0 8px 8px;">
+                            <p style="font-size: 16px; color: #374151;">Hi ${candidate.firstName},</p>
+                            <p style="font-size: 16px; color: #374151;">
+                                Congratulations on joining <strong>${job.tenant.name}</strong> as a <strong>${job.title}</strong>!
+                            </p>
+                            <p style="font-size: 16px; color: #374151;">
+                                We've prepared an onboarding checklist with <strong>${candidateTasks.length} tasks</strong> for you to complete.
+                            </p>
+                            <div style="text-align: center; margin: 40px 0;">
+                                <a href="${portalLink}" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: bold;">
+                                    Access Your Onboarding Portal
+                                </a>
+                            </div>
+                            <p style="font-size: 14px; color: #6b7280;">Best regards,<br><strong>The ${job.tenant.name} Team</strong></p>
+                        </div>
+                    </div>
+                `,
+                tenantId: job.tenantId,
+                purpose: 'onboarding',
+            });
+        } catch (error) {
+            console.error('Failed to send onboarding welcome email:', error);
+        }
+    }
 }

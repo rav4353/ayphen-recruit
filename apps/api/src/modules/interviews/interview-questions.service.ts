@@ -24,7 +24,8 @@ export class InterviewQuestionsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(dto: CreateQuestionDto, tenantId: string, userId: string) {
-    const questionId = `iq-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+    const crypto = require('crypto');
+    const questionId = `iq-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
 
     await this.prisma.activityLog.create({
       data: {

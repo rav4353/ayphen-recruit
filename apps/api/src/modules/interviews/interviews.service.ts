@@ -202,7 +202,8 @@ export class InterviewsService {
         }
 
         // Generate unique token for self-scheduling
-        const token = `sched_${Math.random().toString(36).substring(2, 15)}${Date.now().toString(36)}`;
+        const crypto = require('crypto');
+        const token = `sched_${crypto.randomBytes(12).toString('hex')}_${Date.now().toString(36)}`;
 
         // Store scheduling request
         const schedulingRequest = await this.prisma.activityLog.create({
@@ -502,7 +503,7 @@ export class InterviewsService {
                 description: `Interview panel "${data.name}" created`,
                 userId,
                 metadata: {
-                    panelId: `panel_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                    panelId: `panel_${Date.now()}_${require('crypto').randomBytes(6).toString('hex')}`,
                     jobId,
                     name: data.name,
                     interviewerIds: data.interviewerIds,

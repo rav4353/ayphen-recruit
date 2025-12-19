@@ -240,10 +240,10 @@ export class OtpService {
   }
 
   private generateOtp(): string {
-    const digits = '0123456789';
+    const crypto = require('crypto');
     let otp = '';
     for (let i = 0; i < this.OTP_LENGTH; i++) {
-      otp += digits[Math.floor(Math.random() * 10)];
+      otp += crypto.randomInt(0, 10).toString();
     }
     return otp;
   }

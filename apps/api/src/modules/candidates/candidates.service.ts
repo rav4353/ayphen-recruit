@@ -7,6 +7,7 @@ import { CreateCandidateDto } from './dto/create-candidate.dto';
 import { UpdateCandidateDto } from './dto/update-candidate.dto';
 import { CandidateQueryDto } from './dto/candidate-query.dto';
 import { Parser } from 'json2csv';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class CandidatesService {
@@ -17,7 +18,8 @@ export class CandidatesService {
   ) { }
 
   private generateCandidateId() {
-    return `CAND-${Math.floor(100000 + Math.random() * 900000)}`;
+    const randomNum = crypto.randomInt(100000, 999999);
+    return `CAND-${randomNum}`;
   }
 
   async create(dto: CreateCandidateDto, tenantId: string, userId?: string) {
@@ -416,7 +418,8 @@ export class CandidatesService {
   }
 
   private async generateJobCode() {
-    return `JOB-${Math.floor(100000 + Math.random() * 900000)}`;
+    const randomNum = crypto.randomInt(100000, 999999);
+    return `JOB-${randomNum}`;
   }
 
   // ==================== CANDIDATE NOTES ====================
@@ -435,7 +438,7 @@ export class CandidatesService {
       throw new NotFoundException('Candidate not found');
     }
 
-    const noteId = `note-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+    const noteId = `note-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
 
     await this.prisma.activityLog.create({
       data: {

@@ -344,7 +344,16 @@ export class AnalyticsService {
                 status: 'ACTIVE',
             },
         });
-        const licenseLimit = 50; // Hardcoded for now, ideally from Subscription
+        
+        // Get license limit from subscription plan
+        const subscription = await this.prisma.subscription.findUnique({
+            where: { tenantId },
+            include: { plan: { select: { limits: true, name: true } } },
+        });
+        // Extract user limit from plan's limits JSON, with defaults by plan name
+        const planLimits: Record<string, number> = { STARTER: 10, PROFESSIONAL: 50, ENTERPRISE: 500 };
+        const limits = subscription?.plan?.limits as { users?: number } | null;
+        const licenseLimit = limits?.users || planLimits[subscription?.plan?.name || ''] || 50;
 
         // 3. Most Active Users (by activity logs in last 30 days)
         const thirtyDaysAgo = new Date();

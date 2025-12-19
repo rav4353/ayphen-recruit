@@ -22,7 +22,8 @@ export class ReferralsService {
   ) {}
 
   private generateReferralId(): string {
-    return `ref-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const crypto = require('crypto');
+    return `ref-${Date.now()}-${crypto.randomBytes(6).toString('hex')}`;
   }
 
   /**

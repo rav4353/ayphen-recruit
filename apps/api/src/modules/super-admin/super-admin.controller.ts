@@ -819,7 +819,7 @@ export class SuperAdminController {
   @Get('settings/feature-flags')
   @UseGuards(AuthGuard('super-admin-jwt'))
   async getFeatureFlags() {
-    const flags = await this.settingsService.getFeatureFlags();
+    const flags = await this.settingsService.getFeatureFlagsWithMetadata();
     return { success: true, data: flags };
   }
 

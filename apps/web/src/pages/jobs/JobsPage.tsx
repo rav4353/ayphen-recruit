@@ -2,9 +2,9 @@ import { useState, useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { Plus, Search, Filter, Download, MoreVertical, Copy, XCircle, RefreshCw } from 'lucide-react';
+import { Plus, Search, Filter, Download, MoreVertical, Copy, XCircle, RefreshCw, Briefcase, Sparkles } from 'lucide-react';
 import { jobsApi } from '../../lib/api';
-import { StatusBadge, Button } from '../../components/ui';
+import { StatusBadge, Button, PageHeader } from '../../components/ui';
 import { SavedViews } from '../../components/common/SavedViews';
 import { useJobs, useUpdateJobStatus, useCloneJob, useSubmitJobApproval, useBulkUpdateJobStatus } from '../../hooks/queries';
 import { logger } from '../../lib/logger';
@@ -207,54 +207,59 @@ export function JobsPage() {
 
   return (
     <div className="h-full min-h-0 flex flex-col gap-6">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-neutral-900 dark:text-white">{t('jobs.title')}</h1>
-          <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">{t('jobs.manageJobs')}</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <SavedViews
-            entity="JOB"
-            currentFilters={{
-              search: searchQuery,
-              status: statusFilter,
-              department: departmentFilter,
-              location: locationFilter,
-              employmentType: employmentTypeFilter,
-              sortBy,
-              sortOrder,
-            }}
-            onApplyView={handleApplyView}
-            onReset={handleResetView}
-          />
-
-          <Button
-            variant="outline"
-            className="gap-2"
-            onClick={() => refetch()}
-            disabled={isLoading}
-          >
-            <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
-            <span className="hidden sm:inline">{t('common.refresh', 'Refresh')}</span>
-          </Button>
-          <Button
-            variant="outline"
-            className="gap-2"
-            onClick={() => handleExport()}
-          >
-            <Download size={16} />
-            <span className="hidden sm:inline">{t('common.export', 'Export')}</span>
-          </Button>
-          <Button
-            className="gap-2"
-            onClick={() => navigate(`/${tenantId}/jobs/new`)}
-          >
-            <Plus size={16} />
-            <span className="hidden sm:inline">{t('jobs.createJob')}</span>
-          </Button>
-        </div>
-      </div>
+      {/* Premium Page Header */}
+      <PageHeader
+        title={t('jobs.title')}
+        subtitle={t('jobs.manageJobs')}
+        icon={Briefcase}
+        iconColor="blue"
+        badge={{ text: 'AI-Powered', icon: Sparkles }}
+        actions={
+          <>
+            <SavedViews
+              entity="JOB"
+              currentFilters={{
+                search: searchQuery,
+                status: statusFilter,
+                department: departmentFilter,
+                location: locationFilter,
+                employmentType: employmentTypeFilter,
+                sortBy,
+                sortOrder,
+              }}
+              onApplyView={handleApplyView}
+              onReset={handleResetView}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2 bg-white dark:bg-neutral-800 shadow-sm"
+              onClick={() => refetch()}
+              disabled={isLoading}
+            >
+              <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
+              <span className="hidden sm:inline">{t('common.refresh', 'Refresh')}</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2 bg-white dark:bg-neutral-800 shadow-sm"
+              onClick={() => handleExport()}
+            >
+              <Download size={16} />
+              <span className="hidden sm:inline">{t('common.export', 'Export')}</span>
+            </Button>
+            <Button
+              size="sm"
+              className="gap-2 shadow-lg shadow-blue-500/25"
+              onClick={() => navigate(`/${tenantId}/jobs/new`)}
+            >
+              <Plus size={16} />
+              <span className="hidden sm:inline">{t('jobs.createJob')}</span>
+            </Button>
+          </>
+        }
+      />
 
       {/* Search & Filters */}
       <div className="flex flex-col sm:flex-row gap-3">

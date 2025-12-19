@@ -294,16 +294,6 @@ export const reportsApi = {
     api.get('/reports/custom', { params }),
   exportCsv: (params: { startDate?: string; endDate?: string; jobId?: string; recruiterId?: string }) =>
     api.get('/reports/export/csv', { params, responseType: 'blob' }),
-  // Enhanced analytics
-  getDashboard: () => api.get('/reports/dashboard'),
-  getHiringFunnel: (params?: { startDate?: string; endDate?: string; jobId?: string }) =>
-    api.get('/reports/funnel', { params }),
-  getTimeToHire: (params?: { startDate?: string; endDate?: string }) =>
-    api.get('/reports/time-to-hire', { params }),
-  getSourceEffectiveness: (params?: { startDate?: string; endDate?: string }) =>
-    api.get('/reports/source-effectiveness', { params }),
-  getRecruiterPerformance: (params?: { startDate?: string }) =>
-    api.get('/reports/recruiter-performance', { params }),
 };
 
 // Offer Templates API
@@ -353,16 +343,6 @@ export const aiApi = {
     api.post('/ai/generate-subject-lines', data),
 };
 
-// SLA API
-export const slaApi = {
-  getApplicationSla: (applicationId: string) => api.get(`/sla/application/${applicationId}`),
-  getAtRiskApplications: () => api.get('/sla/at-risk'),
-  getJobSlaStats: (jobId: string) => api.get(`/sla/job/${jobId}/stats`),
-  getAverageTimeInStage: (stageId: string) => api.get(`/sla/stage/${stageId}/average-time`),
-  updateStageSla: (stageId: string, slaDays: number) =>
-    api.patch(`/sla/stage/${stageId}/sla`, { slaDays }),
-};
-
 // Workflows API
 export const workflowsApi = {
   getByStage: (stageId: string) => api.get(`/workflows/stage/${stageId}`),
@@ -370,20 +350,6 @@ export const workflowsApi = {
   update: (id: string, data: any) => api.put(`/workflows/${id}`, data),
   delete: (id: string) => api.delete(`/workflows/${id}`),
   toggle: (id: string, isActive: boolean) => api.patch(`/workflows/${id}/toggle`, { isActive }),
-};
-
-// Disposition API
-export const dispositionApi = {
-  getRejectionReasons: () => api.get('/disposition/reasons/rejection'),
-  getWithdrawalReasons: () => api.get('/disposition/reasons/withdrawal'),
-  recordDisposition: (data: {
-    applicationId: string;
-    type: 'REJECTION' | 'WITHDRAWAL';
-    reason: string;
-    notes?: string;
-  }) => api.post('/disposition/record', data),
-  getAnalytics: (params?: { jobId?: string; startDate?: string; endDate?: string }) =>
-    api.get('/disposition/analytics', { params }),
 };
 
 // Settings API
@@ -407,13 +373,6 @@ export const referenceApi = {
   updateLocation: (id: string, data: Partial<{ name: string; address?: string; city?: string; state?: string; country: string; timezone?: string }>) =>
     api.patch(`/reference/locations/${id}`, data),
   deleteLocation: (id: string) => api.delete(`/reference/locations/${id}`),
-  // Departments
-  getDepartments: () => api.get('/reference/departments'),
-  createDepartment: (data: { name: string; code?: string; parentId?: string }) =>
-    api.post('/reference/departments', data),
-  updateDepartment: (id: string, data: Partial<{ name: string; code?: string; parentId?: string }>) =>
-    api.patch(`/reference/departments/${id}`, data),
-  deleteDepartment: (id: string) => api.delete(`/reference/departments/${id}`),
 };
 
 // Storage API
@@ -575,24 +534,6 @@ export const bgvApi = {
   getPackages: () => api.get('/bgv/packages'),
   getDashboard: () => api.get('/bgv/dashboard'),
 };
-
-// SMS API
-export const smsApi = {
-  getSettings: () => api.get('/sms/settings'),
-  configure: (data: {
-    provider: 'TWILIO' | 'MSG91' | 'TEXTLOCAL';
-    accountSid: string;
-    authToken: string;
-    fromNumber: string;
-    webhookUrl?: string;
-  }) => api.post('/sms/configure', data),
-  send: (data: { to: string; body: string; candidateId?: string }) => api.post('/sms/send', data),
-  sendBulk: (data: { recipients: { phone: string; body: string; candidateId?: string }[] }) =>
-    api.post('/sms/send-bulk', data),
-  getTemplates: () => api.get('/sms/templates'),
-  saveTemplate: (data: { name: string; content: string }) => api.post('/sms/templates', data),
-};
-
 
 // E-Signature API
 export const esignatureApi = {

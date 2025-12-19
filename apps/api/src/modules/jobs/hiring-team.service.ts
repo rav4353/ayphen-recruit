@@ -25,7 +25,8 @@ export class HiringTeamService {
   ) {}
 
   private generateTeamMemberId(): string {
-    return `tm-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const crypto = require('crypto');
+    return `tm-${Date.now()}-${crypto.randomBytes(6).toString('hex')}`;
   }
 
   /**

@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
+import * as crypto from 'crypto';
 
 export type EmailEventType = 'OPEN' | 'CLICK' | 'REPLY' | 'BOUNCE' | 'UNSUBSCRIBE';
 
@@ -20,7 +21,7 @@ export class EmailTrackingService {
    * Generate a unique tracking token
    */
   private generateToken(): string {
-    return `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+    return `${Date.now()}-${crypto.randomBytes(12).toString('hex')}`;
   }
 
   /**

@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Plus, Search, Filter, Mail, Phone, Trash2, X, ChevronDown, Download, RefreshCw } from 'lucide-react';
+import { Plus, Search, Filter, Mail, Phone, Trash2, X, ChevronDown, Download, RefreshCw, Users, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { candidatesApi } from '../../lib/api';
 import { CandidateFilterModal } from '../../components/candidates/CandidateFilterModal';
 import { BulkEmailModal } from '../../components/candidates/BulkEmailModal';
-import { Button, ConfirmationModal } from '../../components/ui';
+import { Button, ConfirmationModal, PageHeader } from '../../components/ui';
 import { SavedViews } from '../../components/common/SavedViews';
 import { useCandidates, useBulkDeleteCandidates, useSendBulkEmail } from '../../hooks/queries';
 import { logger } from '../../lib/logger';
@@ -197,39 +197,45 @@ export function CandidatesPage() {
         recipientCount={selectedIds.length}
       />
 
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-neutral-900 dark:text-white">{t('candidates.title')}</h1>
-          <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">{t('candidates.manageTalentPool')}</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <Button
-            variant="outline"
-            className="gap-2"
-            onClick={() => refetch()}
-            disabled={isLoading}
-          >
-            <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
-            <span className="hidden sm:inline">{t('common.refresh', 'Refresh')}</span>
-          </Button>
-          <Button
-            variant="outline"
-            className="gap-2"
-            onClick={handleExport}
-          >
-            <Download size={16} />
-            <span className="hidden sm:inline">{t('common.export')}</span>
-          </Button>
-          <Button
-            className="gap-2"
-            onClick={() => navigate(`/${tenantId}/candidates/new`)}
-          >
-            <Plus size={16} />
-            <span className="hidden sm:inline">{t('candidates.addCandidate')}</span>
-          </Button>
-        </div>
-      </div>
+      {/* Premium Page Header */}
+      <PageHeader
+        title={t('candidates.title')}
+        subtitle={t('candidates.manageTalentPool')}
+        icon={Users}
+        iconColor="green"
+        badge={{ text: 'Talent Pool', icon: Sparkles }}
+        actions={
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2 bg-white dark:bg-neutral-800 shadow-sm"
+              onClick={() => refetch()}
+              disabled={isLoading}
+            >
+              <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
+              <span className="hidden sm:inline">{t('common.refresh', 'Refresh')}</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2 bg-white dark:bg-neutral-800 shadow-sm"
+              onClick={handleExport}
+            >
+              <Download size={16} />
+              <span className="hidden sm:inline">{t('common.export')}</span>
+            </Button>
+            <Button
+              size="sm"
+              className="gap-2 shadow-lg shadow-emerald-500/25"
+              onClick={() => navigate(`/${tenantId}/candidates/new`)}
+            >
+              <Plus size={16} />
+              <span className="hidden sm:inline">{t('candidates.addCandidate')}</span>
+            </Button>
+          </>
+        }
+      />
 
       {/* Search & Filters */}
       <div className="flex flex-col gap-3">

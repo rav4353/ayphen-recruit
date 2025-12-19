@@ -6,22 +6,33 @@ import {
     Terminal,
     AlertTriangle,
     RefreshCw,
-    TrendingUp,
     Clock,
     Zap,
     Server,
     ChevronDown,
+    Mail,
+    FolderOpen,
 } from 'lucide-react';
 import { Button } from '../../components/ui';
-import { superAdminMonitoringApi } from '../../lib/superAdminApi';
+import { superAdminMonitoringApi, superAdminDashboardApi } from '../../lib/superAdminApi';
 import toast from 'react-hot-toast';
 import { cn } from '../../lib/utils';
 import { useSuperAdminSocket } from '../../hooks/useSuperAdminSocket';
+
+interface SystemHealth {
+    status: 'healthy' | 'degraded' | 'down';
+    database: 'up' | 'down';
+    redis: 'up' | 'down';
+    email: 'up' | 'down';
+    storage: 'up' | 'down';
+    lastChecked: string;
+}
 
 export function SystemMonitoringPage() {
     const [resources, setResources] = useState<any>(null);
     const [logs, setLogs] = useState<any[]>([]);
     const [jobs, setJobs] = useState<any>(null);
+    const [health, setHealth] = useState<SystemHealth | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [logLevel, setLogLevel] = useState('all');
     const { socket, isConnected } = useSuperAdminSocket();
@@ -47,20 +58,47 @@ export function SystemMonitoringPage() {
 
     const fetchData = async () => {
         try {
-            const [resourceRes, logsRes, jobsRes] = await Promise.all([
+            const [resourceRes, logsRes, jobsRes, healthRes] = await Promise.all([
                 superAdminMonitoringApi.getResources(),
                 superAdminMonitoringApi.getLogs({ level: logLevel }),
-                superAdminMonitoringApi.getJobs()
+                superAdminMonitoringApi.getJobs(),
+                superAdminDashboardApi.getSystemHealth(),
             ]);
 
             setResources(resourceRes.data.data);
             setLogs(logsRes.data.data);
             setJobs(jobsRes.data.data);
+            setHealth(healthRes.data.data);
         } catch (error) {
             toast.error('Failed to fetch system metrics');
         } finally {
             setIsLoading(false);
         }
+    };
+
+    const getServiceStatus = (service: string): { status: string; color: string } => {
+        if (!health) return { status: 'CHECKING', color: 'neutral' };
+        
+        const serviceMap: Record<string, 'database' | 'redis' | 'email' | 'storage'> = {
+            'PostgreSQL Relational': 'database',
+            'Redis Cache Cluster': 'redis',
+            'SMTP Mail Service': 'email',
+            'File Storage': 'storage',
+        };
+        
+        const healthKey = serviceMap[service];
+        if (!healthKey) {
+            // API Gateway - check overall status
+            return health.status === 'healthy' 
+                ? { status: 'HEALTHY', color: 'emerald' }
+                : health.status === 'degraded'
+                    ? { status: 'DEGRADED', color: 'amber' }
+                    : { status: 'DOWN', color: 'red' };
+        }
+        
+        return health[healthKey] === 'up'
+            ? { status: 'CONNECTED', color: 'emerald' }
+            : { status: 'OFFLINE', color: 'red' };
     };
 
     const formatBytes = (bytes: number) => {
@@ -240,25 +278,37 @@ export function SystemMonitoringPage() {
 
                     <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-3xl p-8 space-y-6 shadow-sm">
                         {[
-                            { name: 'Primary API Gateway', icon: Server, status: 'HEALTHY', color: 'emerald' },
-                            { name: 'PostgreSQL Relational', icon: Database, status: 'CONNECTED', color: 'emerald' },
-                            { name: 'Redis Cache Cluster', icon: Zap, status: 'HEALTHY', color: 'emerald' },
-                            { name: 'Neural Index Processor', icon: TrendingUp, status: 'INDEXING', color: 'amber' },
-                        ].map((service, i) => (
+                            { name: 'Primary API Gateway', icon: Server },
+                            { name: 'PostgreSQL Relational', icon: Database },
+                            { name: 'Redis Cache Cluster', icon: Zap },
+                            { name: 'SMTP Mail Service', icon: Mail },
+                            { name: 'File Storage', icon: FolderOpen },
+                        ].map((service, i) => {
+                            const { status, color } = getServiceStatus(service.name);
+                            return (
                             <div key={i} className="flex items-center justify-between group">
                                 <div className="flex items-center gap-4">
-                                    <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shadow-inner transition-transform group-hover:scale-110", `bg-${service.color}-500/10 text-${service.color}-600 dark:text-${service.color}-400`)}>
+                                    <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shadow-inner transition-transform group-hover:scale-110", 
+                                        color === 'emerald' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' :
+                                        color === 'amber' ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' :
+                                        color === 'red' ? 'bg-red-500/10 text-red-600 dark:text-red-400' :
+                                        'bg-neutral-500/10 text-neutral-600 dark:text-neutral-400'
+                                    )}>
                                         <service.icon size={20} />
                                     </div>
                                     <span className="text-sm font-black text-neutral-800 dark:text-neutral-200 uppercase tracking-tight">{service.name}</span>
                                 </div>
                                 <span className={cn("text-[9px] px-2.5 py-1 rounded-full font-black uppercase tracking-widest shadow-sm border",
-                                    service.color === 'emerald' ? 'bg-emerald-500/5 text-emerald-600 border-emerald-500/20' : 'bg-amber-500/5 text-amber-600 border-amber-500/20'
+                                    color === 'emerald' ? 'bg-emerald-500/5 text-emerald-600 border-emerald-500/20' : 
+                                    color === 'amber' ? 'bg-amber-500/5 text-amber-600 border-amber-500/20' :
+                                    color === 'red' ? 'bg-red-500/5 text-red-600 border-red-500/20' :
+                                    'bg-neutral-500/5 text-neutral-600 border-neutral-500/20'
                                 )}>
-                                    {service.status}
+                                    {status}
                                 </span>
                             </div>
-                        ))}
+                            );
+                        })}
 
                         <div className="pt-8 mt-8 border-t border-neutral-100 dark:border-neutral-800">
                             <div className="flex items-center justify-between text-[10px] font-black text-neutral-500 uppercase tracking-widest mb-3">

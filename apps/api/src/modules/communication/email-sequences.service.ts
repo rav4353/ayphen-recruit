@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import * as crypto from 'crypto';
 
 interface EmailSequenceStep {
   id: string;
@@ -24,7 +25,7 @@ export class EmailSequencesService {
   constructor(private readonly prisma: PrismaService) {}
 
   private generateId(prefix: string): string {
-    return `${prefix}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    return `${prefix}-${Date.now()}-${crypto.randomBytes(6).toString('hex')}`;
   }
 
   /**

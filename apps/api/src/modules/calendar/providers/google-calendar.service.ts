@@ -278,7 +278,8 @@ export class GoogleCalendarService {
         organizer?: { name: string; email: string };
     }): string {
         const formatDate = (date: Date) => date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-        const uid = `${Date.now()}-${Math.random().toString(36).substring(2)}@talentx.app`;
+        const crypto = require('crypto');
+        const uid = `${Date.now()}-${crypto.randomBytes(8).toString('hex')}@talentx.app`;
 
         let ics = [
             'BEGIN:VCALENDAR',

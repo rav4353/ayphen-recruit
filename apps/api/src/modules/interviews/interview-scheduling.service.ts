@@ -26,7 +26,8 @@ export class InterviewSchedulingService {
   ) {}
 
   private generateToken(): string {
-    return `sched-${Date.now()}-${Math.random().toString(36).substr(2, 16)}`;
+    const crypto = require('crypto');
+    return `sched-${Date.now()}-${crypto.randomBytes(12).toString('hex')}`;
   }
 
   /**

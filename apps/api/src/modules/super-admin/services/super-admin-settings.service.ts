@@ -91,12 +91,32 @@ export class SuperAdminSettingsService implements OnModuleInit {
 
     private async initializeDefaults() {
         const defaults = [
+            // General settings
             { key: 'maintenance_mode', value: false, category: 'general' },
+            { key: 'maintenance_message', value: 'System is currently undergoing maintenance. Please check back later.', category: 'general' },
             { key: 'allow_new_registrations', value: true, category: 'general' },
             { key: 'require_email_verification', value: true, category: 'general' },
+            
+            // Security settings
             { key: 'global_mfa_enforced', value: false, category: 'security' },
             { key: 'session_timeout', value: 30, category: 'security' },
             { key: 'max_login_attempts', value: 5, category: 'security' },
+            
+            // Feature flags
+            { key: 'feature_flag_ai_resume_parsing', value: true, category: 'features' },
+            { key: 'feature_flag_ai_jd_generation', value: true, category: 'features' },
+            { key: 'feature_flag_video_interviews', value: false, category: 'features' },
+            { key: 'feature_flag_advanced_analytics', value: true, category: 'features' },
+            { key: 'feature_flag_calendar_sync', value: true, category: 'features' },
+            { key: 'feature_flag_bulk_actions', value: true, category: 'features' },
+            { key: 'feature_flag_ai_candidate_matching', value: true, category: 'features' },
+            { key: 'feature_flag_esignature', value: true, category: 'features' },
+            { key: 'feature_flag_background_checks', value: true, category: 'features' },
+            { key: 'feature_flag_onboarding', value: true, category: 'features' },
+            
+            // Backup settings
+            { key: 'backup_schedule', value: 'weekly', category: 'system' },
+            { key: 'backup_retention_days', value: 30, category: 'system' },
         ];
 
         for (const def of defaults) {
@@ -113,5 +133,35 @@ export class SuperAdminSettingsService implements OnModuleInit {
                 });
             }
         }
+    }
+
+    async getFeatureFlagsWithMetadata() {
+        const featureFlagMetadata: Record<string, { name: string; description: string }> = {
+            'ai_resume_parsing': { name: 'AI Resume Parsing', description: 'Enable AI-powered resume parsing for candidates' },
+            'ai_jd_generation': { name: 'AI Job Description', description: 'Enable AI-assisted job description generation' },
+            'video_interviews': { name: 'Video Interviews', description: 'Enable integrated video interview functionality' },
+            'advanced_analytics': { name: 'Advanced Analytics', description: 'Enable advanced reporting and analytics features' },
+            'calendar_sync': { name: 'Calendar Sync', description: 'Enable calendar integration for interview scheduling' },
+            'bulk_actions': { name: 'Bulk Actions', description: 'Enable bulk operations on candidates and applications' },
+            'ai_candidate_matching': { name: 'AI Candidate Matching', description: 'Enable AI-powered candidate-job matching' },
+            'esignature': { name: 'E-Signature', description: 'Enable electronic signature for offer letters' },
+            'background_checks': { name: 'Background Checks', description: 'Enable background verification integration' },
+            'onboarding': { name: 'Onboarding', description: 'Enable employee onboarding workflows' },
+        };
+
+        const flags = await this.prisma.globalSetting.findMany({
+            where: { key: { startsWith: 'feature_flag_' } },
+        });
+
+        return flags.map(f => {
+            const key = f.key.replace('feature_flag_', '');
+            const metadata = featureFlagMetadata[key] || { name: key, description: '' };
+            return {
+                key,
+                name: metadata.name,
+                description: metadata.description,
+                enabled: f.value === true || f.value === 'true',
+            };
+        });
     }
 }

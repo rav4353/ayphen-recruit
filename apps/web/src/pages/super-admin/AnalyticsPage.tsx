@@ -65,47 +65,23 @@ export function AnalyticsPage() {
       });
     } catch (error) {
       console.error('Failed to fetch analytics', error);
-      // Mock data for premium visuals
+      // Set empty data structure on error - data will be fetched from real database
       setData({
         overview: {
-          totalTenants: 156,
-          totalUsers: 1847,
-          totalJobs: 523,
-          totalCandidates: 12456,
-          mrr: 45600,
-          arr: 547200,
-          tenantGrowth: 12.5,
-          userGrowth: 8.3,
-          revenueGrowth: 15.2,
+          totalTenants: 0,
+          totalUsers: 0,
+          totalJobs: 0,
+          totalCandidates: 0,
+          mrr: 0,
+          arr: 0,
+          tenantGrowth: 0,
+          userGrowth: 0,
+          revenueGrowth: 0,
         },
-        tenantGrowth: [
-          { date: '2024-07', count: 120 },
-          { date: '2024-08', count: 128 },
-          { date: '2024-09', count: 135 },
-          { date: '2024-10', count: 142 },
-          { date: '2024-11', count: 150 },
-          { date: '2024-12', count: 156 },
-        ],
-        userGrowth: [
-          { date: '2024-07', count: 1200 },
-          { date: '2024-08', count: 1350 },
-          { date: '2024-09', count: 1520 },
-          { date: '2024-10', count: 1650 },
-          { date: '2024-11', count: 1780 },
-          { date: '2024-12', count: 1847 },
-        ],
-        topTenants: [
-          { id: '1', name: 'Acme Corporation', users: 45, jobs: 32, candidates: 1250 },
-          { id: '2', name: 'TechGiant Inc', users: 38, jobs: 28, candidates: 980 },
-          { id: '3', name: 'GlobalHire', users: 32, jobs: 24, candidates: 876 },
-          { id: '4', name: 'StartupX', users: 28, jobs: 18, candidates: 654 },
-          { id: '5', name: 'MegaCorp', users: 25, jobs: 15, candidates: 543 },
-        ],
-        planDistribution: [
-          { plan: 'STARTER', count: 85, percentage: 54.5 },
-          { plan: 'PROFESSIONAL', count: 52, percentage: 33.3 },
-          { plan: 'ENTERPRISE', count: 19, percentage: 12.2 },
-        ],
+        tenantGrowth: [],
+        userGrowth: [],
+        topTenants: [],
+        planDistribution: [],
       });
     } finally {
       setIsLoading(false);

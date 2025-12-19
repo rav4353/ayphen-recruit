@@ -35,7 +35,8 @@ import { UnsavedChangesProvider } from './contexts/UnsavedChangesContext';
 import { ConfirmationProvider } from './contexts/ConfirmationContext';
 import { StatusColorProvider } from './contexts/StatusColorContext';
 import { PublicJobPage } from './pages/careers/PublicJobPage';
-import { CareerPage } from './pages/public/CareerPage';
+import { PublicCareerSite } from './pages/public/PublicCareerSite';
+import { PublicJobDetails } from './pages/public/PublicJobDetails';
 import { JobApplicationPage } from './pages/public/JobApplicationPage';
 import { InterviewSchedulePage } from './pages/public/InterviewSchedulePage';
 import { ReferralsPage } from './pages/referrals/ReferralsPage';
@@ -159,8 +160,9 @@ function App() {
               </Route>
 
               {/* Public Career Routes */}
-              <Route path="/careers/:tenantId" element={<CareerPage />} />
-              <Route path="/careers/:tenantId/jobs/:jobId" element={<JobApplicationPage />} />
+              <Route path="/careers/:tenantId" element={<PublicCareerSite />} />
+              <Route path="/careers/:tenantId/jobs/:jobId" element={<PublicJobDetails />} />
+              <Route path="/careers/:tenantId/jobs/:jobId/apply" element={<JobApplicationPage />} />
 
               {/* Protected routes */}
               <Route

@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateOfferDto, UpdateOfferDto } from './dto/offer.dto';
 import { OfferStatus } from '@prisma/client';
+import * as crypto from 'crypto';
 
 import { CommunicationEmailsService } from '../communication/communication-emails.service';
 import { ConfigService } from '@nestjs/config';
@@ -304,7 +305,7 @@ export class OffersService {
             throw new BadRequestException('Only approved offers can be sent');
         }
 
-        const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+        const token = crypto.randomBytes(32).toString('hex');
         const webUrl = this.configService.get('WEB_URL') || 'http://localhost:3000';
         const offerLink = `${webUrl}/offers/public/${token}`;
 

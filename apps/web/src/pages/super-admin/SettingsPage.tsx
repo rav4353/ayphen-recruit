@@ -107,15 +107,7 @@ export function SettingsPage() {
       }
     } catch (error) {
       console.error('Failed to fetch settings', error);
-      // Mock feature flags
-      setFeatureFlags([
-        { key: 'ai_resume_parsing', name: 'AI Resume Parsing', description: 'Enable AI-powered resume parsing for candidates', enabled: true },
-        { key: 'ai_jd_generation', name: 'AI Job Description', description: 'Enable AI-assisted job description generation', enabled: true },
-        { key: 'video_interviews', name: 'Video Interviews', description: 'Enable integrated video interview functionality', enabled: false },
-        { key: 'advanced_analytics', name: 'Advanced Analytics', description: 'Enable advanced reporting and analytics features', enabled: true },
-        { key: 'calendar_sync', name: 'Calendar Sync', description: 'Enable calendar integration for interview scheduling', enabled: true },
-        { key: 'bulk_actions', name: 'Bulk Actions', description: 'Enable bulk operations on candidates and applications', enabled: true },
-      ]);
+      toast.error('Failed to load settings. Please try again.');
     } finally {
       setIsLoading(false);
     }

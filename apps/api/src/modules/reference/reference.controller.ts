@@ -62,43 +62,4 @@ export class ReferenceController {
     async deleteLocation(@Param('id') id: string) {
         return this.referenceService.deleteLocation(id);
     }
-
-    // Departments CRUD
-    @Get('departments')
-    @UseGuards(JwtAuthGuard)
-    @ApiBearerAuth()
-    @ApiOperation({ summary: 'Get all departments for tenant' })
-    async getDepartments(@CurrentUser() user: JwtPayload) {
-        return this.referenceService.getDepartments(user.tenantId);
-    }
-
-    @Post('departments')
-    @UseGuards(JwtAuthGuard)
-    @ApiBearerAuth()
-    @ApiOperation({ summary: 'Create a new department' })
-    async createDepartment(
-        @CurrentUser() user: JwtPayload,
-        @Body() data: { name: string; code?: string; parentId?: string },
-    ) {
-        return this.referenceService.createDepartment(user.tenantId, data);
-    }
-
-    @Patch('departments/:id')
-    @UseGuards(JwtAuthGuard)
-    @ApiBearerAuth()
-    @ApiOperation({ summary: 'Update a department' })
-    async updateDepartment(
-        @Param('id') id: string,
-        @Body() data: Partial<{ name: string; code?: string; parentId?: string }>,
-    ) {
-        return this.referenceService.updateDepartment(id, data);
-    }
-
-    @Delete('departments/:id')
-    @UseGuards(JwtAuthGuard)
-    @ApiBearerAuth()
-    @ApiOperation({ summary: 'Delete a department' })
-    async deleteDepartment(@Param('id') id: string) {
-        return this.referenceService.deleteDepartment(id);
-    }
 }

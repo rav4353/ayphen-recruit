@@ -66,20 +66,37 @@ export function CareerSiteBuilder() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-neutral-900 dark:text-white">Career Site Builder</h1>
-          <p className="text-sm text-neutral-500 mt-1">Customize your public career page</p>
-        </div>
-        <div className="flex gap-3">
-          <Button variant="ghost" onClick={() => window.open('/careers/preview', '_blank')}>
-            <Eye className="h-4 w-4 mr-2" />
-            Preview
-          </Button>
-          <Button variant="primary">
-            <Save className="h-4 w-4 mr-2" />
-            Publish Changes
-          </Button>
+      {/* Premium Header */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-blue-600/5 via-purple-600/5 to-pink-600/5 dark:from-blue-600/10 dark:via-purple-600/10 dark:to-pink-600/10 rounded-2xl p-6 sm:p-8">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+        
+        <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-neutral-900 dark:text-white mb-2">
+              Career Site Builder
+            </h1>
+            <p className="text-sm text-neutral-600 dark:text-neutral-400">
+              Create a beautiful, branded career page to attract top talent
+            </p>
+          </div>
+          <div className="flex gap-3">
+            <Button 
+              variant="outline" 
+              size="sm"
+              className="gap-2 bg-white dark:bg-neutral-800 shadow-sm"
+              onClick={() => window.open('/careers/preview', '_blank')}
+            >
+              <Eye className="h-4 w-4" />
+              Preview
+            </Button>
+            <Button 
+              size="sm"
+              className="gap-2 shadow-lg shadow-blue-500/25 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
+            >
+              <Save className="h-4 w-4" />
+              Publish Changes
+            </Button>
+          </div>
         </div>
       </div>
 

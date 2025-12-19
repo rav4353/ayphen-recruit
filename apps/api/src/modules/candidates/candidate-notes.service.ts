@@ -28,7 +28,8 @@ export class CandidateNotesService {
   constructor(private readonly prisma: PrismaService) {}
 
   private generateNoteId(): string {
-    return `note-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const crypto = require('crypto');
+    return `note-${Date.now()}-${crypto.randomBytes(6).toString('hex')}`;
   }
 
   /**

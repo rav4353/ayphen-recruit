@@ -223,38 +223,4 @@ export class ReferenceService {
             where: { id },
         });
     }
-
-    // Departments CRUD
-    async getDepartments(tenantId: string) {
-        return this.prisma.department.findMany({
-            where: { tenantId },
-            orderBy: { name: 'asc' },
-            include: {
-                parent: true,
-                children: true,
-            },
-        });
-    }
-
-    async createDepartment(tenantId: string, data: { name: string; code?: string; parentId?: string }) {
-        return this.prisma.department.create({
-            data: {
-                ...data,
-                tenantId,
-            },
-        });
-    }
-
-    async updateDepartment(id: string, data: Partial<{ name: string; code?: string; parentId?: string }>) {
-        return this.prisma.department.update({
-            where: { id },
-            data,
-        });
-    }
-
-    async deleteDepartment(id: string) {
-        return this.prisma.department.delete({
-            where: { id },
-        });
-    }
 }

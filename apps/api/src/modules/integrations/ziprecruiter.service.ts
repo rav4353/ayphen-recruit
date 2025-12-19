@@ -179,13 +179,32 @@ export class ZipRecruiterService {
     clicks: number;
   }> {
     const config = await this.getConfigOrThrow(tenantId);
+    const apiUrl = config.sandboxMode ? this.sandboxApiUrl : this.apiUrl;
     
-    // In production, fetch from ZipRecruiter API
-    return {
-      views: Math.floor(Math.random() * 1000),
-      applies: Math.floor(Math.random() * 50),
-      clicks: Math.floor(Math.random() * 200),
-    };
+    try {
+      const response = await fetch(`${apiUrl}/jobs/${externalId}/stats`, {
+        headers: {
+          'Authorization': `Bearer ${config.apiKey}`,
+          'X-Publisher-Id': config.publisherId,
+        },
+      });
+
+      if (!response.ok) {
+        this.logger.warn(`Failed to fetch ZipRecruiter stats for ${externalId}: ${response.status}`);
+        // Return zeros if API call fails
+        return { views: 0, applies: 0, clicks: 0 };
+      }
+
+      const data = await response.json() as { views?: number; applications?: number; clicks?: number };
+      return {
+        views: data.views || 0,
+        applies: data.applications || 0,
+        clicks: data.clicks || 0,
+      };
+    } catch (error: any) {
+      this.logger.error(`Error fetching ZipRecruiter stats: ${error.message}`);
+      return { views: 0, applies: 0, clicks: 0 };
+    }
   }
 
   /**

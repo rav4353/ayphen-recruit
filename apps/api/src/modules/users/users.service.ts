@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { EmailService } from '../../common/services/email.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -235,8 +236,8 @@ export class UsersService {
   async resendPassword(userId: string) {
     const user = await this.findById(userId);
 
-    // Generate a new temporary password
-    const tempPassword = Math.random().toString(36).slice(-10) + Math.random().toString(36).toUpperCase().slice(-2);
+    // Generate a new secure temporary password
+    const tempPassword = crypto.randomBytes(8).toString('base64').slice(0, 10) + crypto.randomBytes(2).toString('hex').toUpperCase();
 
     // Hash the password
     const defaultRounds = process.env.NODE_ENV === 'production' ? 12 : 10;
@@ -301,7 +302,8 @@ export class UsersService {
   }
 
   private generateEmployeeId(): string {
-    return `EMP-${Math.floor(100000 + Math.random() * 900000)}`;
+    const randomNum = crypto.randomInt(100000, 999999);
+    return `EMP-${randomNum}`;
   }
 
   /**

@@ -60,6 +60,40 @@ export class InterviewSchedulingController {
   ) {
     return this.schedulingService.cancelLink(token, user.sub, user.tenantId);
   }
+
+  @Post('suggest-slots')
+  @ApiOperation({ summary: 'Get AI-suggested optimal interview slots' })
+  @RequirePermissions(Permission.JOB_VIEW)
+  getSuggestedSlots(
+    @CurrentUser() user: JwtPayload,
+    @Body() body: {
+      interviewerIds: string[];
+      duration: number;
+      interviewType: string;
+      candidateTimezone?: string;
+      preferredDates?: string[];
+    },
+  ) {
+    const preferredDates = body.preferredDates?.map(d => new Date(d));
+    return this.schedulingService.getSuggestedSlots(
+      user.tenantId,
+      body.interviewerIds,
+      body.duration,
+      body.interviewType,
+      body.candidateTimezone,
+      preferredDates,
+    );
+  }
+
+  @Get('recommendations/:jobId')
+  @ApiOperation({ summary: 'Get scheduling recommendations for a job' })
+  @RequirePermissions(Permission.JOB_VIEW)
+  getRecommendations(
+    @CurrentUser() user: JwtPayload,
+    @Param('jobId') jobId: string,
+  ) {
+    return this.schedulingService.getSchedulingRecommendations(user.tenantId, jobId);
+  }
 }
 
 // Public endpoints for candidates

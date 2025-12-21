@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { X, Clock, MapPin, Link as LinkIcon } from 'lucide-react';
+import { X, Clock, MapPin, Link as LinkIcon, Video, Sparkles } from 'lucide-react';
 import { Button, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui';
-import { interviewsApi, usersApi } from '../../lib/api';
+import { interviewsApi, usersApi, videoMeetingsApi } from '../../lib/api';
 import { User, InterviewType } from '../../lib/types';
 import toast from 'react-hot-toast';
 
@@ -33,6 +33,9 @@ export function ScheduleInterviewModal({
     const { t } = useTranslation();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [interviewers, setInterviewers] = useState<User[]>([]);
+    const [videoProviders, setVideoProviders] = useState<{ provider: string; configured: boolean; name: string }[]>([]);
+    const [selectedVideoProvider, setSelectedVideoProvider] = useState<string>('');
+    const [generatingMeeting, setGeneratingMeeting] = useState(false);
 
     const {
         register,
@@ -50,8 +53,24 @@ export function ScheduleInterviewModal({
     useEffect(() => {
         if (isOpen) {
             fetchInterviewers();
+            fetchVideoProviders();
         }
     }, [isOpen]);
+
+    const fetchVideoProviders = async () => {
+        try {
+            const response = await videoMeetingsApi.getProviders();
+            const providers = response.data?.providers || [];
+            setVideoProviders(providers);
+            // Auto-select first configured provider
+            const configured = providers.find((p: { configured: boolean }) => p.configured);
+            if (configured) {
+                setSelectedVideoProvider(configured.provider);
+            }
+        } catch (error) {
+            console.error('Failed to fetch video providers:', error);
+        }
+    };
 
     const fetchInterviewers = async () => {
         try {
@@ -203,12 +222,74 @@ export function ScheduleInterviewModal({
                         {...register('location')}
                     />
 
-                    <Input
-                        label={t('interviews.meetingLink', 'Meeting Link')}
-                        placeholder="https://meet.google.com/..."
-                        leftIcon={<LinkIcon size={16} />}
-                        {...register('meetingLink')}
-                    />
+                    <div>
+                        <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                            {t('interviews.meetingLink', 'Meeting Link')}
+                        </label>
+                        <div className="flex gap-2">
+                            <Input
+                                placeholder="https://meet.google.com/..."
+                                leftIcon={<LinkIcon size={16} />}
+                                {...register('meetingLink')}
+                                className="flex-1"
+                            />
+                            {videoProviders.filter(p => p.configured).length > 0 && (
+                                <div className="flex gap-1">
+                                    <select
+                                        value={selectedVideoProvider}
+                                        onChange={(e) => setSelectedVideoProvider(e.target.value)}
+                                        className="px-2 py-1 text-xs border border-neutral-200 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800"
+                                    >
+                                        {videoProviders.filter(p => p.configured).map(p => (
+                                            <option key={p.provider} value={p.provider}>{p.name}</option>
+                                        ))}
+                                    </select>
+                                    <Button
+                                        type="button"
+                                        variant="secondary"
+                                        size="sm"
+                                        isLoading={generatingMeeting}
+                                        onClick={async () => {
+                                            const scheduledAt = (document.querySelector('input[name="scheduledAt"]') as HTMLInputElement)?.value;
+                                            const duration = (document.querySelector('input[name="duration"]') as HTMLInputElement)?.value;
+                                            if (!scheduledAt || !selectedVideoProvider) {
+                                                toast.error('Please set date/time first');
+                                                return;
+                                            }
+                                            setGeneratingMeeting(true);
+                                            try {
+                                                const response = await videoMeetingsApi.createMeeting({
+                                                    provider: selectedVideoProvider as 'GOOGLE_MEET' | 'ZOOM' | 'MICROSOFT_TEAMS',
+                                                    topic: 'Interview',
+                                                    startTime: new Date(scheduledAt).toISOString(),
+                                                    durationMinutes: parseInt(duration) || 60,
+                                                });
+                                                const meetingInput = document.querySelector('input[name="meetingLink"]') as HTMLInputElement;
+                                                if (meetingInput) {
+                                                    meetingInput.value = response.data.joinUrl;
+                                                    meetingInput.dispatchEvent(new Event('input', { bubbles: true }));
+                                                }
+                                                toast.success('Meeting link generated!');
+                                            } catch (error) {
+                                                toast.error('Failed to generate meeting link');
+                                            } finally {
+                                                setGeneratingMeeting(false);
+                                            }
+                                        }}
+                                        className="whitespace-nowrap"
+                                    >
+                                        <Video size={14} className="mr-1" />
+                                        <Sparkles size={12} />
+                                    </Button>
+                                </div>
+                            )}
+                        </div>
+                        {videoProviders.filter(p => p.configured).length === 0 && (
+                            <p className="text-xs text-neutral-500 mt-1">
+                                Configure video providers in Settings → Integrations to auto-generate links
+                            </p>
+                        )}
+                    </div>
 
                     <div>
                         <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">

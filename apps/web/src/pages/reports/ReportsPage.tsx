@@ -311,11 +311,11 @@ export function ReportsPage() {
     return (
         <div className="min-h-screen">
             {/* Premium Header */}
-            <div className="relative overflow-hidden mb-8">
+            <div className="relative overflow-hidden mb-8 rounded-2xl">
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-600/5 via-purple-600/5 to-transparent dark:from-blue-600/10 dark:via-purple-600/10" />
                 <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
 
-                <div className="relative">
+                <div className="relative p-6 sm:p-8">
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
                         <div>
                             <div className="flex items-center gap-3 mb-2">
@@ -374,53 +374,54 @@ export function ReportsPage() {
                                 Filters:
                             </div>
 
-                            <div className="flex flex-wrap gap-3 flex-1">
-                                <Select value={datePreset} onValueChange={(v) => setDatePreset(v as DatePreset)}>
-                                    <SelectTrigger className="w-[160px] bg-neutral-50 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700">
-                                        <Calendar size={14} className="mr-2 text-neutral-500" />
-                                        <SelectValue placeholder="Date Range" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="today">Today</SelectItem>
-                                        <SelectItem value="7days">Last 7 Days</SelectItem>
-                                        <SelectItem value="30days">Last 30 Days</SelectItem>
-                                        <SelectItem value="90days">Last 90 Days</SelectItem>
-                                        <SelectItem value="thisMonth">This Month</SelectItem>
-                                        <SelectItem value="lastMonth">Last Month</SelectItem>
-                                        <SelectItem value="custom">Custom Range</SelectItem>
-                                    </SelectContent>
-                                </Select>
+                            <div className="flex flex-col gap-3 flex-1 w-full">
+                                <div className="flex flex-col sm:flex-row gap-3 w-full">
+                                    <Select value={datePreset} onValueChange={(v) => setDatePreset(v as DatePreset)}>
+                                        <SelectTrigger className="w-full sm:w-[220px] bg-neutral-50 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700">
+                                            <Calendar size={14} className="mr-2 text-neutral-500" />
+                                            <SelectValue placeholder="Date Range" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="today">Today</SelectItem>
+                                            <SelectItem value="7days">Last 7 Days</SelectItem>
+                                            <SelectItem value="30days">Last 30 Days</SelectItem>
+                                            <SelectItem value="90days">Last 90 Days</SelectItem>
+                                            <SelectItem value="thisMonth">This Month</SelectItem>
+                                            <SelectItem value="lastMonth">Last Month</SelectItem>
+                                            <SelectItem value="custom">Custom Range</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+
+                                    <Select value={selectedJobId || 'all'} onValueChange={(v) => setSelectedJobId(v === 'all' ? '' : v)}>
+                                        <SelectTrigger className="w-full sm:w-[260px] bg-neutral-50 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700">
+                                            <Briefcase size={14} className="mr-2 text-neutral-500" />
+                                            <SelectValue placeholder="All Jobs" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">All Jobs</SelectItem>
+                                            {jobs.map((job) => (
+                                                <SelectItem key={job.id} value={job.id}>{job.title}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
 
                                 {datePreset === 'custom' && (
-                                    <>
+                                    <div className="flex flex-col sm:flex-row gap-3 w-full">
                                         <Input
                                             type="date"
                                             value={customStartDate}
                                             onChange={(e) => setCustomStartDate(e.target.value)}
-                                            className="w-[150px] bg-neutral-50 dark:bg-neutral-800"
+                                            className="w-full sm:w-[200px] bg-neutral-50 dark:bg-neutral-800"
                                         />
-                                        <span className="text-neutral-400 self-center">to</span>
                                         <Input
                                             type="date"
                                             value={customEndDate}
                                             onChange={(e) => setCustomEndDate(e.target.value)}
-                                            className="w-[150px] bg-neutral-50 dark:bg-neutral-800"
+                                            className="w-full sm:w-[200px] bg-neutral-50 dark:bg-neutral-800"
                                         />
-                                    </>
+                                    </div>
                                 )}
-
-                                <Select value={selectedJobId || 'all'} onValueChange={(v) => setSelectedJobId(v === 'all' ? '' : v)}>
-                                    <SelectTrigger className="w-[200px] bg-neutral-50 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700">
-                                        <Briefcase size={14} className="mr-2 text-neutral-500" />
-                                        <SelectValue placeholder="All Jobs" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">All Jobs</SelectItem>
-                                        {jobs.map((job) => (
-                                            <SelectItem key={job.id} value={job.id}>{job.title}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
                             </div>
                         </div>
                     </div>

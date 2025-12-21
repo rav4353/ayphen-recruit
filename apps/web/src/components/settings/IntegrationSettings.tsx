@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Card, Button, Input, CardHeader } from '../ui';
-import { CheckCircle2, AlertCircle, Calendar, FileSignature, Loader2, ExternalLink, Trash2, Shield, Briefcase, MessageSquare, Send, Mail, Save, Edit } from 'lucide-react';
-import { calendarApi, esignatureApi, jobBoardsApi, bgvApi, messagingApi, settingsApi } from '../../lib/api';
+import { CheckCircle2, AlertCircle, Calendar, FileSignature, Loader2, ExternalLink, Trash2, Shield, Briefcase, MessageSquare, Send, Mail, Save, Edit, Video } from 'lucide-react';
+import { calendarApi, esignatureApi, jobBoardsApi, bgvApi, messagingApi, settingsApi, videoMeetingsApi } from '../../lib/api';
 import toast from 'react-hot-toast';
 import { PasswordConfirmModal } from '../modals/PasswordConfirmModal';
 
-type TabType = 'smtp' | 'calendar' | 'esignature' | 'jobBoards' | 'bgv' | 'messaging';
+type TabType = 'smtp' | 'calendar' | 'esignature' | 'jobBoards' | 'bgv' | 'messaging' | 'videoMeetings';
 
 interface EmailAlias {
     email: string;
@@ -161,6 +161,16 @@ export function IntegrationSettings() {
     const [configuringSlack, setConfiguringSlack] = useState(false);
     const [configuringTeams, setConfiguringTeams] = useState(false);
 
+    // Video Meetings State
+    const [videoProviders, setVideoProviders] = useState<{ provider: string; configured: boolean; name: string }[]>([]);
+    const [videoMeetingsLoading, setVideoMeetingsLoading] = useState(false);
+    const [zoomForm, setZoomForm] = useState({ accountId: '', clientId: '', clientSecret: '' });
+    const [googleMeetForm, setGoogleMeetForm] = useState({ clientId: '', clientSecret: '', refreshToken: '' });
+    const [teamsVideoForm, setTeamsVideoForm] = useState({ clientId: '', clientSecret: '', tenantId: '' });
+    const [savingZoom, setSavingZoom] = useState(false);
+    const [savingGoogleMeet, setSavingGoogleMeet] = useState(false);
+    const [savingTeamsVideo, setSavingTeamsVideo] = useState(false);
+
     // Password Confirmation State
     const [showPasswordModal, setShowPasswordModal] = useState(false);
     const [pendingEditAction, setPendingEditAction] = useState<{
@@ -276,8 +286,64 @@ export function IntegrationSettings() {
             fetchBgvSettings();
         } else if (activeTab === 'messaging') {
             fetchMessagingSettings();
+        } else if (activeTab === 'videoMeetings') {
+            fetchVideoMeetingProviders();
         }
     }, [activeTab]);
+
+    const fetchVideoMeetingProviders = async () => {
+        setVideoMeetingsLoading(true);
+        try {
+            const response = await videoMeetingsApi.getProviders();
+            setVideoProviders(response.data?.providers || []);
+        } catch (error) {
+            console.error('Failed to fetch video meeting providers', error);
+        } finally {
+            setVideoMeetingsLoading(false);
+        }
+    };
+
+    const handleSaveZoom = async () => {
+        setSavingZoom(true);
+        try {
+            await videoMeetingsApi.saveZoomConfig(zoomForm);
+            toast.success('Zoom configuration saved');
+            fetchVideoMeetingProviders();
+            setZoomForm({ accountId: '', clientId: '', clientSecret: '' });
+        } catch (error) {
+            toast.error('Failed to save Zoom configuration');
+        } finally {
+            setSavingZoom(false);
+        }
+    };
+
+    const handleSaveGoogleMeet = async () => {
+        setSavingGoogleMeet(true);
+        try {
+            await videoMeetingsApi.saveGoogleMeetConfig(googleMeetForm);
+            toast.success('Google Meet configuration saved');
+            fetchVideoMeetingProviders();
+            setGoogleMeetForm({ clientId: '', clientSecret: '', refreshToken: '' });
+        } catch (error) {
+            toast.error('Failed to save Google Meet configuration');
+        } finally {
+            setSavingGoogleMeet(false);
+        }
+    };
+
+    const handleSaveTeamsVideo = async () => {
+        setSavingTeamsVideo(true);
+        try {
+            await videoMeetingsApi.saveTeamsConfig(teamsVideoForm);
+            toast.success('Microsoft Teams configuration saved');
+            fetchVideoMeetingProviders();
+            setTeamsVideoForm({ clientId: '', clientSecret: '', tenantId: '' });
+        } catch (error) {
+            toast.error('Failed to save Microsoft Teams configuration');
+        } finally {
+            setSavingTeamsVideo(false);
+        }
+    };
 
     const fetchSmtpSettings = async () => {
         setSmtpLoading(true);
@@ -707,6 +773,7 @@ export function IntegrationSettings() {
         { id: 'jobBoards' as TabType, label: 'Job Boards', icon: Briefcase },
         { id: 'bgv' as TabType, label: 'Background Checks', icon: Shield },
         { id: 'messaging' as TabType, label: 'Slack/Teams', icon: MessageSquare },
+        { id: 'videoMeetings' as TabType, label: 'Video Meetings', icon: Video },
     ];
 
     return (
@@ -1904,6 +1971,139 @@ export function IntegrationSettings() {
                                     <li>• Candidate stage changes</li>
                                     <li>• Interview scheduled/completed</li>
                                     <li>• Offers sent/accepted/declined</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </Card>
+                </div>
+            )}
+
+            {/* Video Meetings Tab */}
+            {activeTab === 'videoMeetings' && (
+                <div className="space-y-6">
+                    <Card>
+                        <div className="p-6 space-y-6">
+                            <div>
+                                <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-2">Video Meeting Integrations</h3>
+                                <p className="text-sm text-neutral-500">Configure video meeting providers to automatically generate meeting links when scheduling interviews.</p>
+                            </div>
+
+                            {videoMeetingsLoading ? (
+                                <div className="flex justify-center py-8">
+                                    <Loader2 className="animate-spin text-blue-600" size={32} />
+                                </div>
+                            ) : (
+                                <div className="space-y-6">
+                                    {/* Zoom Configuration */}
+                                    <div className="p-4 border border-neutral-200 dark:border-neutral-700 rounded-lg">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
+                                                    <Video size={20} className="text-white" />
+                                                </div>
+                                                <div>
+                                                    <h4 className="font-medium text-neutral-900 dark:text-white">Zoom</h4>
+                                                    <p className="text-sm text-neutral-500">Server-to-Server OAuth</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                {videoProviders.find(p => p.provider === 'ZOOM')?.configured ? (
+                                                    <div className="flex items-center gap-2 text-green-600 text-sm font-medium">
+                                                        <CheckCircle2 size={16} /> Configured
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex items-center gap-2 text-neutral-400 text-sm">
+                                                        <AlertCircle size={16} /> Not Configured
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="space-y-3">
+                                            <Input label="Account ID" value={zoomForm.accountId} onChange={e => setZoomForm(p => ({ ...p, accountId: e.target.value }))} placeholder="Your Zoom Account ID" />
+                                            <Input label="Client ID" value={zoomForm.clientId} onChange={e => setZoomForm(p => ({ ...p, clientId: e.target.value }))} placeholder="OAuth Client ID" />
+                                            <Input label="Client Secret" type="password" value={zoomForm.clientSecret} onChange={e => setZoomForm(p => ({ ...p, clientSecret: e.target.value }))} placeholder="OAuth Client Secret" />
+                                            <Button onClick={handleSaveZoom} isLoading={savingZoom} size="sm">
+                                                {videoProviders.find(p => p.provider === 'ZOOM')?.configured ? 'Update' : 'Configure'} Zoom
+                                            </Button>
+                                        </div>
+                                    </div>
+
+                                    {/* Google Meet Configuration */}
+                                    <div className="p-4 border border-neutral-200 dark:border-neutral-700 rounded-lg">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 bg-teal-500 rounded-lg flex items-center justify-center">
+                                                    <Video size={20} className="text-white" />
+                                                </div>
+                                                <div>
+                                                    <h4 className="font-medium text-neutral-900 dark:text-white">Google Meet</h4>
+                                                    <p className="text-sm text-neutral-500">OAuth 2.0 with Calendar API</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                {videoProviders.find(p => p.provider === 'GOOGLE_MEET')?.configured ? (
+                                                    <div className="flex items-center gap-2 text-green-600 text-sm font-medium">
+                                                        <CheckCircle2 size={16} /> Configured
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex items-center gap-2 text-neutral-400 text-sm">
+                                                        <AlertCircle size={16} /> Not Configured
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="space-y-3">
+                                            <Input label="Client ID" value={googleMeetForm.clientId} onChange={e => setGoogleMeetForm(p => ({ ...p, clientId: e.target.value }))} placeholder="Google OAuth Client ID" />
+                                            <Input label="Client Secret" type="password" value={googleMeetForm.clientSecret} onChange={e => setGoogleMeetForm(p => ({ ...p, clientSecret: e.target.value }))} placeholder="Google OAuth Client Secret" />
+                                            <Input label="Refresh Token" type="password" value={googleMeetForm.refreshToken} onChange={e => setGoogleMeetForm(p => ({ ...p, refreshToken: e.target.value }))} placeholder="OAuth Refresh Token" />
+                                            <Button onClick={handleSaveGoogleMeet} isLoading={savingGoogleMeet} size="sm">
+                                                {videoProviders.find(p => p.provider === 'GOOGLE_MEET')?.configured ? 'Update' : 'Configure'} Google Meet
+                                            </Button>
+                                        </div>
+                                    </div>
+
+                                    {/* Microsoft Teams Configuration */}
+                                    <div className="p-4 border border-neutral-200 dark:border-neutral-700 rounded-lg">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center">
+                                                    <Video size={20} className="text-white" />
+                                                </div>
+                                                <div>
+                                                    <h4 className="font-medium text-neutral-900 dark:text-white">Microsoft Teams</h4>
+                                                    <p className="text-sm text-neutral-500">Azure App Registration</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                {videoProviders.find(p => p.provider === 'MICROSOFT_TEAMS')?.configured ? (
+                                                    <div className="flex items-center gap-2 text-green-600 text-sm font-medium">
+                                                        <CheckCircle2 size={16} /> Configured
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex items-center gap-2 text-neutral-400 text-sm">
+                                                        <AlertCircle size={16} /> Not Configured
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="space-y-3">
+                                            <Input label="Client ID" value={teamsVideoForm.clientId} onChange={e => setTeamsVideoForm(p => ({ ...p, clientId: e.target.value }))} placeholder="Azure App Client ID" />
+                                            <Input label="Client Secret" type="password" value={teamsVideoForm.clientSecret} onChange={e => setTeamsVideoForm(p => ({ ...p, clientSecret: e.target.value }))} placeholder="Azure App Client Secret" />
+                                            <Input label="Tenant ID" value={teamsVideoForm.tenantId} onChange={e => setTeamsVideoForm(p => ({ ...p, tenantId: e.target.value }))} placeholder="Azure Tenant ID" />
+                                            <Button onClick={handleSaveTeamsVideo} isLoading={savingTeamsVideo} size="sm">
+                                                {videoProviders.find(p => p.provider === 'MICROSOFT_TEAMS')?.configured ? 'Update' : 'Configure'} Microsoft Teams
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+                                <h4 className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-2">How to Get Credentials</h4>
+                                <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
+                                    <li>• <strong>Zoom:</strong> Create a Server-to-Server OAuth app in Zoom Marketplace</li>
+                                    <li>• <strong>Google Meet:</strong> Create OAuth 2.0 credentials in Google Cloud Console with Calendar API</li>
+                                    <li>• <strong>Microsoft Teams:</strong> Register an app in Azure Portal with OnlineMeetings.ReadWrite permissions</li>
                                 </ul>
                             </div>
                         </div>

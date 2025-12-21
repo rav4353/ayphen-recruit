@@ -1,17 +1,22 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request, Query, UseInterceptors, UploadedFile, ParseFilePipe, MaxFileSizeValidator } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { OnboardingService } from './onboarding.service';
 import { CreateOnboardingDto } from './dto/create-onboarding.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { OnboardingAssigneeRole } from '@prisma/client';
+import { StorageService } from '../storage/storage.service';
 
 @ApiTags('Onboarding')
 @Controller('onboarding')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class OnboardingController {
-    constructor(private readonly onboardingService: OnboardingService) { }
+    constructor(
+        private readonly onboardingService: OnboardingService,
+        private readonly storageService: StorageService,
+    ) { }
 
     @Post('initialize')
     @ApiOperation({ summary: 'Initialize onboarding workflow for an application' })
@@ -51,9 +56,39 @@ export class OnboardingController {
     }
 
     @Patch('tasks/:taskId/upload')
-    @ApiOperation({ summary: 'Upload document for a task' })
+    @ApiOperation({ summary: 'Upload document for a task (URL)' })
     uploadDocument(@Param('taskId') taskId: string, @Body() body: { fileUrl: string }) {
         return this.onboardingService.uploadDocument(taskId, body.fileUrl);
+    }
+
+    @Post('tasks/:taskId/upload-file')
+    @UseInterceptors(FileInterceptor('file'))
+    @ApiOperation({ summary: 'Upload document file for a task' })
+    @ApiConsumes('multipart/form-data')
+    @ApiBody({
+        schema: {
+            type: 'object',
+            properties: {
+                file: {
+                    type: 'string',
+                    format: 'binary',
+                },
+            },
+        },
+    })
+    async uploadDocumentFile(
+        @Param('taskId') taskId: string,
+        @UploadedFile(
+            new ParseFilePipe({
+                validators: [
+                    new MaxFileSizeValidator({ maxSize: 10 * 1024 * 1024 }), // 10MB
+                ],
+            }),
+        )
+        file: Express.Multer.File,
+    ) {
+        const uploadResult = await this.storageService.uploadFile(file);
+        return this.onboardingService.uploadDocument(taskId, uploadResult.url);
     }
 
     @Patch('tasks/:taskId/review')

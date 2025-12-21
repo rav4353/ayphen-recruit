@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { InterviewsService } from './interviews.service';
+import { InterviewReminderService } from './interview-reminder.service';
 import { CreateInterviewDto } from './dto/create-interview.dto';
 import { UpdateInterviewDto } from './dto/update-interview.dto';
 import { CreateFeedbackDto } from './dto/create-feedback.dto';
@@ -18,13 +19,17 @@ import { UpdateFeedbackDto } from './dto/update-feedback.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/auth.service';
+import { ApiResponse } from '../../common/dto/api-response.dto';
 
 @ApiTags('interviews')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('interviews')
 export class InterviewsController {
-    constructor(private readonly interviewsService: InterviewsService) { }
+    constructor(
+        private readonly interviewsService: InterviewsService,
+        private readonly interviewReminderService: InterviewReminderService,
+    ) { }
 
     @Post()
     @ApiOperation({ summary: 'Schedule an interview' })
@@ -73,6 +78,13 @@ export class InterviewsController {
     @ApiOperation({ summary: 'Cancel/Delete interview' })
     remove(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
         return this.interviewsService.remove(id, user.tenantId);
+    }
+
+    @Post(':id/send-sms-reminder')
+    @ApiOperation({ summary: 'Send SMS reminder for an interview' })
+    async sendSmsReminder(@Param('id') id: string) {
+        const result = await this.interviewReminderService.sendImmediateSmsReminder(id);
+        return ApiResponse.success(result, result.message);
     }
 
     // Feedback endpoints

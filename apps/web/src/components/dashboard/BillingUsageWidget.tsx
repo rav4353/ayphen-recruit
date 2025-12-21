@@ -3,11 +3,12 @@ import { Card, CardHeader, Button } from '../ui';
 import { Briefcase } from 'lucide-react';
 import { paymentsApi, analyticsApi, extractData } from '../../lib/api';
 import { plans } from '../settings/BillingSettings';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
 export function BillingUsageWidget() {
     const navigate = useNavigate();
+    const { tenantId } = useParams<{ tenantId: string }>();
     const [loading, setLoading] = useState(true);
     const [usage, setUsage] = useState({
         planName: 'Starter',
@@ -75,10 +76,17 @@ export function BillingUsageWidget() {
                 window.location.href = url;
             } else {
                 toast.error('No billing portal URL received');
+                navigate(`/${tenantId}/settings?tab=billing`);
             }
         } catch (error: any) {
             console.error('Billing portal error:', error);
-            navigate('/settings?tab=billing');
+            const errorMessage = error?.response?.data?.message || 'Unable to access billing portal';
+            if (errorMessage.includes('No billing account')) {
+                toast.error('No billing account found. Please set up your subscription first.');
+            } else {
+                toast.error(errorMessage);
+            }
+            navigate(`/${tenantId}/settings?tab=billing`);
         } finally {
             setIsPortalLoading(false);
         }

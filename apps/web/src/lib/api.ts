@@ -26,12 +26,22 @@ api.interceptors.response.use(
   async (error) => {
     // Don't redirect for background fetches that can fail gracefully
     // AND don't redirect for auth endpoints (login, refresh, etc) which handle their own errors
-    if (
-      error.config?.url?.includes('/settings/status-colors') ||
-      error.config?.url?.includes('/users/me/preferences') ||
-      error.config?.url?.includes('/auth/')
-    ) {
+    const skipRedirectUrls = [
+      '/settings',
+      '/users/me/preferences',
+      '/auth/',
+      '/payments',  // All payments endpoints
+      '/analytics', // Analytics can fail gracefully
+    ];
+    
+    const requestUrl = error.config?.url || '';
+    if (skipRedirectUrls.some(url => requestUrl.includes(url))) {
       return Promise.reject(error);
+    }
+    
+    // Log 401 errors for debugging
+    if (error.response?.status === 401) {
+      console.warn('[API] 401 error on:', requestUrl, '- triggering logout');
     }
 
     if (error.response?.status === 401) {
@@ -433,6 +443,32 @@ export const interviewsApi = {
   }) => api.post('/interviews/feedback', data),
   updateFeedback: (id: string, data: Record<string, unknown>) => api.patch(`/interviews/feedback/${id}`, data),
   getFeedback: (interviewId: string) => api.get(`/interviews/${interviewId}/feedback`),
+  
+  // SMS Reminders
+  sendSmsReminder: (interviewId: string) => api.post(`/interviews/${interviewId}/send-sms-reminder`),
+  
+  // AI Scheduling Optimization
+  getSuggestedSlots: (data: {
+    interviewerIds: string[];
+    duration: number;
+    interviewType: string;
+    candidateTimezone?: string;
+    preferredDates?: string[];
+  }) => api.post('/interview-scheduling/suggest-slots', data),
+  getSchedulingRecommendations: (jobId: string) => api.get(`/interview-scheduling/recommendations/${jobId}`),
+  
+  // Interview Analytics
+  getFeedbackAnalytics: (filters?: {
+    startDate?: string;
+    endDate?: string;
+    jobId?: string;
+    interviewerId?: string;
+    interviewType?: string;
+  }) => api.get('/interview-analytics/feedback', { params: filters }),
+  getJobFeedbackAnalytics: (jobId: string) => api.get(`/interview-analytics/feedback/job/${jobId}`),
+  getInterviewerAnalytics: (interviewerId: string) => api.get(`/interview-analytics/feedback/interviewer/${interviewerId}`),
+  getHiringFunnel: (jobId?: string) => api.get('/interview-analytics/hiring-funnel', { params: { jobId } }),
+  getFeedbackQuality: () => api.get('/interview-analytics/feedback-quality'),
 };
 
 // Onboarding API
@@ -443,6 +479,13 @@ export const onboardingApi = {
   getOne: (id: string) => api.get(`/onboarding/${id}`),
   updateTask: (taskId: string, data: { status: 'PENDING' | 'COMPLETED' }) => api.patch(`/onboarding/tasks/${taskId}`, data),
   uploadDocument: (taskId: string, fileUrl: string) => api.patch(`/onboarding/tasks/${taskId}/upload`, { fileUrl }),
+  uploadDocumentFile: (taskId: string, file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post(`/onboarding/tasks/${taskId}/upload-file`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
   reviewDocument: (taskId: string, status: 'APPROVED' | 'REJECTED') => api.patch(`/onboarding/tasks/${taskId}/review`, { status }),
 };
 
@@ -1276,6 +1319,22 @@ export const bulkImportApi = {
   },
   // History
   getHistory: (limit?: number) => api.get('/bulk-import/history', { params: { limit } }),
+  
+  // Bulk Resume Upload
+  uploadResumes: (files: File[], options?: {
+    source?: string;
+    tags?: string[];
+    jobId?: string;
+  }) => {
+    const formData = new FormData();
+    files.forEach(file => formData.append('files', file));
+    if (options?.source) formData.append('source', options.source);
+    if (options?.tags) formData.append('tags', JSON.stringify(options.tags));
+    if (options?.jobId) formData.append('jobId', options.jobId);
+    return api.post('/bulk-import/resumes', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
 };
 
 // ==================== CUSTOM REPORTS ====================
@@ -1480,4 +1539,299 @@ export const superAdminApi = {
   revokeApiKey: (id: string) => api.delete(`/super-admin/api/keys/${id}`),
 };
 
+// Compliance API
+export const complianceApi = {
+  getAlerts: () => api.get('/compliance/alerts'),
+  resolveAlert: (alertId: string, resolution?: string) =>
+    api.post(`/compliance/alerts/${alertId}/resolve`, { resolution }),
+};
 
+// A/B Testing API
+export const abTestingApi = {
+  create: (data: {
+    name: string;
+    description?: string;
+    variants: { name: string; subject: string; body: string; percentage?: number }[];
+    recipientType: 'candidates' | 'talent_pool' | 'custom';
+    recipientIds?: string[];
+    talentPoolId?: string;
+    testPercentage?: number;
+    winnerMetric?: 'OPEN_RATE' | 'CLICK_RATE' | 'REPLY_RATE';
+    testDurationHours?: number;
+  }) => api.post('/ab-tests', data),
+  getAll: () => api.get('/ab-tests'),
+  getById: (id: string) => api.get(`/ab-tests/${id}`),
+  update: (id: string, data: Partial<{
+    name: string;
+    description: string;
+    variants: any[];
+    testPercentage: number;
+    winnerMetric: string;
+    testDurationHours: number;
+  }>) => api.patch(`/ab-tests/${id}`, data),
+  start: (id: string) => api.post(`/ab-tests/${id}/start`),
+  complete: (id: string) => api.post(`/ab-tests/${id}/complete`),
+  cancel: (id: string) => api.post(`/ab-tests/${id}/cancel`),
+  delete: (id: string) => api.delete(`/ab-tests/${id}`),
+  getResults: (id: string) => api.get(`/ab-tests/${id}/results`),
+};
+
+// Email Templates API
+export const emailTemplatesApi = {
+  getVariables: () => api.get('/email-templates/variables'),
+  create: (data: {
+    name: string;
+    category: 'CANDIDATE' | 'INTERVIEWER' | 'OFFER' | 'REJECTION' | 'ONBOARDING' | 'GENERAL';
+    subject: string;
+    body: string;
+    isDefault?: boolean;
+  }) => api.post('/email-templates', data),
+  getAll: (category?: string) => api.get('/email-templates', { params: { category } }),
+  getById: (id: string) => api.get(`/email-templates/${id}`),
+  update: (id: string, data: Partial<{
+    name: string;
+    category: string;
+    subject: string;
+    body: string;
+    isDefault: boolean;
+  }>) => api.patch(`/email-templates/${id}`, data),
+  delete: (id: string) => api.delete(`/email-templates/${id}`),
+  duplicate: (id: string) => api.post(`/email-templates/${id}/duplicate`),
+  preview: (id: string, sampleData?: Record<string, any>) => 
+    api.post(`/email-templates/${id}/preview`, sampleData),
+  render: (id: string, data: {
+    candidate?: any;
+    job?: any;
+    company?: any;
+    interview?: any;
+    user?: any;
+  }) => api.post(`/email-templates/${id}/render`, data),
+  seedDefaults: () => api.post('/email-templates/seed-defaults'),
+};
+
+// Candidate Scoring API
+export const candidateScoringApi = {
+  getScore: (candidateId: string, jobId: string) => 
+    api.get(`/candidate-scoring/score/${candidateId}/${jobId}`),
+  rankCandidates: (jobId: string) => 
+    api.get(`/candidate-scoring/rank/${jobId}`),
+  getTopCandidates: (limit?: number) => 
+    api.get('/candidate-scoring/top-candidates', { params: { limit } }),
+  batchScore: (candidateIds: string[], jobId: string) => 
+    api.post('/candidate-scoring/batch-score', { candidateIds, jobId }),
+};
+
+// Team Collaboration API
+export const collaborationApi = {
+  // Comments
+  createComment: (data: {
+    entityType: 'candidate' | 'application' | 'job' | 'interview';
+    entityId: string;
+    content: string;
+    parentId?: string;
+  }) => api.post('/collaboration/comments', data),
+  getComments: (entityType: string, entityId: string) =>
+    api.get(`/collaboration/comments/${entityType}/${entityId}`),
+  updateComment: (commentId: string, content: string) =>
+    api.patch(`/collaboration/comments/${commentId}`, { content }),
+  deleteComment: (commentId: string) => api.delete(`/collaboration/comments/${commentId}`),
+  
+  // Shared Notes
+  createNote: (data: {
+    title: string;
+    content: string;
+    sharedWith?: string[];
+    entityType?: string;
+    entityId?: string;
+    tags?: string[];
+  }) => api.post('/collaboration/notes', data),
+  getNotes: (filters?: { entityType?: string; entityId?: string; tags?: string }) =>
+    api.get('/collaboration/notes', { params: filters }),
+  getNote: (noteId: string) => api.get(`/collaboration/notes/${noteId}`),
+  updateNote: (noteId: string, data: Partial<{
+    title: string;
+    content: string;
+    sharedWith: string[];
+    tags: string[];
+    isPinned: boolean;
+  }>) => api.patch(`/collaboration/notes/${noteId}`, data),
+  deleteNote: (noteId: string) => api.delete(`/collaboration/notes/${noteId}`),
+  
+  // Mentions
+  getMentionSuggestions: (query: string) =>
+    api.get('/collaboration/mentions/suggestions', { params: { query } }),
+  getMyMentions: () => api.get('/collaboration/mentions/my'),
+};
+
+// Job Posting Analytics API
+export const jobPostingAnalyticsApi = {
+  trackView: (jobId: string, data: { source?: string; referrer?: string; sessionId?: string }) =>
+    api.post(`/job-posting-analytics/track-view/${jobId}`, data),
+  getJobAnalytics: (jobId: string) => api.get(`/job-posting-analytics/job/${jobId}`),
+  getOverview: () => api.get('/job-posting-analytics/overview'),
+  getJobBoardPerformance: () => api.get('/job-posting-analytics/job-boards'),
+  getSourceAttribution: (startDate?: string, endDate?: string) =>
+    api.get('/job-posting-analytics/source-attribution', { params: { startDate, endDate } }),
+};
+
+// Candidate Dedup API
+export const candidateDedupApi = {
+  findDuplicates: (options?: { minScore?: number; limit?: number }) =>
+    api.get('/candidate-dedup/duplicates', { params: options }),
+  findDuplicatesForCandidate: (candidateId: string) =>
+    api.get(`/candidate-dedup/duplicates/${candidateId}`),
+  checkForDuplicates: (candidateData: { email: string; firstName?: string; lastName?: string; phone?: string }) =>
+    api.post('/candidate-dedup/check', candidateData),
+  mergeCandidates: (primaryCandidateId: string, duplicateCandidateIds: string[]) =>
+    api.post('/candidate-dedup/merge', { primaryCandidateId, duplicateCandidateIds }),
+  getStats: () => api.get('/candidate-dedup/stats'),
+};
+
+// Auto Rejection API
+export const autoRejectionApi = {
+  getConfig: () => api.get('/auto-rejection/config'),
+  updateConfig: (config: Partial<{
+    enabled: boolean;
+    defaultDelayHours: number;
+    excludeStages: string[];
+    sendOnWeekends: boolean;
+    ccRecruiter: boolean;
+  }>) => api.patch('/auto-rejection/config', config),
+  createTemplate: (data: {
+    stage: string;
+    name: string;
+    subject: string;
+    body: string;
+    isDefault?: boolean;
+    delayHours?: number;
+  }) => api.post('/auto-rejection/templates', data),
+  getTemplates: (stage?: string) => api.get('/auto-rejection/templates', { params: { stage } }),
+  getTemplate: (id: string) => api.get(`/auto-rejection/templates/${id}`),
+  updateTemplate: (id: string, data: Partial<{
+    name: string;
+    subject: string;
+    body: string;
+    isDefault: boolean;
+    delayHours: number;
+  }>) => api.patch(`/auto-rejection/templates/${id}`, data),
+  deleteTemplate: (id: string) => api.delete(`/auto-rejection/templates/${id}`),
+  sendRejection: (applicationId: string, options?: {
+    templateId?: string;
+    customMessage?: string;
+    immediate?: boolean;
+  }) => api.post(`/auto-rejection/send/${applicationId}`, options),
+  sendBulkRejections: (applicationIds: string[], templateId?: string, customMessage?: string) =>
+    api.post('/auto-rejection/send-bulk', { applicationIds, templateId, customMessage }),
+  createPresets: () => api.post('/auto-rejection/templates/presets'),
+};
+
+// Candidate Tagging Automation API
+export const candidateTaggingApi = {
+  createRule: (data: {
+    name: string;
+    tag: string;
+    conditions: {
+      field: 'skills' | 'experience_years' | 'title' | 'company' | 'location' | 'education' | 'source';
+      operator: 'contains' | 'equals' | 'greater_than' | 'less_than' | 'in' | 'not_in';
+      value: string | number | string[];
+    }[];
+    conditionLogic?: 'AND' | 'OR';
+    priority?: number;
+  }) => api.post('/candidate-tagging/rules', data),
+  getRules: () => api.get('/candidate-tagging/rules'),
+  updateRule: (id: string, data: Partial<{
+    name: string;
+    tag: string;
+    conditions: any[];
+    conditionLogic: 'AND' | 'OR';
+    isActive: boolean;
+    priority: number;
+  }>) => api.patch(`/candidate-tagging/rules/${id}`, data),
+  deleteRule: (id: string) => api.delete(`/candidate-tagging/rules/${id}`),
+  tagCandidate: (candidateId: string) => api.post(`/candidate-tagging/tag/${candidateId}`),
+  tagAllCandidates: () => api.post('/candidate-tagging/tag-all'),
+  createPresetRules: () => api.post('/candidate-tagging/preset-rules'),
+};
+
+// Drip Campaigns API
+export const dripCampaignsApi = {
+  create: (data: {
+    name: string;
+    description?: string;
+    steps: {
+      name: string;
+      subject: string;
+      body: string;
+      delayDays: number;
+      delayHours: number;
+      trigger: 'DELAY' | 'CONDITION';
+      condition?: {
+        type: 'OPENED' | 'CLICKED' | 'NOT_OPENED' | 'NOT_CLICKED';
+        previousStepId?: string;
+      };
+    }[];
+    recipientType: 'candidates' | 'talent_pool' | 'job_applicants';
+    recipientIds?: string[];
+    talentPoolId?: string;
+    jobId?: string;
+  }) => api.post('/drip-campaigns', data),
+  getAll: () => api.get('/drip-campaigns'),
+  getById: (id: string) => api.get(`/drip-campaigns/${id}`),
+  update: (id: string, data: Partial<{
+    name: string;
+    description: string;
+    steps: any[];
+  }>) => api.patch(`/drip-campaigns/${id}`, data),
+  activate: (id: string) => api.post(`/drip-campaigns/${id}/activate`),
+  pause: (id: string) => api.post(`/drip-campaigns/${id}/pause`),
+  delete: (id: string) => api.delete(`/drip-campaigns/${id}`),
+  getEnrollments: (id: string) => api.get(`/drip-campaigns/${id}/enrollments`),
+  unsubscribe: (id: string, candidateId: string) => 
+    api.post(`/drip-campaigns/${id}/unsubscribe/${candidateId}`),
+  getStats: (id: string) => api.get(`/drip-campaigns/${id}/stats`),
+};
+
+// Video Meetings API
+export const videoMeetingsApi = {
+  getProviders: () => api.get('/video-meetings/providers'),
+  createMeeting: (data: {
+    provider: 'GOOGLE_MEET' | 'ZOOM' | 'MICROSOFT_TEAMS';
+    topic: string;
+    startTime: string;
+    durationMinutes: number;
+    attendees?: string[];
+    description?: string;
+  }) => api.post('/video-meetings/create', data),
+  deleteMeeting: (provider: string, meetingId: string) =>
+    api.delete('/video-meetings/delete', { data: { provider, meetingId } }),
+  saveZoomConfig: (config: { accountId: string; clientId: string; clientSecret: string }) =>
+    api.post('/video-meetings/config/zoom', config),
+  saveGoogleMeetConfig: (config: { clientId: string; clientSecret: string; refreshToken: string }) =>
+    api.post('/video-meetings/config/google-meet', config),
+  saveTeamsConfig: (config: { clientId: string; clientSecret: string; tenantId: string }) =>
+    api.post('/video-meetings/config/teams', config),
+};
+
+// Semantic Search API (AI-powered candidate search)
+export const semanticSearchApi = {
+  search: (params: {
+    query: string;
+    limit?: number;
+    minScore?: number;
+    skills?: string[];
+    location?: string;
+    excludeCandidateIds?: string[];
+  }) => api.post('/candidates/search/semantic', params),
+  matchToJob: (jobId: string, limit?: number) =>
+    api.post('/candidates/search/match-to-job', { jobId, limit }),
+  getRecommendations: (params: {
+    role?: string;
+    skills?: string[];
+    seniority?: 'junior' | 'mid' | 'senior' | 'lead';
+    industry?: string;
+  }) => api.post('/candidates/search/recommendations', params),
+  findSimilar: (candidateId: string, limit?: number) =>
+    api.post('/candidates/search/similar', { candidateId, limit }),
+  findSimilarById: (candidateId: string) =>
+    api.get(`/candidates/search/similar/${candidateId}`),
+};

@@ -149,8 +149,8 @@ export class JobsService {
         include: {
           department: true,
           location: true,
-          recruiter: { select: { id: true, firstName: true, lastName: true } },
-          hiringManager: { select: { id: true, firstName: true, lastName: true } },
+          recruiter: { select: { id: true, firstName: true, lastName: true, employeeId: true } },
+          hiringManager: { select: { id: true, firstName: true, lastName: true, employeeId: true } },
           _count: { select: { applications: true } },
         },
       }),

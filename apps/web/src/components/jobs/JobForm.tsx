@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { Check, ChevronRight, ChevronLeft, Wand2, AlertTriangle } from 'lucide-react';
+import { Check, ChevronRight, ChevronLeft, Wand2, AlertTriangle, Sparkles, MessageSquare } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Button, Input, Card, SkillSelector, Modal } from '../ui';
 import { aiApi, usersApi, referenceApi, pipelinesApi, settingsApi, scorecardTemplatesApi, departmentsApi } from '../../lib/api';
@@ -66,6 +66,11 @@ export function JobForm({ initialData, mode, onSubmit, onCancel, isSubmitting = 
     const [departments, setDepartments] = useState<any[]>([]);
     const [isCreateDepartmentModalOpen, setIsCreateDepartmentModalOpen] = useState(false);
     const [isCreatingDepartment, setIsCreatingDepartment] = useState(false);
+
+    // AI Generation Mode
+    const [aiGenerationMode, setAiGenerationMode] = useState<'fields' | 'prompt'>('fields');
+    const [aiPrompt, setAiPrompt] = useState('');
+    const [isGeneratingFromPrompt, setIsGeneratingFromPrompt] = useState(false);
 
     const STEPS = [
         { id: 'basics', title: t('jobs.create.steps.basics') },
@@ -347,6 +352,52 @@ export function JobForm({ initialData, mode, onSubmit, onCancel, isSubmitting = 
             toast.error(t('jobs.create.form.generateError') || 'Failed to generate description', { id: toastId });
         } finally {
             setIsGenerating(false);
+        }
+    };
+
+    const handleGenerateFromPrompt = async () => {
+        if (!aiPrompt.trim()) {
+            toast.error('Please enter a prompt to generate the job description');
+            return;
+        }
+
+        setIsGeneratingFromPrompt(true);
+        const toastId = toast.loading('Generating from your prompt...');
+
+        try {
+            // Use the prompt as part of the title/context for AI generation
+            const response = await aiApi.generateJd({
+                title: aiPrompt.trim(),
+                department: formData.department || '',
+                skills: formData.skills || [],
+                experience: formData.experience || '',
+            });
+
+            const { description, requirements, responsibilities, skills } = response.data.data;
+
+            // Extract title from description if possible, or use first line of prompt
+            const extractedTitle = aiPrompt.split('\n')[0].substring(0, 100);
+            if (!formData.title) {
+                setValue('title', extractedTitle);
+            }
+
+            setValue('description', stripHtmlTags(description));
+            setValue('requirements', stripHtmlTags(requirements));
+            setValue('responsibilities', stripHtmlTags(responsibilities));
+            if (skills && Array.isArray(skills)) {
+                setValue('skills', skills);
+            }
+
+            // Clear the prompt after successful generation (don't store it)
+            setAiPrompt('');
+            setAiGenerationMode('fields');
+
+            toast.success('Job description generated from prompt!', { id: toastId });
+        } catch (error) {
+            console.error('AI Generation from prompt error', error);
+            toast.error('Failed to generate from prompt', { id: toastId });
+        } finally {
+            setIsGeneratingFromPrompt(false);
         }
     };
 
@@ -818,17 +869,78 @@ export function JobForm({ initialData, mode, onSubmit, onCancel, isSubmitting = 
                         <div className="space-y-6">
                             <div className="flex items-center justify-between">
                                 <h2 className="text-xl font-semibold text-neutral-900 dark:text-white">{t('jobs.create.steps.details')}</h2>
-                                <Button
-                                    type="button"
-                                    variant="secondary"
-                                    onClick={handleGenerateAI}
-                                    disabled={isGenerating || !formData.title}
-                                    className="gap-2"
-                                >
-                                    <Wand2 size={16} className={isGenerating ? 'animate-spin' : ''} />
-                                    {isGenerating ? t('jobs.create.form.generating') : t('jobs.create.form.generateAI')}
-                                </Button>
+                                <div className="flex items-center gap-2">
+                                    {/* Mode Toggle */}
+                                    <div className="flex items-center bg-neutral-100 dark:bg-neutral-800 rounded-lg p-1">
+                                        <button
+                                            type="button"
+                                            onClick={() => setAiGenerationMode('fields')}
+                                            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors flex items-center gap-1.5 ${
+                                                aiGenerationMode === 'fields'
+                                                    ? 'bg-white dark:bg-neutral-700 text-blue-600 shadow-sm'
+                                                    : 'text-neutral-500 hover:text-neutral-700'
+                                            }`}
+                                        >
+                                            <Wand2 size={14} />
+                                            From Fields
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setAiGenerationMode('prompt')}
+                                            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors flex items-center gap-1.5 ${
+                                                aiGenerationMode === 'prompt'
+                                                    ? 'bg-white dark:bg-neutral-700 text-purple-600 shadow-sm'
+                                                    : 'text-neutral-500 hover:text-neutral-700'
+                                            }`}
+                                        >
+                                            <MessageSquare size={14} />
+                                            From Prompt
+                                        </button>
+                                    </div>
+                                    {aiGenerationMode === 'fields' && (
+                                        <Button
+                                            type="button"
+                                            variant="secondary"
+                                            onClick={handleGenerateAI}
+                                            disabled={isGenerating || !formData.title}
+                                            className="gap-2"
+                                        >
+                                            <Wand2 size={16} className={isGenerating ? 'animate-spin' : ''} />
+                                            {isGenerating ? t('jobs.create.form.generating') : t('jobs.create.form.generateAI')}
+                                        </Button>
+                                    )}
+                                </div>
                             </div>
+
+                            {/* Prompt-based Generation Panel */}
+                            {aiGenerationMode === 'prompt' && (
+                                <div className="bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 border border-purple-200 dark:border-purple-800 rounded-xl p-4 space-y-3">
+                                    <div className="flex items-center gap-2 text-purple-700 dark:text-purple-300">
+                                        <Sparkles size={18} />
+                                        <span className="font-medium">AI Prompt Generation</span>
+                                    </div>
+                                    <p className="text-sm text-purple-600 dark:text-purple-400">
+                                        Describe the job you want to create in natural language. The AI will generate a complete job description.
+                                    </p>
+                                    <textarea
+                                        value={aiPrompt}
+                                        onChange={(e) => setAiPrompt(e.target.value)}
+                                        placeholder="Example: Senior React Developer for a fintech startup. Must have 5+ years experience with TypeScript, Node.js, and AWS. Remote-friendly position with competitive salary..."
+                                        className="w-full px-4 py-3 bg-white dark:bg-neutral-900 border border-purple-200 dark:border-purple-700 rounded-lg text-sm min-h-[100px] focus:ring-2 focus:ring-purple-500 outline-none transition-all"
+                                    />
+                                    <div className="flex justify-end">
+                                        <Button
+                                            type="button"
+                                            onClick={handleGenerateFromPrompt}
+                                            disabled={isGeneratingFromPrompt || !aiPrompt.trim()}
+                                            className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 gap-2"
+                                        >
+                                            <Sparkles size={16} className={isGeneratingFromPrompt ? 'animate-pulse' : ''} />
+                                            {isGeneratingFromPrompt ? 'Generating...' : 'Generate from Prompt'}
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
 
                             <div>
                                 <div className="flex justify-between items-center mb-1">

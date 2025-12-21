@@ -50,6 +50,11 @@ import { SuperAdminModule } from './modules/super-admin/super-admin.module';
 import { SavedJobsModule } from './modules/saved-jobs/saved-jobs.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { AnnouncementsModule } from './modules/announcements/announcements.module';
+import { ComplianceModule } from './modules/compliance/compliance.module';
+import { DripCampaignsModule } from './modules/drip-campaigns/drip-campaigns.module';
+import { EmailTemplatesModule } from './modules/email-templates/email-templates.module';
+import { CollaborationModule } from './modules/collaboration/collaboration.module';
+import { VideoMeetingModule } from './modules/video-meeting/video-meeting.module';
 
 import { BlockedIpMiddleware } from './common/middleware/blocked-ip.middleware';
 import { MaintenanceMiddleware } from './common/middleware/maintenance.middleware';
@@ -119,6 +124,11 @@ import { LoginAttemptMiddleware } from './common/middleware/login-attempt.middle
     SavedJobsModule,
     PaymentsModule,
     AnnouncementsModule,
+    ComplianceModule,
+    DripCampaignsModule,
+    EmailTemplatesModule,
+    CollaborationModule,
+    VideoMeetingModule,
 
     // Serve static files (uploads)
     ServeStaticModule.forRoot({

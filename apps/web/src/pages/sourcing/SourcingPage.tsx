@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 
 import toast from 'react-hot-toast';
-import { Card, Button, Input, Modal } from '../../components/ui';
-import { Search, Plus, ExternalLink, Users, Linkedin, Globe, Database, Upload, RefreshCw, Star, MapPin, Briefcase, Mail, Trash2, UserPlus, Send, CheckCircle, Clock, MessageSquare } from 'lucide-react';
+import { Card, Button, Input, Modal, ConfirmationModal } from '../../components/ui';
+import { Search, Plus, ExternalLink, Users, Linkedin, Globe, Database, Upload, RefreshCw, Star, MapPin, Briefcase, Mail, Trash2, UserPlus, Send, CheckCircle, Clock, MessageSquare, Github } from 'lucide-react';
 import { sourcingApi, jobsApi } from '../../lib/api';
 import { useAuthStore } from '../../stores/auth';
 
@@ -61,9 +61,9 @@ interface Stats {
 const SOURCING_CHANNELS = [
     { id: 'LINKEDIN', name: 'LinkedIn', icon: Linkedin, color: 'text-blue-600', connected: true },
     { id: 'INDEED', name: 'Indeed', icon: Globe, color: 'text-purple-600', connected: true },
-    { id: 'GLASSDOOR', name: 'Glassdoor', icon: Globe, color: 'text-green-600', connected: false },
+    { id: 'GLASSDOOR', name: 'Glassdoor', icon: Globe, color: 'text-green-600', connected: true },
     { id: 'INTERNAL_DB', name: 'Internal Database', icon: Database, color: 'text-orange-600', connected: true },
-    { id: 'GITHUB', name: 'GitHub', icon: Globe, color: 'text-gray-600', connected: false },
+    { id: 'GITHUB', name: 'GitHub', icon: Github, color: 'text-gray-800 dark:text-gray-200', connected: true },
     { id: 'PORTFOLIO', name: 'Portfolio', icon: Globe, color: 'text-pink-600', connected: true },
 ];
 
@@ -85,6 +85,7 @@ export function SourcingPage() {
     const [selectedJobId, setSelectedJobId] = useState('');
     const [outreachSubject, setOutreachSubject] = useState('');
     const [outreachMessage, setOutreachMessage] = useState('');
+    const [deleteCandidate, setDeleteCandidate] = useState<SourcedCandidate | null>(null);
 
     // New candidate form
     const [newCandidate, setNewCandidate] = useState({
@@ -206,14 +207,20 @@ export function SourcingPage() {
         }
     };
 
-    const handleDeleteCandidate = async (candidate: SourcedCandidate) => {
-        if (!confirm(`Delete ${candidate.firstName} ${candidate.lastName}?`)) return;
+    const handleDeleteClick = (candidate: SourcedCandidate) => {
+        setDeleteCandidate(candidate);
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!deleteCandidate) return;
         try {
-            await sourcingApi.delete(candidate.id);
+            await sourcingApi.delete(deleteCandidate.id);
             toast.success('Candidate deleted');
+            setDeleteCandidate(null);
             fetchData();
         } catch (error) {
             toast.error('Failed to delete candidate');
+            setDeleteCandidate(null);
         }
     };
 
@@ -454,7 +461,7 @@ export function SourcingPage() {
                                             </button>
                                             <button
                                                 className="p-2 text-neutral-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded"
-                                                onClick={() => handleDeleteCandidate(candidate)}
+                                                onClick={() => handleDeleteClick(candidate)}
                                             >
                                                 <Trash2 size={16} />
                                             </button>
@@ -644,6 +651,17 @@ export function SourcingPage() {
                     </div>
                 </div>
             </Modal>
+
+            {/* Delete Confirmation Modal */}
+            <ConfirmationModal
+                isOpen={!!deleteCandidate}
+                onCancel={() => setDeleteCandidate(null)}
+                onConfirm={handleConfirmDelete}
+                title="Delete Candidate"
+                message={`Are you sure you want to delete ${deleteCandidate?.firstName} ${deleteCandidate?.lastName}? This action cannot be undone.`}
+                variant="danger"
+                confirmLabel="Delete"
+            />
         </div>
     );
 }

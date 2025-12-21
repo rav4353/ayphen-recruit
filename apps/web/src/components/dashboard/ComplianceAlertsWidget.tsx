@@ -1,38 +1,59 @@
 import { useState, useEffect } from 'react';
 import { Card, CardHeader, Button } from '../ui';
-import { AlertCircle, ShieldAlert, FileWarning, Users } from 'lucide-react';
+import { AlertCircle, ShieldAlert, FileWarning, Users, Clock, Loader2 } from 'lucide-react';
+import { complianceApi } from '../../lib/api';
+import toast from 'react-hot-toast';
 
 interface Alert {
     id: string;
     title: string;
     severity: 'Critical' | 'Warning';
-    type: 'GDPR' | 'Diversity' | 'Background Check';
+    type: 'GDPR' | 'Diversity' | 'Background Check' | 'Document Expiry' | 'SLA';
+    actionUrl?: string;
 }
 
 export function ComplianceAlertsWidget() {
     const [alerts, setAlerts] = useState<Alert[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [resolvingId, setResolvingId] = useState<string | null>(null);
+
+    const fetchAlerts = async () => {
+        setIsLoading(true);
+        try {
+            const response = await complianceApi.getAlerts();
+            const data = response.data?.data || response.data || [];
+            setAlerts(Array.isArray(data) ? data : []);
+        } catch (error) {
+            console.error('Failed to fetch compliance alerts:', error);
+            setAlerts([]);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     useEffect(() => {
-        // TODO: Replace with actual compliance API
-        const fetchAlerts = async () => {
-            // Mock fetch
-            await new Promise(resolve => setTimeout(resolve, 600));
-            setAlerts([
-                { id: '1', title: '5 Candidates data expiring in 7 days (GDPR)', severity: 'Warning', type: 'GDPR' },
-                { id: '2', title: 'Missing diversity data for Engineering Dept', severity: 'Critical', type: 'Diversity' },
-                { id: '3', title: 'Background check failed for John Doe', severity: 'Critical', type: 'Background Check' },
-            ]);
-            setIsLoading(false);
-        };
         fetchAlerts();
     }, []);
+
+    const handleResolve = async (alertId: string) => {
+        setResolvingId(alertId);
+        try {
+            await complianceApi.resolveAlert(alertId, 'Resolved by user');
+            toast.success('Alert resolved');
+            fetchAlerts();
+        } catch (error) {
+            toast.error('Failed to resolve alert');
+        } finally {
+            setResolvingId(null);
+        }
+    };
 
     const getIcon = (type: string) => {
         switch (type) {
             case 'GDPR': return <ShieldAlert size={18} />;
             case 'Diversity': return <Users size={18} />;
             case 'Background Check': return <FileWarning size={18} />;
+            case 'SLA': return <Clock size={18} />;
             default: return <AlertCircle size={18} />;
         }
     };
@@ -72,7 +93,16 @@ export function ComplianceAlertsWidget() {
                                             }`}>
                                             {alert.severity}
                                         </span>
-                                        <Button variant="link" size="sm" className="h-auto p-0 text-xs">Resolve</Button>
+                                        <Button 
+                                            variant="link" 
+                                            size="sm" 
+                                            className="h-auto p-0 text-xs"
+                                            onClick={() => handleResolve(alert.id)}
+                                            disabled={resolvingId === alert.id}
+                                        >
+                                            {resolvingId === alert.id ? <Loader2 size={12} className="animate-spin mr-1" /> : null}
+                                            Resolve
+                                        </Button>
                                     </div>
                                 </div>
                             </div>

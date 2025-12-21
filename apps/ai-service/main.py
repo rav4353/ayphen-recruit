@@ -106,6 +106,15 @@ import io
 from PyPDF2 import PdfReader
 from docx import Document
 
+# OCR Support - optional dependencies
+try:
+    from PIL import Image
+    import pytesseract
+    OCR_AVAILABLE = True
+except ImportError:
+    OCR_AVAILABLE = False
+    print("Warning: OCR dependencies not installed. Install with: pip install pillow pytesseract")
+
 # ... (imports)
 
 # Helper functions
@@ -130,6 +139,82 @@ def extract_text_from_docx(file_content):
     except Exception as e:
         print(f"Error reading DOCX: {e}")
         return ""
+
+def extract_text_from_image(file_content):
+    """
+    Extract text from image using OCR (Tesseract).
+    Supports JPG, PNG, TIFF, BMP, and other common image formats.
+    """
+    if not OCR_AVAILABLE:
+        print("OCR not available - pytesseract/pillow not installed")
+        return ""
+    
+    try:
+        # Open image from bytes
+        image = Image.open(io.BytesIO(file_content))
+        
+        # Convert to RGB if necessary (for PNG with transparency)
+        if image.mode in ('RGBA', 'P'):
+            image = image.convert('RGB')
+        
+        # Pre-process image for better OCR results
+        # Convert to grayscale
+        image = image.convert('L')
+        
+        # Use Tesseract to extract text
+        # Config options for better resume parsing:
+        # --psm 1: Automatic page segmentation with OSD
+        # --oem 3: Default, based on what is available
+        custom_config = r'--oem 3 --psm 1'
+        text = pytesseract.image_to_string(image, config=custom_config)
+        
+        return text.strip()
+    except Exception as e:
+        print(f"Error performing OCR on image: {e}")
+        return ""
+
+def extract_text_from_scanned_pdf(file_content):
+    """
+    Extract text from scanned PDF using OCR.
+    First attempts regular text extraction, falls back to OCR if empty.
+    """
+    # Try regular extraction first
+    text = extract_text_from_pdf(file_content)
+    
+    # If text is very short or empty, it might be a scanned PDF
+    if len(text.strip()) < 100:
+        if not OCR_AVAILABLE:
+            print("Scanned PDF detected but OCR not available")
+            return text
+        
+        try:
+            # Convert PDF pages to images and OCR them
+            import fitz  # PyMuPDF
+            
+            pdf_document = fitz.open(stream=file_content, filetype="pdf")
+            ocr_text = ""
+            
+            for page_num in range(len(pdf_document)):
+                page = pdf_document[page_num]
+                # Render page to image
+                mat = fitz.Matrix(2, 2)  # 2x zoom for better quality
+                pix = page.get_pixmap(matrix=mat)
+                img_data = pix.tobytes("png")
+                
+                # OCR the image
+                page_text = extract_text_from_image(img_data)
+                ocr_text += page_text + "\n"
+            
+            pdf_document.close()
+            
+            if len(ocr_text.strip()) > len(text.strip()):
+                return ocr_text
+        except ImportError:
+            print("PyMuPDF not available for scanned PDF OCR")
+        except Exception as e:
+            print(f"Error OCRing scanned PDF: {e}")
+    
+    return text
 
 def extract_email(text):
     email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
@@ -365,22 +450,44 @@ def extract_education_llm(text):
 @app.post("/parse-resume", response_model=ParsedResume)
 async def parse_resume(file: UploadFile = File(...)):
     """
-    Parse a resume file (PDF or DOCX) and extract structured data.
+    Parse a resume file (PDF, DOCX, or image) and extract structured data.
+    Supports OCR for image-based resumes (JPG, PNG, TIFF, BMP) and scanned PDFs.
     """
     if not file.filename:
         raise HTTPException(status_code=400, detail="No file provided")
     
     ext = file.filename.lower().split(".")[-1]
-    if ext not in ["pdf", "docx", "doc"]:
-        raise HTTPException(status_code=400, detail="Unsupported file type. Use PDF or DOCX.")
+    supported_docs = ["pdf", "docx", "doc"]
+    supported_images = ["jpg", "jpeg", "png", "tiff", "tif", "bmp", "webp"]
+    
+    if ext not in supported_docs + supported_images:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Unsupported file type. Use PDF, DOCX, or image formats ({', '.join(supported_images)})."
+        )
     
     content = await file.read()
     
     text = ""
+    extraction_method = "text"
+    
     if ext == "pdf":
-        text = extract_text_from_pdf(content)
+        # Try scanned PDF extraction (which includes OCR fallback)
+        text = extract_text_from_scanned_pdf(content)
+        if len(text.strip()) < 100:
+            extraction_method = "ocr"
     elif ext in ["docx", "doc"]:
         text = extract_text_from_docx(content)
+    elif ext in supported_images:
+        # Image-based resume - use OCR
+        if not OCR_AVAILABLE:
+            raise HTTPException(
+                status_code=400, 
+                detail="OCR not available. Please install pytesseract and pillow for image support."
+            )
+        text = extract_text_from_image(content)
+        extraction_method = "ocr"
+        print(f"OCR extracted {len(text)} characters from image")
     
     if not text:
         raise HTTPException(status_code=400, detail="Could not extract text from file.")

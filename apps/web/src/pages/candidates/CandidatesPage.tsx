@@ -206,6 +206,20 @@ export function CandidatesPage() {
         badge={{ text: 'Talent Pool', icon: Sparkles }}
         actions={
           <>
+            <SavedViews
+              entity="CANDIDATE"
+              currentFilters={{
+                search: searchQuery,
+                location: filters.location,
+                skills: filters.skills,
+                status: filters.status,
+                source: filters.source,
+                sortBy,
+                sortOrder,
+              }}
+              onApplyView={handleApplyView}
+              onReset={handleResetView}
+            />
             <Button
               variant="outline"
               size="sm"

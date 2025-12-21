@@ -38,8 +38,12 @@ export class TalentPoolsController {
         locations?: string[];
         experience?: { min?: number; max?: number };
         sources?: string[];
+        titles?: string[];
+        companies?: string[];
       };
       isPublic?: boolean;
+      isDynamic?: boolean;
+      autoRefreshHours?: number;
     },
   ) {
     return this.talentPoolsService.create(body, user.tenantId, user.sub);
@@ -125,5 +129,12 @@ export class TalentPoolsController {
   @RequirePermissions(Permission.CANDIDATE_DELETE)
   delete(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     return this.talentPoolsService.delete(id, user.tenantId, user.sub);
+  }
+
+  @Post(':id/refresh')
+  @ApiOperation({ summary: 'Manually refresh a dynamic talent pool' })
+  @RequirePermissions(Permission.CANDIDATE_EDIT)
+  refreshPool(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    return this.talentPoolsService.triggerRefresh(id, user.tenantId, user.sub);
   }
 }

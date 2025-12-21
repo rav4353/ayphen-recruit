@@ -158,15 +158,22 @@ const settingsItems = [
 
     // === INTEGRATION SETTINGS ===
     { id: 'integration-settings', label: 'Integration Settings', description: 'Connect third-party services', tabId: 'integrations', keywords: ['integration', 'settings', 'connect'] },
+    { id: 'smtp-email', label: 'Email Configuration', description: 'SMTP email server settings', tabId: 'integrations', keywords: ['smtp', 'email', 'mail', 'server', 'configuration', 'from address'] },
     { id: 'calendar-integration', label: 'Calendar Integration', description: 'Connect Google or Outlook calendar', tabId: 'integrations', keywords: ['calendar', 'google', 'outlook', 'sync', 'meeting'] },
     { id: 'google-calendar', label: 'Google Calendar', description: 'Connect Google Calendar', tabId: 'integrations', keywords: ['google', 'calendar', 'gmail', 'meet'] },
     { id: 'outlook-calendar', label: 'Outlook Calendar', description: 'Connect Outlook/Microsoft Calendar', tabId: 'integrations', keywords: ['outlook', 'microsoft', 'calendar', 'teams'] },
+    { id: 'video-meetings', label: 'Video Meetings', description: 'Zoom, Google Meet, Microsoft Teams integration', tabId: 'integrations', keywords: ['video', 'meeting', 'zoom', 'google meet', 'teams', 'conference', 'interview'] },
+    { id: 'zoom-integration', label: 'Zoom', description: 'Zoom video conferencing', tabId: 'integrations', keywords: ['zoom', 'video', 'meeting', 'conference'] },
+    { id: 'google-meet-integration', label: 'Google Meet', description: 'Google Meet video calls', tabId: 'integrations', keywords: ['google meet', 'video', 'call', 'hangout'] },
+    { id: 'teams-integration', label: 'Microsoft Teams', description: 'Microsoft Teams meetings', tabId: 'integrations', keywords: ['microsoft teams', 'teams', 'video', 'meeting'] },
     { id: 'esignature', label: 'E-Signature', description: 'Electronic signature integration', tabId: 'integrations', keywords: ['esignature', 'docusign', 'signature', 'sign', 'document'] },
     { id: 'docusign', label: 'DocuSign', description: 'DocuSign integration', tabId: 'integrations', keywords: ['docusign', 'signature', 'sign'] },
     { id: 'job-boards-integration', label: 'Job Boards', description: 'Post jobs to external sites', tabId: 'integrations', keywords: ['job board', 'linkedin', 'indeed', 'glassdoor', 'posting'] },
     { id: 'linkedin-integration', label: 'LinkedIn', description: 'LinkedIn job posting', tabId: 'integrations', keywords: ['linkedin', 'job', 'posting', 'social'] },
     { id: 'indeed-integration', label: 'Indeed', description: 'Indeed job posting', tabId: 'integrations', keywords: ['indeed', 'job', 'posting'] },
-    { id: 'bgv-integration', label: 'Background Verification', description: 'Background check providers', tabId: 'integrations', keywords: ['bgv', 'background', 'verification', 'check', 'checkr'] },
+    { id: 'bgv-integration', label: 'Background Verification', description: 'Background check providers', tabId: 'integrations', keywords: ['bgv', 'background', 'verification', 'check', 'checkr', 'springverify', 'authbridge'] },
+    { id: 'messaging-integration', label: 'Messaging', description: 'Slack and Microsoft Teams notifications', tabId: 'integrations', keywords: ['messaging', 'slack', 'teams', 'notifications', 'chat'] },
+    { id: 'slack-integration', label: 'Slack', description: 'Slack workspace integration', tabId: 'integrations', keywords: ['slack', 'chat', 'notifications', 'channel'] },
     { id: 'api-settings', label: 'API Settings', description: 'API keys and access', tabId: 'integrations', keywords: ['api', 'key', 'token', 'access', 'developer'] },
 
 
@@ -222,26 +229,31 @@ export function SettingsPage() {
         }
     }, [urlTab, storedTab, setSearchParams]);
 
-    // Tabs definition
+    // Tabs definition - ordered by user-friendliness and frequency of use
     const allTabs = [
+        // Core settings - most frequently accessed
         { id: 'general', label: t('settings.tabs.general'), icon: <Settings size={18} /> },
+        { id: 'users', label: t('settings.tabs.users'), icon: <Users size={18} /> },
         { id: 'security', label: t('settings.tabs.security'), icon: <Shield size={18} /> },
         { id: 'notifications', label: t('settings.tabs.notifications', 'Notifications'), icon: <Bell size={18} /> },
         { id: 'appearance', label: t('settings.tabs.appearance'), icon: <Palette size={18} /> },
-        { id: 'users', label: t('settings.tabs.users'), icon: <Users size={18} /> },
+        // Hiring & Recruitment
         { id: 'hiring', label: t('settings.tabs.hiring'), icon: <GitBranch size={18} /> },
         { id: 'forms', label: t('settings.tabs.forms', 'Form Customization'), icon: <Layout size={18} /> },
-        { id: 'automations', label: t('settings.tabs.automations'), icon: <Zap size={18} /> },
-        { id: 'skills', label: t('settings.tabs.skills'), icon: <FileText size={18} /> },
         { id: 'templates', label: t('settings.tabs.templates', 'Templates'), icon: <FileText size={18} /> },
+        { id: 'skills', label: t('settings.tabs.skills'), icon: <FileText size={18} /> },
+        { id: 'automations', label: t('settings.tabs.automations'), icon: <Zap size={18} /> },
+        // External connections
         { id: 'integrations', label: t('settings.tabs.integrations'), icon: <Plug size={18} /> },
+        { id: 'careerSite', label: t('settings.tabs.careerSite', 'Career Site'), icon: <Globe size={18} /> },
+        { id: 'bgv', label: t('settings.tabs.bgv', 'Background Checks'), icon: <Shield size={18} /> },
+        // Admin & Compliance
         { id: 'compliance', label: t('settings.tabs.compliance'), icon: <Shield size={18} /> },
         { id: 'billing', label: t('settings.tabs.billing'), icon: <CreditCard size={18} />, restricted: true },
-        { id: 'careerSite', label: t('settings.tabs.careerSite', 'Career Site'), icon: <Globe size={18} /> },
+        // Utilities
         { id: 'import', label: t('settings.tabs.import', 'Bulk Import'), icon: <Upload size={18} /> },
         { id: 'shortcuts', label: t('settings.tabs.shortcuts', 'Shortcuts'), icon: <Keyboard size={18} /> },
         { id: 'audit', label: t('settings.tabs.audit', 'Audit Logs'), icon: <History size={18} /> },
-        { id: 'bgv', label: t('settings.tabs.bgv', 'Background Checks'), icon: <Shield size={18} /> },
     ];
 
     const tabs = allTabs.filter(tab => !tab.restricted || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN');

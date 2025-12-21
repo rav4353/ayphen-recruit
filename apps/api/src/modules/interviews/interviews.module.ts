@@ -8,11 +8,14 @@ import { InterviewKitsService } from './interview-kits.service';
 import { InterviewKitsController } from './interview-kits.controller';
 import { InterviewSchedulingService } from './interview-scheduling.service';
 import { InterviewSchedulingController, PublicSchedulingController } from './interview-scheduling.controller';
+import { InterviewAnalyticsService } from './interview-analytics.service';
+import { InterviewAnalyticsController } from './interview-analytics.controller';
+import { SmsService } from '../../common/services/sms.service';
 
 @Module({
     imports: [PrismaModule, CalendarModule],
-    controllers: [InterviewsController, InterviewKitsController, InterviewSchedulingController, PublicSchedulingController],
-    providers: [InterviewsService, InterviewReminderService, InterviewKitsService, InterviewSchedulingService],
-    exports: [InterviewsService, InterviewKitsService, InterviewSchedulingService],
+    controllers: [InterviewsController, InterviewKitsController, InterviewSchedulingController, PublicSchedulingController, InterviewAnalyticsController],
+    providers: [InterviewsService, InterviewReminderService, InterviewKitsService, InterviewSchedulingService, InterviewAnalyticsService, SmsService],
+    exports: [InterviewsService, InterviewKitsService, InterviewSchedulingService, InterviewReminderService, InterviewAnalyticsService],
 })
 export class InterviewsModule { }

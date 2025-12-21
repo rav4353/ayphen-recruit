@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Card, Button, Badge } from '../../components/ui';
+import { Card, Button, Badge, Modal } from '../../components/ui';
 import { onboardingApi } from '../../lib/api';
-import { ArrowLeft, CheckCircle2, Clock, User, Briefcase, FileText, UploadCloud, XCircle, Eye } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Clock, User, Briefcase, FileText, UploadCloud, XCircle, Eye, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { cn } from '../../lib/utils';
 
@@ -12,6 +12,9 @@ export function OnboardingDetailPage() {
     const [workflow, setWorkflow] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [reviewTask, setReviewTask] = useState<any>(null);
+    const [uploadTaskId, setUploadTaskId] = useState<string | null>(null);
+    const [uploadFile, setUploadFile] = useState<File | null>(null);
+    const [isUploading, setIsUploading] = useState(false);
 
     useEffect(() => {
         if (id) fetchWorkflow();
@@ -43,17 +46,31 @@ export function OnboardingDetailPage() {
         }
     };
 
-    const handleUpload = async (taskId: string) => {
-        // Mock upload for now - in production this would be a file picker + S3 upload
-        const url = window.prompt("Enter document URL (mock upload):", "https://example.com/document.pdf");
-        if (url) {
-            try {
-                await onboardingApi.uploadDocument(taskId, url);
-                toast.success('Document uploaded');
-                fetchWorkflow();
-            } catch (error) {
-                toast.error('Failed to upload document');
-            }
+    const handleUploadClick = (taskId: string) => {
+        setUploadTaskId(taskId);
+        setUploadFile(null);
+    };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setUploadFile(file);
+        }
+    };
+
+    const handleConfirmUpload = async () => {
+        if (!uploadTaskId || !uploadFile) return;
+        setIsUploading(true);
+        try {
+            await onboardingApi.uploadDocumentFile(uploadTaskId, uploadFile);
+            toast.success('Document uploaded successfully');
+            setUploadTaskId(null);
+            setUploadFile(null);
+            fetchWorkflow();
+        } catch (error) {
+            toast.error('Failed to upload document');
+        } finally {
+            setIsUploading(false);
         }
     };
 
@@ -141,9 +158,9 @@ export function OnboardingDetailPage() {
                                         {task.isRequiredDoc && (
                                             <div className="mt-2 flex items-center gap-3">
                                                 {task.documentStatus === 'NOT_UPLOADED' && (
-                                                    <Button size="sm" variant="secondary" onClick={() => handleUpload(task.id)} className="h-7 text-xs">
+                                                    <Button size="sm" variant="secondary" onClick={() => handleUploadClick(task.id)} className="h-7 text-xs">
                                                         <UploadCloud size={12} className="mr-1.5" />
-                                                        Simulate Upload
+                                                        Upload Document
                                                     </Button>
                                                 )}
                                                 {task.documentStatus === 'PENDING_REVIEW' && (
@@ -270,6 +287,54 @@ export function OnboardingDetailPage() {
                     </Card>
                 </div>
             </div>
+
+            {/* Upload Document Modal */}
+            <Modal
+                isOpen={!!uploadTaskId}
+                onClose={() => { setUploadTaskId(null); setUploadFile(null); }}
+                title="Upload Document"
+            >
+                <div className="space-y-4">
+                    <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                        Select a document file to upload (PDF, DOC, DOCX, JPG, PNG - Max 10MB)
+                    </p>
+                    <div className="border-2 border-dashed border-neutral-300 dark:border-neutral-600 rounded-lg p-6 text-center">
+                        <input
+                            type="file"
+                            id="document-upload"
+                            className="hidden"
+                            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                            onChange={handleFileChange}
+                        />
+                        <label
+                            htmlFor="document-upload"
+                            className="cursor-pointer flex flex-col items-center gap-2"
+                        >
+                            <UploadCloud size={32} className="text-neutral-400" />
+                            <span className="text-sm text-neutral-600 dark:text-neutral-400">
+                                {uploadFile ? uploadFile.name : 'Click to select a file'}
+                            </span>
+                            {uploadFile && (
+                                <span className="text-xs text-neutral-500">
+                                    {(uploadFile.size / 1024 / 1024).toFixed(2)} MB
+                                </span>
+                            )}
+                        </label>
+                    </div>
+                    <div className="flex justify-end gap-3 pt-2">
+                        <Button variant="secondary" onClick={() => { setUploadTaskId(null); setUploadFile(null); }}>
+                            Cancel
+                        </Button>
+                        <Button onClick={handleConfirmUpload} disabled={!uploadFile || isUploading}>
+                            {isUploading ? (
+                                <><Loader2 size={14} className="mr-2 animate-spin" /> Uploading...</>
+                            ) : (
+                                'Upload'
+                            )}
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
         </div>
     );
 }

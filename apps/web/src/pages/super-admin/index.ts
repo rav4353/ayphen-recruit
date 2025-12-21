@@ -2,6 +2,7 @@
 export { SuperAdminLoginPage } from './SuperAdminLoginPage';
 export { SuperAdminDashboardPage } from './SuperAdminDashboardPage';
 export { TenantsPage } from './TenantsPage';
+export { CreateTenantPage } from './CreateTenantPage';
 export { SubscriptionsPage } from './SubscriptionsPage';
 export { UsersPage } from './UsersPage';
 export { AuditLogsPage } from './AuditLogsPage';

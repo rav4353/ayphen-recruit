@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { Plus, Trash, Edit, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { Button, Input, Card, Modal } from '../ui';
+import { Button, Input, Card, Modal, ConfirmationModal } from '../ui';
 import { settingsApi } from '../../lib/api';
 
 type FieldType = 'text' | 'number' | 'date' | 'boolean' | 'select' | 'textarea';
@@ -48,6 +48,7 @@ export function JobFormSettings() {
     const [config, setConfig] = useState<JobFormConfig>({ customFields: [] });
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingField, setEditingField] = useState<CustomField | null>(null);
+    const [deleteFieldId, setDeleteFieldId] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
 
     const { register, handleSubmit, reset, watch, setValue, setError, formState: { errors } } = useForm<CustomField>();
@@ -129,11 +130,15 @@ export function JobFormSettings() {
         setIsModalOpen(true);
     };
 
-    const handleDeleteField = async (fieldId: string) => {
-        if (!confirm(t('common.confirmDelete'))) return;
+    const handleDeleteClick = (fieldId: string) => {
+        setDeleteFieldId(fieldId);
+    };
 
-        const newFields = config.customFields.filter(f => f.id !== fieldId);
+    const handleConfirmDelete = async () => {
+        if (!deleteFieldId) return;
+        const newFields = config.customFields.filter(f => f.id !== deleteFieldId);
         await saveSettings({ ...config, customFields: newFields });
+        setDeleteFieldId(null);
     };
 
     const onSubmit = async (data: CustomField) => {
@@ -232,7 +237,7 @@ export function JobFormSettings() {
                                     <Button size="sm" variant="ghost" onClick={() => handleEditField(field)}>
                                         <Edit size={16} />
                                     </Button>
-                                    <Button size="sm" variant="ghost" className="text-red-500 hover:text-red-600 hover:bg-red-50" onClick={() => handleDeleteField(field.id)}>
+                                    <Button size="sm" variant="ghost" className="text-red-500 hover:text-red-600 hover:bg-red-50" onClick={() => handleDeleteClick(field.id)}>
                                         <Trash size={16} />
                                     </Button>
                                 </div>
@@ -395,6 +400,17 @@ export function JobFormSettings() {
                     </div>
                 </form>
             </Modal>
+
+            {/* Delete Confirmation Modal */}
+            <ConfirmationModal
+                isOpen={!!deleteFieldId}
+                onCancel={() => setDeleteFieldId(null)}
+                onConfirm={handleConfirmDelete}
+                title={t('common.confirmDelete', 'Delete Field')}
+                message={t('settings.jobForm.deleteConfirm', 'Are you sure you want to delete this field? This action cannot be undone.')}
+                variant="danger"
+                confirmLabel={t('common.delete', 'Delete')}
+            />
         </div>
     );
 }

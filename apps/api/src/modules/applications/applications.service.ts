@@ -446,6 +446,8 @@ export class ApplicationsService {
       data.rejectionReason = reason;
     } else if (status === 'WITHDRAWN') {
       data.withdrawalReason = reason;
+    } else if (status === 'HIRED') {
+      data.hiredAt = new Date();
     }
 
     const updated = await this.prisma.application.update({

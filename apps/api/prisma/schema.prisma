@@ -640,6 +640,7 @@ model Application {
   withdrawalReason String?
   notes            String?           @db.Text
   appliedAt        DateTime          @default(now())
+  hiredAt          DateTime?         // Timestamp when candidate was hired
   updatedAt        DateTime          @updatedAt
 
   // Relations
@@ -952,6 +953,8 @@ model ActivityLog {
   @@index([candidateId])
   @@index([userId])
   @@index([createdAt])
+  @@index([action])
+  @@index([metadata(ops: JsonbPathOps)], type: Gin)
   @@map("activity_logs")
 }
 

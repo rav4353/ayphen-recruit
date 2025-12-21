@@ -445,4 +445,87 @@ export class BulkImportService {
 
     return `${headers}\n${sampleRow}`;
   }
+
+  // Create candidate from parsed resume data
+  async createCandidateFromResume(
+    tenantId: string,
+    userId: string,
+    data: {
+      firstName?: string;
+      lastName?: string;
+      email: string;
+      phone?: string;
+      currentTitle?: string;
+      currentCompany?: string;
+      location?: string;
+      skills?: string[];
+      experience?: any;
+      education?: any;
+      summary?: string;
+      resumeUrl?: string;
+      resumeText?: string;
+      source?: string;
+      tags?: string[];
+    },
+    jobId?: string,
+  ) {
+    // Check for duplicate
+    const existing = await this.prisma.candidate.findFirst({
+      where: { email: data.email, tenantId },
+    });
+
+    if (existing) {
+      throw new Error(`Candidate with email ${data.email} already exists`);
+    }
+
+    // Create candidate
+    const candidate = await this.prisma.candidate.create({
+      data: {
+        tenantId,
+        email: data.email,
+        firstName: data.firstName || 'Unknown',
+        lastName: data.lastName || 'Candidate',
+        phone: data.phone,
+        currentTitle: data.currentTitle,
+        currentCompany: data.currentCompany,
+        location: data.location,
+        skills: data.skills || [],
+        experience: data.experience,
+        education: data.education,
+        summary: data.summary,
+        resumeUrl: data.resumeUrl,
+        resumeText: data.resumeText,
+        source: data.source || 'Bulk Upload',
+        tags: data.tags || [],
+        gdprConsent: false,
+      },
+    });
+
+    // If jobId provided, create application
+    if (jobId) {
+      try {
+        await this.prisma.application.create({
+          data: {
+            candidateId: candidate.id,
+            jobId,
+            status: 'APPLIED',
+          },
+        });
+      } catch (error) {
+        this.logger.warn(`Could not create application for candidate ${candidate.id}: ${error}`);
+      }
+    }
+
+    // Log activity
+    await this.prisma.activityLog.create({
+      data: {
+        action: 'CANDIDATE_CREATED',
+        description: `Candidate created from bulk resume upload: ${candidate.firstName} ${candidate.lastName}`,
+        userId,
+        candidateId: candidate.id,
+      },
+    });
+
+    return candidate;
+  }
 }

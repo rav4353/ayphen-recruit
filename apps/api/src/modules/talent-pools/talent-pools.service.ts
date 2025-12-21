@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../../prisma/prisma.service';
 
 interface CreateTalentPoolDto {
@@ -9,8 +10,12 @@ interface CreateTalentPoolDto {
     locations?: string[];
     experience?: { min?: number; max?: number };
     sources?: string[];
+    titles?: string[];
+    companies?: string[];
   };
   isPublic?: boolean;
+  isDynamic?: boolean; // If true, auto-updates based on criteria
+  autoRefreshHours?: number; // How often to refresh (default 24)
 }
 
 interface UpdateTalentPoolDto {
@@ -21,32 +26,57 @@ interface UpdateTalentPoolDto {
     locations?: string[];
     experience?: { min?: number; max?: number };
     sources?: string[];
+    titles?: string[];
+    companies?: string[];
   };
   isPublic?: boolean;
+  isDynamic?: boolean;
+  autoRefreshHours?: number;
 }
 
 @Injectable()
 export class TalentPoolsService {
+  private readonly logger = new Logger(TalentPoolsService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   async create(dto: CreateTalentPoolDto, tenantId: string, userId: string) {
-    return this.prisma.activityLog.create({
+    const poolId = `pool-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+    
+    const poolData = {
+      type: 'talent_pool',
+      id: poolId,
+      tenantId,
+      name: dto.name,
+      description: dto.description,
+      criteria: dto.criteria,
+      isPublic: dto.isPublic || false,
+      isDynamic: dto.isDynamic || false,
+      autoRefreshHours: dto.autoRefreshHours || 24,
+      candidateIds: [] as string[],
+      lastRefreshedAt: null as string | null,
+      createdBy: userId,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    // If dynamic, populate with matching candidates immediately
+    if (dto.isDynamic && dto.criteria) {
+      const matchingCandidates = await this.findCandidatesMatchingCriteria(tenantId, dto.criteria);
+      poolData.candidateIds = matchingCandidates.map(c => c.id);
+      poolData.lastRefreshedAt = new Date().toISOString();
+    }
+
+    await this.prisma.activityLog.create({
       data: {
         action: 'TALENT_POOL_CREATED',
-        description: `Talent pool created: ${dto.name}`,
+        description: `Talent pool created: ${dto.name}${dto.isDynamic ? ' (dynamic)' : ''}`,
         userId,
-        metadata: {
-          type: 'talent_pool',
-          id: `pool-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
-          tenantId,
-          ...dto,
-          candidateIds: [],
-          createdBy: userId,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
+        metadata: poolData,
       },
     });
+
+    return { id: poolId, ...poolData };
   }
 
   async findAll(tenantId: string, userId: string) {
@@ -339,5 +369,167 @@ export class TalentPoolsService {
       publicPools: pools.filter((p) => p.isPublic).length,
       privatePools: pools.filter((p) => !p.isPublic).length,
     };
+  }
+
+  // ==================== DYNAMIC POOL FUNCTIONALITY ====================
+
+  /**
+   * Find candidates matching given criteria
+   */
+  async findCandidatesMatchingCriteria(
+    tenantId: string,
+    criteria: CreateTalentPoolDto['criteria'],
+  ): Promise<{ id: string }[]> {
+    if (!criteria) return [];
+
+    const where: any = { tenantId };
+
+    // Skills filter
+    if (criteria.skills?.length > 0) {
+      where.skills = { hasSome: criteria.skills };
+    }
+
+    // Location filter
+    if (criteria.locations?.length > 0) {
+      where.location = { in: criteria.locations, mode: 'insensitive' };
+    }
+
+    // Source filter
+    if (criteria.sources?.length > 0) {
+      where.source = { in: criteria.sources };
+    }
+
+    // Title filter
+    if (criteria.titles?.length > 0) {
+      where.OR = criteria.titles.map(title => ({
+        currentTitle: { contains: title, mode: 'insensitive' },
+      }));
+    }
+
+    // Company filter
+    if (criteria.companies?.length > 0) {
+      where.currentCompany = { in: criteria.companies, mode: 'insensitive' };
+    }
+
+    const candidates = await this.prisma.candidate.findMany({
+      where,
+      select: { id: true },
+      take: 1000, // Limit to prevent huge pools
+    });
+
+    return candidates;
+  }
+
+  /**
+   * Refresh a dynamic pool with candidates matching its criteria
+   */
+  async refreshDynamicPool(poolId: string, tenantId: string): Promise<{
+    poolId: string;
+    previousCount: number;
+    newCount: number;
+    added: number;
+    removed: number;
+  }> {
+    const pool = await this.findOne(poolId, tenantId);
+    
+    if (!(pool as any).isDynamic) {
+      throw new BadRequestException('Pool is not a dynamic pool');
+    }
+
+    const previousIds = pool.candidates.map((c: any) => c.id);
+    const matchingCandidates = await this.findCandidatesMatchingCriteria(tenantId, pool.criteria);
+    const newIds = matchingCandidates.map(c => c.id);
+
+    const added = newIds.filter(id => !previousIds.includes(id)).length;
+    const removed = previousIds.filter((id: string) => !newIds.includes(id)).length;
+
+    const updatedMetadata = {
+      type: 'talent_pool',
+      id: poolId,
+      tenantId,
+      name: pool.name,
+      description: pool.description,
+      criteria: pool.criteria,
+      isPublic: pool.isPublic,
+      isDynamic: true,
+      autoRefreshHours: (pool as any).autoRefreshHours || 24,
+      candidateIds: newIds,
+      lastRefreshedAt: new Date().toISOString(),
+      createdBy: (pool as any).createdBy,
+      createdAt: pool.createdAt,
+      updatedAt: new Date().toISOString(),
+    };
+
+    await this.prisma.activityLog.create({
+      data: {
+        action: 'TALENT_POOL_UPDATED',
+        description: `Dynamic pool refreshed: ${pool.name} (added ${added}, removed ${removed})`,
+        metadata: updatedMetadata,
+      },
+    });
+
+    return {
+      poolId,
+      previousCount: previousIds.length,
+      newCount: newIds.length,
+      added,
+      removed,
+    };
+  }
+
+  /**
+   * Cron job to auto-refresh dynamic pools
+   */
+  @Cron(CronExpression.EVERY_HOUR)
+  async autoRefreshDynamicPools(): Promise<void> {
+    this.logger.log('Checking dynamic pools for auto-refresh...');
+
+    try {
+      // Get all dynamic pools that need refreshing
+      const poolLogs = await this.prisma.activityLog.findMany({
+        where: {
+          action: { in: ['TALENT_POOL_CREATED', 'TALENT_POOL_UPDATED'] },
+          metadata: {
+            path: ['isDynamic'],
+            equals: true,
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      // Get latest state of each dynamic pool
+      const poolMap = new Map<string, any>();
+      for (const log of poolLogs) {
+        const metadata = log.metadata as any;
+        if (metadata.type === 'talent_pool' && !poolMap.has(metadata.id)) {
+          poolMap.set(metadata.id, metadata);
+        }
+      }
+
+      const now = Date.now();
+
+      for (const [poolId, pool] of poolMap.entries()) {
+        const lastRefresh = pool.lastRefreshedAt ? new Date(pool.lastRefreshedAt).getTime() : 0;
+        const refreshInterval = (pool.autoRefreshHours || 24) * 60 * 60 * 1000;
+
+        if (now - lastRefresh >= refreshInterval) {
+          try {
+            const result = await this.refreshDynamicPool(poolId, pool.tenantId);
+            this.logger.log(`Refreshed pool ${pool.name}: +${result.added}, -${result.removed}`);
+          } catch (error) {
+            this.logger.error(`Failed to refresh pool ${poolId}:`, error);
+          }
+        }
+      }
+    } catch (error) {
+      this.logger.error('Error in auto-refresh job:', error);
+    }
+  }
+
+  /**
+   * Manually trigger refresh for a dynamic pool
+   */
+  async triggerRefresh(poolId: string, tenantId: string, userId: string) {
+    return this.refreshDynamicPool(poolId, tenantId);
   }
 }

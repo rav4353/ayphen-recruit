@@ -163,15 +163,18 @@ export function JobsPage() {
   );
 
   const toggleSort = (column: string) => {
-    setSortBy((current) => {
-      if (current !== column) {
-        setSortOrder('asc');
-        return column;
-      }
-
-      setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
-      return current;
-    });
+    if (sortBy !== column) {
+      // New column: start with ascending
+      setSortBy(column);
+      setSortOrder('asc');
+    } else if (sortOrder === 'asc') {
+      // Same column, was asc: switch to desc
+      setSortOrder('desc');
+    } else {
+      // Same column, was desc: reset to original (no sort)
+      setSortBy('');
+      setSortOrder('asc');
+    }
   };
 
   const toggleJobSelection = (jobId: string) => {

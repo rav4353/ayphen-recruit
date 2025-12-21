@@ -67,6 +67,7 @@ import {
   SuperAdminLoginPage,
   SuperAdminDashboardPage,
   TenantsPage as SuperAdminTenantsPage,
+  CreateTenantPage,
   SubscriptionsPage as SuperAdminSubscriptionsPage,
   UsersPage as SuperAdminUsersPage,
   AuditLogsPage as SuperAdminAuditLogsPage,
@@ -229,6 +230,7 @@ function App() {
               >
                 <Route path="/super-admin/dashboard" element={<SuperAdminDashboardPage />} />
                 <Route path="/super-admin/tenants" element={<SuperAdminTenantsPage />} />
+                <Route path="/super-admin/tenants/new" element={<CreateTenantPage />} />
                 <Route path="/super-admin/subscriptions" element={<SuperAdminSubscriptionsPage />} />
                 <Route path="/super-admin/analytics" element={<SuperAdminAnalyticsPage />} />
                 <Route path="/super-admin/users" element={<SuperAdminUsersPage />} />

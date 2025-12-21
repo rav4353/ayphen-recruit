@@ -10,7 +10,7 @@ const log = logger.component('useJobs');
 export const jobKeys = {
   all: ['jobs'] as const,
   lists: () => [...jobKeys.all, 'list'] as const,
-  list: (tenantId: string, filters?: Record<string, unknown>) => 
+  list: (tenantId: string, filters?: Record<string, unknown>) =>
     [...jobKeys.lists(), tenantId, filters] as const,
   details: () => [...jobKeys.all, 'detail'] as const,
   detail: (tenantId: string, id: string) => [...jobKeys.details(), tenantId, id] as const,
@@ -41,7 +41,7 @@ export function useJobs(params: UseJobsParams) {
     queryKey: jobKeys.list(tenantId, filters),
     queryFn: async (): Promise<JobsResponse> => {
       log.debug('Fetching jobs', { tenantId, filters });
-      
+
       const response = await jobsApi.getAll(tenantId, {
         page: filters.page,
         search: filters.search || undefined,
@@ -164,6 +164,28 @@ export function useBulkUpdateJobStatus(tenantId: string) {
     onError: (error: Error & { response?: { data?: { message?: string } } }) => {
       const message = error.response?.data?.message || 'Failed to update some jobs';
       log.error('Failed to bulk update jobs', error, { tenantId });
+      toast.error(message);
+    },
+  });
+}
+
+// Create job
+export function useCreateJob(tenantId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: any) => {
+      log.info('Creating job', { tenantId });
+      const response = await jobsApi.create(tenantId, data);
+      return response.data;
+    },
+    onSuccess: () => {
+      toast.success('Job created successfully');
+      queryClient.invalidateQueries({ queryKey: jobKeys.lists() });
+    },
+    onError: (error: Error & { response?: { data?: { message?: string } } }) => {
+      const message = error.response?.data?.message || 'Failed to create job';
+      log.error('Failed to create job', error, { tenantId });
       toast.error(message);
     },
   });

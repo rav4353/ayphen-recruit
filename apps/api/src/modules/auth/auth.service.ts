@@ -13,6 +13,7 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { OtpService } from './services/otp.service';
 import { OtpType } from './dto/otp.dto';
+import { PipelinesService } from '../pipelines/pipelines.service';
 
 import { ROLE_PERMISSIONS } from '../../common/constants/permissions';
 
@@ -48,6 +49,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly otpService: OtpService,
+    private readonly pipelinesService: PipelinesService,
   ) { }
 
   async validateUser(email: string, password: string, tenantId?: string) {
@@ -102,6 +104,15 @@ export class AuthService {
       tenantId = undefined;
     }
 
+    // Check globally if user with this email already exists
+    const globalExistingUser = await this.prisma.user.findFirst({
+      where: { email: { equals: dto.email, mode: 'insensitive' } }
+    });
+
+    if (globalExistingUser) {
+      throw new ConflictException('User with this email already exists in the system');
+    }
+
     // If no tenantId provided, create a new tenant (SaaS mode)
     if (!tenantId) {
       let domain = dto.email.split('@')[1].toLowerCase();
@@ -119,14 +130,8 @@ export class AuthService {
       });
 
       if (existingTenant) {
-        // If tenant exists, add user to that tenant instead of failing
+        // If tenant exists, add user to that tenant
         tenantId = existingTenant.id;
-
-        // Check if user already exists in this tenant
-        const existingUser = await this.usersService.findByEmail(dto.email, tenantId);
-        if (existingUser) {
-          throw new ConflictException('User with this email already exists in this organization');
-        }
       } else {
         // Create new tenant
         const slugBase = dto.email.split('@')[1].toLowerCase();
@@ -141,16 +146,19 @@ export class AuthService {
         });
         tenantId = newTenant.id;
         isNewTenant = true;
+
+        // Create default pipeline for the new tenant
+        try {
+          await this.pipelinesService.createDefaultPipeline(tenantId);
+          console.log(`[Auth] Created default pipeline for new tenant: ${tenantId}`);
+        } catch (e) {
+          console.error(`[Auth] Failed to create default pipeline for tenant ${tenantId}:`, e);
+          // Don't fail registration if pipeline creation fails, 
+          // PipelinesService.findAll will handle it later if needed.
+        }
       }
     } else {
-      // Check if user exists in the specified tenant
-      const existingUser = await this.usersService.findByEmail(
-        dto.email,
-        tenantId,
-      );
-      if (existingUser) {
-        throw new ConflictException('User with this email already exists in this organization');
-      }
+      // Use the provided tenantId
     }
 
     // Use lower salt rounds in development for faster responses (10 is still secure)

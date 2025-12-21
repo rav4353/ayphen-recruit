@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { Plus, Search, Filter, Download, MoreVertical, Copy, XCircle, RefreshCw, Briefcase, Sparkles } from 'lucide-react';
+import { Plus, Search, Filter, Download, MoreVertical, Copy, XCircle, Briefcase, Sparkles } from 'lucide-react';
 import { jobsApi } from '../../lib/api';
 import { StatusBadge, Button, PageHeader } from '../../components/ui';
 import { SavedViews } from '../../components/common/SavedViews';
@@ -54,7 +54,6 @@ export function JobsPage() {
     data: jobsData,
     isLoading,
     error: queryError,
-    refetch,
   } = useJobs({
     tenantId: tenantId || '',
     page,
@@ -147,7 +146,7 @@ export function JobsPage() {
   };
 
   // Memoized filter options from current jobs data
-  const departmentOptions = useMemo(() => 
+  const departmentOptions = useMemo(() =>
     Array.from(new Set(jobs.map((job) => job.department?.name).filter((name): name is string => Boolean(name)))),
     [jobs]
   );
@@ -203,13 +202,13 @@ export function JobsPage() {
   };
 
   // Check if any mutation is in progress
-  const isMutating = updateStatusMutation.isPending || 
-    cloneMutation.isPending || 
-    submitApprovalMutation.isPending || 
+  const isMutating = updateStatusMutation.isPending ||
+    cloneMutation.isPending ||
+    submitApprovalMutation.isPending ||
     bulkUpdateMutation.isPending;
 
   return (
-    <div className="h-full min-h-0 flex flex-col gap-6">
+    <div className="h-full min-h-0 flex flex-col gap-4">
       {/* Premium Page Header */}
       <PageHeader
         title={t('jobs.title')}
@@ -233,16 +232,6 @@ export function JobsPage() {
               onApplyView={handleApplyView}
               onReset={handleResetView}
             />
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-2 bg-white dark:bg-neutral-800 shadow-sm"
-              onClick={() => refetch()}
-              disabled={isLoading}
-            >
-              <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
-              <span className="hidden sm:inline">{t('common.refresh', 'Refresh')}</span>
-            </Button>
             <Button
               variant="outline"
               size="sm"

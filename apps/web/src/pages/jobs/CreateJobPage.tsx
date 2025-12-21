@@ -2,19 +2,18 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { jobsApi } from '../../lib/api';
+import { useCreateJob } from '../../hooks/queries';
 import { JobForm, JobFormData } from '../../components/jobs/JobForm';
-import { useState } from 'react';
 
 export function CreateJobPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { tenantId } = useParams<{ tenantId: string }>();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const createJob = useCreateJob(tenantId || '');
 
   const handleSubmit = async (data: JobFormData, requestApproval: boolean) => {
     if (!tenantId) return;
 
-    setIsSubmitting(true);
     try {
       const skillsArray = data.skills || [];
 
@@ -23,7 +22,7 @@ export function CreateJobPage() {
         ? data.scorecardTemplateId
         : undefined;
 
-      const res = await jobsApi.create(tenantId, {
+      const res = await createJob.mutateAsync({
         ...data,
         skills: skillsArray,
         salaryMin: data.salaryMin ? Number(data.salaryMin) : undefined,
@@ -33,22 +32,18 @@ export function CreateJobPage() {
 
       if (requestApproval) {
         try {
-          await jobsApi.submitApproval(tenantId, res.data.data.id);
+          await jobsApi.submitApproval(tenantId, res.data.id);
           toast.success(t('jobs.create.messages.submittedForApproval'));
         } catch (approvalError) {
           console.error('Failed to submit for approval', approvalError);
           toast.error(t('jobs.create.validation.approvalSubmitError'));
         }
-      } else {
-        toast.success(t('jobs.create.success'));
       }
 
       navigate(`/${tenantId}/jobs`);
     } catch (error) {
       console.error('Failed to create job', error);
-      toast.error(t('jobs.create.error'));
-    } finally {
-      setIsSubmitting(false);
+      // Error toast is handled by useCreateJob
     }
   };
 
@@ -65,7 +60,7 @@ export function CreateJobPage() {
         mode="create"
         onSubmit={handleSubmit}
         onCancel={() => navigate(`/${tenantId}/jobs`)}
-        isSubmitting={isSubmitting}
+        isSubmitting={createJob.isPending}
       />
     </div>
   );

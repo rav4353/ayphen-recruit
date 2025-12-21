@@ -14,11 +14,13 @@ import { SessionService } from './services/session.service';
 import { LoginAttemptService } from './services/login-attempt.service';
 import { SuperAdminModule } from '../super-admin/super-admin.module';
 import { PrismaModule } from '../../prisma/prisma.module';
+import { PipelinesModule } from '../pipelines/pipelines.module';
 
 @Module({
   imports: [
     PrismaModule,
     UsersModule,
+    PipelinesModule,
     forwardRef(() => SuperAdminModule),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({

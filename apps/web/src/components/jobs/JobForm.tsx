@@ -154,7 +154,6 @@ export function JobForm({ initialData, mode, onSubmit, onCancel, isSubmitting = 
             }
         };
         fetchCurrencies();
-        fetchCurrencies();
     }, []);
 
     // Fetch scorecard templates
@@ -849,20 +848,6 @@ export function JobForm({ initialData, mode, onSubmit, onCancel, isSubmitting = 
                         </div>
                     )}
 
-                    <ScorecardModal
-                        isOpen={isCreateScorecardModalOpen}
-                        onClose={() => setIsCreateScorecardModalOpen(false)}
-                        onSubmit={handleCreateScorecard}
-                        isLoading={isCreatingScorecard}
-                        title="Create New Scorecard Template"
-                    />
-
-                    <DepartmentModal
-                        isOpen={isCreateDepartmentModalOpen}
-                        onClose={() => setIsCreateDepartmentModalOpen(false)}
-                        onSubmit={handleCreateDepartment}
-                        isLoading={isCreatingDepartment}
-                    />
 
                     {/* Step 1: Job Details */}
                     {currentStep === 1 && (
@@ -875,11 +860,10 @@ export function JobForm({ initialData, mode, onSubmit, onCancel, isSubmitting = 
                                         <button
                                             type="button"
                                             onClick={() => setAiGenerationMode('fields')}
-                                            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors flex items-center gap-1.5 ${
-                                                aiGenerationMode === 'fields'
-                                                    ? 'bg-white dark:bg-neutral-700 text-blue-600 shadow-sm'
-                                                    : 'text-neutral-500 hover:text-neutral-700'
-                                            }`}
+                                            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors flex items-center gap-1.5 ${aiGenerationMode === 'fields'
+                                                ? 'bg-white dark:bg-neutral-700 text-blue-600 shadow-sm'
+                                                : 'text-neutral-500 hover:text-neutral-700'
+                                                }`}
                                         >
                                             <Wand2 size={14} />
                                             From Fields
@@ -887,11 +871,10 @@ export function JobForm({ initialData, mode, onSubmit, onCancel, isSubmitting = 
                                         <button
                                             type="button"
                                             onClick={() => setAiGenerationMode('prompt')}
-                                            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors flex items-center gap-1.5 ${
-                                                aiGenerationMode === 'prompt'
-                                                    ? 'bg-white dark:bg-neutral-700 text-purple-600 shadow-sm'
-                                                    : 'text-neutral-500 hover:text-neutral-700'
-                                            }`}
+                                            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors flex items-center gap-1.5 ${aiGenerationMode === 'prompt'
+                                                ? 'bg-white dark:bg-neutral-700 text-purple-600 shadow-sm'
+                                                : 'text-neutral-500 hover:text-neutral-700'
+                                                }`}
                                         >
                                             <MessageSquare size={14} />
                                             From Prompt
@@ -1296,6 +1279,21 @@ export function JobForm({ initialData, mode, onSubmit, onCancel, isSubmitting = 
                     </div>
                 </form>
             </Modal>
+
+            <ScorecardModal
+                isOpen={isCreateScorecardModalOpen}
+                onClose={() => setIsCreateScorecardModalOpen(false)}
+                onSubmit={handleCreateScorecard}
+                isLoading={isCreatingScorecard}
+                title="Create New Scorecard Template"
+            />
+
+            <DepartmentModal
+                isOpen={isCreateDepartmentModalOpen}
+                onClose={() => setIsCreateDepartmentModalOpen(false)}
+                onSubmit={handleCreateDepartment}
+                isLoading={isCreatingDepartment}
+            />
         </div >
     );
 }

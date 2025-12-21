@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreatePipelineDto } from './dto/create-pipeline.dto';
 
@@ -38,7 +38,7 @@ export class PipelinesService {
   }
 
   async findAll(tenantId: string) {
-    return this.prisma.pipeline.findMany({
+    const pipelines = await this.prisma.pipeline.findMany({
       where: { tenantId },
       include: {
         stages: { orderBy: { order: 'asc' } },
@@ -46,6 +46,13 @@ export class PipelinesService {
       },
       orderBy: { createdAt: 'desc' },
     });
+
+    if (pipelines.length === 0) {
+      const defaultPipeline = await this.createDefaultPipeline(tenantId);
+      return [defaultPipeline];
+    }
+
+    return pipelines;
   }
 
   async findById(id: string) {
@@ -115,13 +122,31 @@ export class PipelinesService {
   }
 
   async reorderStages(pipelineId: string, stageIds: string[]) {
+    // 1. Verify all stages belong to this pipeline
+    const stages = await this.prisma.pipelineStage.findMany({
+      where: {
+        AND: [
+          { pipelineId },
+          { id: { in: stageIds } }
+        ]
+      },
+      select: { id: true },
+    });
+
+    if (stages.length !== stageIds.length) {
+      throw new BadRequestException('Invalid stage IDs provided. Some stages do not belong to this pipeline or do not exist.');
+    }
+
+    // 2. Perform updates in transaction
     const updates = stageIds.map((id, index) =>
       this.prisma.pipelineStage.update({
         where: { id },
         data: { order: index },
       }),
     );
+
     await this.prisma.$transaction(updates);
+
     return this.findById(pipelineId);
   }
 

@@ -12,9 +12,11 @@ export function VendorSettings() {
         firstName: '',
         lastName: '',
         email: '',
+        vendorId: '',
         role: 'VENDOR'
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [errors, setErrors] = useState<Record<string, string>>({});
 
     const fetchVendors = async () => {
         try {
@@ -40,14 +42,34 @@ export function VendorSettings() {
         e.preventDefault();
         setIsSubmitting(true);
         try {
-            await usersApi.create(formData);
+            await usersApi.create({
+                ...formData,
+                employeeId: formData.vendorId
+            });
             toast.success('Vendor invited successfully');
             setIsModalOpen(false);
-            setFormData({ firstName: '', lastName: '', email: '', role: 'VENDOR' });
+            setFormData({ firstName: '', lastName: '', email: '', vendorId: '', role: 'VENDOR' });
             fetchVendors();
-        } catch (error) {
+        } catch (error: any) {
             console.error('Failed to invite vendor', error);
-            toast.error('Failed to invite vendor');
+            const status = error.response?.status;
+            const msg = error.response?.data?.message;
+
+            if (status === 409 && typeof msg === 'string' && (msg.toLowerCase().includes('vendor id') || msg.toLowerCase().includes('already exists') || msg.toLowerCase().includes('employee id'))) {
+                setErrors({ vendorId: msg });
+            } else if (status === 400 && Array.isArray(msg)) {
+                const newErrors: Record<string, string> = {};
+                msg.forEach((err: string) => {
+                    const lowercaseErr = err.toLowerCase();
+                    if (lowercaseErr.includes('email')) newErrors.email = err;
+                    else if (lowercaseErr.includes('first name') || lowercaseErr.includes('firstname')) newErrors.firstName = err;
+                    else if (lowercaseErr.includes('last name') || lowercaseErr.includes('lastname')) newErrors.lastName = err;
+                    else if (lowercaseErr.includes('vendor id') || lowercaseErr.includes('vendorid') || lowercaseErr.includes('employee id') || lowercaseErr.includes('employeeid')) newErrors.vendorId = err;
+                });
+                setErrors(newErrors);
+            } else {
+                toast.error(typeof msg === 'string' ? msg : 'Failed to invite vendor');
+            }
         } finally {
             setIsSubmitting(false);
         }
@@ -127,7 +149,11 @@ export function VendorSettings() {
                             <Input
                                 required
                                 value={formData.firstName}
-                                onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                                onChange={(e) => {
+                                    setFormData({ ...formData, firstName: e.target.value });
+                                    if (errors.firstName) setErrors(prev => ({ ...prev, firstName: '' }));
+                                }}
+                                error={errors.firstName}
                             />
                         </div>
                         <div className="space-y-2">
@@ -135,9 +161,26 @@ export function VendorSettings() {
                             <Input
                                 required
                                 value={formData.lastName}
-                                onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                                onChange={(e) => {
+                                    setFormData({ ...formData, lastName: e.target.value });
+                                    if (errors.lastName) setErrors(prev => ({ ...prev, lastName: '' }));
+                                }}
+                                error={errors.lastName}
                             />
                         </div>
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium">Vendor ID / Employee ID</label>
+                        <Input
+                            required
+                            value={formData.vendorId}
+                            onChange={(e) => {
+                                setFormData({ ...formData, vendorId: e.target.value });
+                                if (errors.vendorId) setErrors(prev => ({ ...prev, vendorId: '' }));
+                            }}
+                            placeholder="e.g. VEND001"
+                            error={errors.vendorId}
+                        />
                     </div>
                     <div className="space-y-2">
                         <label className="text-sm font-medium">Email</label>
@@ -145,7 +188,12 @@ export function VendorSettings() {
                             type="email"
                             required
                             value={formData.email}
-                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                            onChange={(e) => {
+                                setFormData({ ...formData, email: e.target.value });
+                                if (errors.email) setErrors(prev => ({ ...prev, email: '' }));
+                            }}
+                            placeholder="agent@agency.com"
+                            error={errors.email}
                         />
                     </div>
                     <div className="flex justify-end gap-2 pt-4">

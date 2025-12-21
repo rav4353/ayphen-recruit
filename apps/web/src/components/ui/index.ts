@@ -2,7 +2,6 @@
 export {
   Button,
   buttonVariants,
-  Input,
   Label,
   Textarea,
   Card,
@@ -52,6 +51,8 @@ export {
   AlertDialogCancel,
   Separator,
 } from './shadcn';
+
+export { Input } from './Input';
 
 // Legacy components (to be migrated)
 export { Alert } from './Alert';

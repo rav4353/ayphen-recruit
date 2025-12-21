@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Card, CardHeader, Button, Input, ConfirmationModal } from '../ui';
@@ -34,16 +35,6 @@ export function UserManagementSettings() {
     const [isTogglingStatus, setIsTogglingStatus] = useState(false);
     const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
 
-    // Invite Form State
-    const [inviteForm, setInviteForm] = useState({
-        firstName: '',
-        lastName: '',
-        email: '',
-        role: '',
-        employeeId: '',
-        password: '',
-    });
-
     // Role Management State
     const [rolesList, setRolesList] = useState<any[]>([]);
     const [isLoadingRoles, setIsLoadingRoles] = useState(true);
@@ -53,12 +44,31 @@ export function UserManagementSettings() {
     const [roleToDelete, setRoleToDelete] = useState<string | null>(null);
     const [isDeletingRole, setIsDeletingRole] = useState(false);
 
-    // Update default role when roles are loaded
-    useEffect(() => {
-        if (rolesList.length > 0 && !inviteForm.role) {
-            setInviteForm(prev => ({ ...prev, role: rolesList[0].id }));
+    // Invite Form State (using react-hook-form)
+    const {
+        register: registerInvite,
+        handleSubmit: handleSubmitInvite,
+        setError: setErrorInvite,
+        reset: resetInvite,
+        formState: { errors: inviteErrors },
+    } = useForm({
+        defaultValues: {
+            firstName: '',
+            lastName: '',
+            email: '',
+            role: '',
+            employeeId: '',
+            password: '',
         }
-    }, [rolesList, inviteForm.role]);
+    });
+
+    // We still keep the default role sync but via reset
+    useEffect(() => {
+        if (rolesList.length > 0) {
+            const defaultRole = rolesList.find(r => r.name !== 'SUPER_ADMIN' && r.id !== 'SUPER_ADMIN') || rolesList[0];
+            resetInvite(prev => ({ ...prev, role: defaultRole.id }));
+        }
+    }, [rolesList, resetInvite]);
 
     const [roleForm, setRoleForm] = useState({
         name: '',
@@ -117,23 +127,18 @@ export function UserManagementSettings() {
         }
     };
 
-    const handleInviteUser = async () => {
-        if (!inviteForm.email || !inviteForm.firstName || !inviteForm.lastName || !inviteForm.password || !inviteForm.employeeId) {
-            toast.error('Please fill in all fields');
-            return;
-        }
-
+    const handleInviteUser = async (data: any) => {
         setIsInviting(true);
         try {
             // Find selected role
-            const selectedRole = rolesList.find(r => r.id === inviteForm.role);
+            const selectedRole = rolesList.find(r => r.id === data.role);
 
             const payload: any = {
-                firstName: inviteForm.firstName,
-                lastName: inviteForm.lastName,
-                email: inviteForm.email,
-                employeeId: inviteForm.employeeId,
-                password: inviteForm.password,
+                firstName: data.firstName,
+                lastName: data.lastName,
+                email: data.email,
+                employeeId: data.employeeId,
+                password: data.password,
             };
 
             if (selectedRole) {
@@ -144,25 +149,40 @@ export function UserManagementSettings() {
                     payload.roleId = selectedRole.id;
                 }
             } else {
-                payload.role = inviteForm.role;
+                payload.role = data.role;
             }
 
             await usersApi.create(payload);
             toast.success('User invited successfully');
             setIsInviteModalOpen(false);
-            setInviteForm({
+            resetInvite({
                 firstName: '',
                 lastName: '',
                 email: '',
-                role: rolesList.length > 0 ? rolesList[0].id : '',
+                role: rolesList.length > 0 ? (rolesList.find(r => r.name !== 'SUPER_ADMIN' && r.id !== 'SUPER_ADMIN')?.id || rolesList[0].id) : '',
                 employeeId: '',
                 password: '',
             });
             fetchUsers();
         } catch (error: any) {
             console.error('Failed to invite user', error);
-            const msg = error.response?.data?.message || 'Failed to invite user';
-            toast.error(msg);
+            const status = error.response?.status;
+            const msg = error.response?.data?.message;
+
+            if (status === 409 && typeof msg === 'string' && (msg.includes('Employee ID') || msg.includes('exists'))) {
+                setErrorInvite('employeeId', { type: 'manual', message: msg });
+            } else if (status === 400 && Array.isArray(msg)) {
+                msg.forEach((err: string) => {
+                    const lowercaseErr = err.toLowerCase();
+                    if (lowercaseErr.includes('email')) setErrorInvite('email', { message: err });
+                    else if (lowercaseErr.includes('first name') || lowercaseErr.includes('firstname')) setErrorInvite('firstName', { message: err });
+                    else if (lowercaseErr.includes('last name') || lowercaseErr.includes('lastname')) setErrorInvite('lastName', { message: err });
+                    else if (lowercaseErr.includes('employee id') || lowercaseErr.includes('employeeid')) setErrorInvite('employeeId', { message: err });
+                    else if (lowercaseErr.includes('password')) setErrorInvite('password', { message: err });
+                });
+            } else {
+                toast.error(typeof msg === 'string' ? msg : 'Failed to invite user');
+            }
         } finally {
             setIsInviting(false);
         }
@@ -803,7 +823,7 @@ export function UserManagementSettings() {
             {/* Invite User Modal */}
             {isInviteModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-                    <div className="bg-white dark:bg-neutral-800 rounded-lg shadow-xl max-w-md w-full p-6 space-y-4">
+                    <form onSubmit={handleSubmitInvite(handleInviteUser)} className="bg-white dark:bg-neutral-800 rounded-lg shadow-xl max-w-md w-full p-6 space-y-4">
                         <h3 className="text-lg font-bold text-neutral-900 dark:text-white">Invite User</h3>
                         <div className="space-y-4">
                             <div className="grid grid-cols-2 gap-4">
@@ -812,9 +832,9 @@ export function UserManagementSettings() {
                                         First Name
                                     </label>
                                     <Input
-                                        value={inviteForm.firstName}
-                                        onChange={(e) => setInviteForm({ ...inviteForm, firstName: e.target.value })}
                                         placeholder="Jane"
+                                        error={inviteErrors.firstName?.message}
+                                        {...registerInvite('firstName', { required: 'First name is required' })}
                                     />
                                 </div>
                                 <div>
@@ -822,9 +842,9 @@ export function UserManagementSettings() {
                                         Last Name
                                     </label>
                                     <Input
-                                        value={inviteForm.lastName}
-                                        onChange={(e) => setInviteForm({ ...inviteForm, lastName: e.target.value })}
                                         placeholder="Doe"
+                                        error={inviteErrors.lastName?.message}
+                                        {...registerInvite('lastName', { required: 'Last name is required' })}
                                     />
                                 </div>
                             </div>
@@ -833,9 +853,9 @@ export function UserManagementSettings() {
                                     Employee ID / Vendor ID <span className="text-red-500">*</span>
                                 </label>
                                 <Input
-                                    value={inviteForm.employeeId}
-                                    onChange={(e) => setInviteForm({ ...inviteForm, employeeId: e.target.value })}
                                     placeholder="EMP001"
+                                    error={inviteErrors.employeeId?.message}
+                                    {...registerInvite('employeeId', { required: 'ID is required' })}
                                 />
                             </div>
                             <div>
@@ -844,9 +864,12 @@ export function UserManagementSettings() {
                                 </label>
                                 <Input
                                     type="email"
-                                    value={inviteForm.email}
-                                    onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })}
                                     placeholder="jane@company.com"
+                                    error={inviteErrors.email?.message}
+                                    {...registerInvite('email', {
+                                        required: 'Email is required',
+                                        pattern: { value: /^\S+@\S+$/i, message: 'Invalid email' }
+                                    })}
                                 />
                             </div>
                             <div>
@@ -855,15 +878,16 @@ export function UserManagementSettings() {
                                 </label>
                                 <select
                                     className="w-full px-3 py-2 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    value={inviteForm.role}
-                                    onChange={(e) => setInviteForm({ ...inviteForm, role: e.target.value })}
+                                    {...registerInvite('role')}
                                 >
                                     {rolesList.length > 0 ? (
-                                        rolesList.map(role => (
-                                            <option key={role.id} value={role.id}>
-                                                {role.name}
-                                            </option>
-                                        ))
+                                        rolesList
+                                            .filter(role => role.name !== 'SUPER_ADMIN' && role.id !== 'SUPER_ADMIN')
+                                            .map(role => (
+                                                <option key={role.id} value={role.id}>
+                                                    {role.name}
+                                                </option>
+                                            ))
                                     ) : (
                                         <option value="" disabled>Loading roles...</option>
                                     )}
@@ -875,21 +899,24 @@ export function UserManagementSettings() {
                                 </label>
                                 <Input
                                     type="password"
-                                    value={inviteForm.password}
-                                    onChange={(e) => setInviteForm({ ...inviteForm, password: e.target.value })}
                                     placeholder="********"
+                                    error={inviteErrors.password?.message}
+                                    {...registerInvite('password', { required: 'Password is required' })}
                                 />
                             </div>
                         </div>
                         <div className="flex justify-end gap-3 pt-4">
-                            <Button variant="ghost" onClick={() => setIsInviteModalOpen(false)}>
+                            <Button variant="ghost" type="button" onClick={() => {
+                                setIsInviteModalOpen(false);
+                                resetInvite();
+                            }}>
                                 Cancel
                             </Button>
-                            <Button onClick={handleInviteUser} isLoading={isInviting}>
+                            <Button type="submit" isLoading={isInviting}>
                                 Send Invitation
                             </Button>
                         </div>
-                    </div>
+                    </form>
                 </div>
             )}
 
@@ -1054,12 +1081,12 @@ export function UserManagementSettings() {
                                     }}
                                 >
                                     <optgroup label="Default Roles">
-                                        {rolesList.filter(r => r.isSystem).map(role => (
+                                        {rolesList.filter(r => r.isSystem && r.name !== 'SUPER_ADMIN' && r.id !== 'SUPER_ADMIN').map(role => (
                                             <option key={role.id} value={role.id}>{role.name}</option>
                                         ))}
                                     </optgroup>
                                     <optgroup label="Custom Roles">
-                                        {rolesList.filter(r => !r.isSystem).map(role => (
+                                        {rolesList.filter(r => !r.isSystem && r.name !== 'SUPER_ADMIN' && r.id !== 'SUPER_ADMIN').map(role => (
                                             <option key={role.id} value={role.id}>{role.name}</option>
                                         ))}
                                     </optgroup>

@@ -56,7 +56,7 @@ export function ForcedPasswordChangeModal({ isOpen }: ForcedPasswordChangeModalP
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
             <div className="bg-white dark:bg-neutral-900 rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
                 <div className="flex items-start gap-3 mb-4">
                     <div className="p-2 bg-orange-100 dark:bg-orange-900/20 rounded-lg">

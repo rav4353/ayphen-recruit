@@ -28,7 +28,12 @@ async function main() {
         let employeeId = await generateEmployeeId();
         let unique = false;
         while (!unique) {
-            const existing = await prisma.user.findUnique({ where: { employeeId } });
+            const existing = await prisma.user.findFirst({
+                where: {
+                    employeeId,
+                    tenantId: user.tenantId
+                }
+            });
             if (!existing) unique = true;
             else employeeId = await generateEmployeeId();
         }
@@ -51,7 +56,12 @@ async function main() {
         let candidateId = await generateCandidateId();
         let unique = false;
         while (!unique) {
-            const existing = await prisma.candidate.findUnique({ where: { candidateId } });
+            const existing = await prisma.candidate.findFirst({
+                where: {
+                    candidateId,
+                    tenantId: candidate.tenantId
+                }
+            });
             if (!existing) unique = true;
             else candidateId = await generateCandidateId();
         }
@@ -78,7 +88,12 @@ async function main() {
         let jobCode = await generateJobCode();
         let unique = false;
         while (!unique) {
-            const existing = await prisma.job.findUnique({ where: { jobCode } });
+            const existing = await prisma.job.findFirst({
+                where: {
+                    jobCode,
+                    tenantId: job.tenantId
+                }
+            });
             if (!existing) unique = true;
             else jobCode = await generateJobCode();
         }

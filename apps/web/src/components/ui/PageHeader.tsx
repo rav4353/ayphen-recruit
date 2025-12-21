@@ -32,32 +32,32 @@ const gradientClasses = {
     cyan: 'from-cyan-600/5 via-cyan-600/5 to-transparent dark:from-cyan-600/10 dark:via-cyan-600/10',
 };
 
-export function PageHeader({ 
-    title, 
-    subtitle, 
-    icon: Icon, 
-    iconColor = 'blue', 
-    actions, 
+export function PageHeader({
+    title,
+    subtitle,
+    icon: Icon,
+    iconColor = 'blue',
+    actions,
     badge,
-    children 
+    children
 }: PageHeaderProps) {
     const BadgeIcon = badge?.icon;
-    
+
     return (
-        <motion.div 
+        <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="relative overflow-hidden mb-6 sm:mb-8"
+            className="relative overflow-hidden"
         >
             {/* Background gradient */}
             <div className={`absolute inset-0 bg-gradient-to-br ${gradientClasses[iconColor]} rounded-2xl`} />
             <div className="absolute top-0 right-0 w-72 h-72 bg-gradient-to-br from-white/40 to-transparent dark:from-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
-            
+
             <div className="relative py-6 sm:py-8 px-4 sm:px-6">
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 sm:gap-6">
                     <div className="flex items-start gap-4">
                         {Icon && (
-                            <motion.div 
+                            <motion.div
                                 initial={{ scale: 0 }}
                                 animate={{ scale: 1 }}
                                 transition={{ type: 'spring', bounce: 0.4 }}
@@ -72,7 +72,7 @@ export function PageHeader({
                                     {title}
                                 </h1>
                                 {badge && (
-                                    <motion.span 
+                                    <motion.span
                                         initial={{ scale: 0 }}
                                         animate={{ scale: 1 }}
                                         transition={{ delay: 0.2 }}
@@ -90,9 +90,9 @@ export function PageHeader({
                             )}
                         </div>
                     </div>
-                    
+
                     {actions && (
-                        <motion.div 
+                        <motion.div
                             initial={{ opacity: 0, x: 20 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: 0.1 }}
@@ -102,9 +102,9 @@ export function PageHeader({
                         </motion.div>
                     )}
                 </div>
-                
+
                 {children && (
-                    <motion.div 
+                    <motion.div
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.15 }}

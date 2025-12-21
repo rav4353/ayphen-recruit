@@ -193,7 +193,13 @@ export function OtpLoginPage() {
         <KeyRound className="w-8 h-8 text-primary-500" />
       </div>
 
-      <form onSubmit={handleSubmit(requestOtp)} className="space-y-6">
+      <form
+        id="otp-login-form"
+        name="otp-login"
+        onSubmit={handleSubmit(requestOtp)}
+        method="POST"
+        className="space-y-6"
+      >
         {error && (
           <Alert variant="error" className="animate-in fade-in slide-in-from-top-1 duration-200">
             {error}
@@ -202,28 +208,23 @@ export function OtpLoginPage() {
 
         {/* Email Field */}
         <div className="space-y-2">
-          <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 uppercase tracking-wide">
-            {t('auth.otp.email')}
-          </label>
-          <div className="relative group">
-            <Mail
-              size={18}
-              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 group-focus-within:text-primary-500 transition-colors"
-            />
-            <Input
-              type="email"
-              placeholder={t('auth.otp.emailPlaceholder')}
-              error={errors.email?.message}
-              className="pl-11 h-12 text-base border-neutral-200 dark:border-neutral-700 focus:border-primary-500 focus:ring-primary-500/20 rounded-xl"
-              {...register('email', {
-                required: t('auth.validation.emailRequired'),
-                pattern: {
-                  value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                  message: t('auth.validation.emailInvalid'),
-                },
-              })}
-            />
-          </div>
+          <Input
+            id="otp-email"
+            type="email"
+            label={t('auth.otp.email')}
+            placeholder={t('auth.otp.emailPlaceholder')}
+            error={errors.email?.message}
+            leftIcon={<Mail size={18} />}
+            autoComplete="email"
+            className="h-12 text-base rounded-xl transition-all"
+            {...register('email', {
+              required: t('auth.validation.emailRequired'),
+              pattern: {
+                value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                message: t('auth.validation.emailInvalid'),
+              },
+            })}
+          />
         </div>
 
         <Button

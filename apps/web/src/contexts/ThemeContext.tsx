@@ -17,7 +17,7 @@ function getSystemTheme(): 'light' | 'dark' {
   if (typeof window !== 'undefined') {
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   }
-  return 'dark';
+  return 'light';
 }
 
 function getTimeBasedTheme(): 'light' | 'dark' {
@@ -45,9 +45,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(() => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem(THEME_KEY) as Theme | null;
-      return stored || 'system';
+      return stored || 'light';
     }
-    return 'system';
+    return 'light';
   });
 
   const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>(() => {
@@ -72,7 +72,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     if (theme !== 'system') return;
 
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    
+
     const handleChange = (e: MediaQueryListEvent) => {
       const newTheme = e.matches ? 'dark' : 'light';
       setResolvedTheme(newTheme);

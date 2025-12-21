@@ -55,13 +55,13 @@ export function useUpdateApplicationStatus() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ 
-      applicationId, 
-      status, 
-      reason 
-    }: { 
-      applicationId: string; 
-      status: string; 
+    mutationFn: async ({
+      applicationId,
+      status,
+      reason
+    }: {
+      applicationId: string;
+      status: string;
       reason?: string;
     }) => {
       log.info('Updating application status', { applicationId, status });
@@ -97,6 +97,28 @@ export function useCopyToJob() {
     onError: (error: Error & { response?: { data?: { message?: string } } }) => {
       const message = error.response?.data?.message || 'Failed to copy candidates';
       log.error('Failed to copy applications', error);
+      toast.error(message);
+    },
+  });
+}
+
+// Create application
+export function useCreateApplication() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: any) => {
+      log.info('Creating application');
+      const response = await applicationsApi.create(data);
+      return response.data;
+    },
+    onSuccess: () => {
+      toast.success('Candidate added successfully');
+      queryClient.invalidateQueries({ queryKey: applicationKeys.lists() });
+    },
+    onError: (error: Error & { response?: { data?: { message?: string } } }) => {
+      const message = error.response?.data?.message || 'Failed to add candidate';
+      log.error('Failed to create application', error);
       toast.error(message);
     },
   });

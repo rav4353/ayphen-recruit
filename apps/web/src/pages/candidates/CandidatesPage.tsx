@@ -19,7 +19,7 @@ export function CandidatesPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { tenantId } = useParams<{ tenantId: string }>();
-  
+
   // Filter state
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -168,7 +168,7 @@ export function CandidatesPage() {
   };
 
   return (
-    <div className="flex flex-col gap-6 h-full">
+    <div className="flex flex-col gap-4 h-full">
       {/* Bulk Actions Toolbar */}
       {selectedIds.length > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 shadow-2xl rounded-2xl px-5 py-3 flex items-center gap-4 animate-in slide-in-from-bottom-4">
@@ -206,20 +206,6 @@ export function CandidatesPage() {
         badge={{ text: 'Talent Pool', icon: Sparkles }}
         actions={
           <>
-            <SavedViews
-              entity="CANDIDATE"
-              currentFilters={{
-                search: searchQuery,
-                location: filters.location,
-                skills: filters.skills,
-                status: filters.status,
-                source: filters.source,
-                sortBy,
-                sortOrder,
-              }}
-              onApplyView={handleApplyView}
-              onReset={handleResetView}
-            />
             <Button
               variant="outline"
               size="sm"
@@ -350,86 +336,86 @@ export function CandidatesPage() {
 
           <div className="flex-1 overflow-auto pb-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-            {candidates.map((candidate) => (
-              <div
-                key={candidate.id}
-                className={`bg-white dark:bg-neutral-900 border rounded-xl p-5 hover:shadow-md transition-all cursor-pointer relative group ${selectedIds.includes(candidate.id)
-                  ? 'border-primary-500 dark:border-primary-500 ring-2 ring-primary-500/20'
-                  : 'border-neutral-200 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700'
-                  }`}
-                onClick={(e) => {
-                  if ((e.target as HTMLElement).closest('input[type="checkbox"]')) return;
-                  navigate(`/${tenantId}/candidates/${candidate.id}`);
-                }}
-              >
-                <div className="absolute top-4 right-4 z-10">
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.includes(candidate.id)}
-                    onChange={() => toggleSelection(candidate.id)}
-                    className="w-4 h-4 text-primary-600 border-neutral-300 rounded focus:ring-primary-500 dark:focus:ring-primary-600 dark:ring-offset-neutral-800 dark:bg-neutral-700 dark:border-neutral-600"
-                  />
-                </div>
+              {candidates.map((candidate) => (
+                <div
+                  key={candidate.id}
+                  className={`bg-white dark:bg-neutral-900 border rounded-xl p-5 hover:shadow-md transition-all cursor-pointer relative group flex flex-col h-full ${selectedIds.includes(candidate.id)
+                    ? 'border-primary-500 dark:border-primary-500 ring-2 ring-primary-500/20'
+                    : 'border-neutral-200 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700'
+                    }`}
+                  onClick={(e) => {
+                    if ((e.target as HTMLElement).closest('input[type="checkbox"]')) return;
+                    navigate(`/${tenantId}/candidates/${candidate.id}`);
+                  }}
+                >
+                  <div className="absolute top-4 right-4 z-10">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(candidate.id)}
+                      onChange={() => toggleSelection(candidate.id)}
+                      className="w-4 h-4 text-primary-600 border-neutral-300 rounded focus:ring-primary-500 dark:focus:ring-primary-600 dark:ring-offset-neutral-800 dark:bg-neutral-700 dark:border-neutral-600"
+                    />
+                  </div>
 
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary-500 to-purple-500 flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
-                    {(candidate.firstName?.[0] || '')}{(candidate.lastName?.[0] || '')}
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary-500 to-purple-500 flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
+                      {(candidate.firstName?.[0] || '')}{(candidate.lastName?.[0] || '')}
+                    </div>
+                    <div className="flex-1 min-w-0 pr-6">
+                      <h3 className="text-neutral-900 dark:text-white font-semibold truncate text-sm">
+                        {candidate.firstName} {candidate.lastName}
+                      </h3>
+                      {candidate.candidateId && (
+                        <span className="inline-flex text-[10px] font-mono text-neutral-500 bg-neutral-100 dark:bg-neutral-800 px-1.5 py-0.5 rounded mt-1">
+                          {candidate.candidateId}
+                        </span>
+                      )}
+                      <p className="text-neutral-600 dark:text-neutral-400 text-sm mt-1">{candidate.currentTitle || t('candidates.noTitle')}</p>
+                      <p className="text-neutral-400 text-xs">{candidate.currentCompany || t('candidates.noCompany')}</p>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0 pr-6">
-                    <h3 className="text-neutral-900 dark:text-white font-semibold truncate text-sm">
-                      {candidate.firstName} {candidate.lastName}
-                    </h3>
-                    {candidate.candidateId && (
-                      <span className="inline-flex text-[10px] font-mono text-neutral-500 bg-neutral-100 dark:bg-neutral-800 px-1.5 py-0.5 rounded mt-1">
-                        {candidate.candidateId}
-                      </span>
-                    )}
-                    <p className="text-neutral-600 dark:text-neutral-400 text-sm mt-1">{candidate.currentTitle || t('candidates.noTitle')}</p>
-                    <p className="text-neutral-400 text-xs">{candidate.currentCompany || t('candidates.noCompany')}</p>
-                  </div>
-                </div>
 
-                <div className="mt-4 space-y-1.5">
-                  <div className="flex items-center gap-2 text-neutral-500 dark:text-neutral-400 text-xs">
-                    <Mail size={12} />
-                    <span className="truncate">{candidate.email}</span>
-                  </div>
-                  {candidate.phone && (
+                  <div className="mt-4 space-y-1.5">
                     <div className="flex items-center gap-2 text-neutral-500 dark:text-neutral-400 text-xs">
-                      <Phone size={12} />
-                      <span>{candidate.phone}</span>
+                      <Mail size={12} />
+                      <span className="truncate">{candidate.email}</span>
+                    </div>
+                    {candidate.phone && (
+                      <div className="flex items-center gap-2 text-neutral-500 dark:text-neutral-400 text-xs">
+                        <Phone size={12} />
+                        <span>{candidate.phone}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {candidate.skills && candidate.skills.length > 0 && (
+                    <div className="mt-4 flex flex-wrap gap-1.5">
+                      {candidate.skills.slice(0, 3).map((skill) => (
+                        <span
+                          key={skill}
+                          className="px-2 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 text-[11px] font-medium"
+                        >
+                          {skill}
+                        </span>
+                      ))}
+                      {candidate.skills.length > 3 && (
+                        <span className="px-2 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400 text-[11px]">
+                          +{candidate.skills.length - 3}
+                        </span>
+                      )}
                     </div>
                   )}
-                </div>
 
-                {candidate.skills && candidate.skills.length > 0 && (
-                  <div className="mt-4 flex flex-wrap gap-1.5">
-                    {candidate.skills.slice(0, 3).map((skill) => (
-                      <span
-                        key={skill}
-                        className="px-2 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 text-[11px] font-medium"
-                      >
-                        {skill}
-                      </span>
-                    ))}
-                    {candidate.skills.length > 3 && (
-                      <span className="px-2 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400 text-[11px]">
-                        +{candidate.skills.length - 3}
-                      </span>
-                    )}
+                  <div className="mt-auto pt-3 border-t border-neutral-100 dark:border-neutral-800 flex items-center justify-between">
+                    <span className="text-xs text-neutral-400">
+                      {candidate._count?.applications || 0} {t('candidates.applicationsCount')}
+                    </span>
+                    <span className="text-xs font-medium text-primary-600 dark:text-primary-400 group-hover:underline">
+                      {t('candidates.viewProfile')} →
+                    </span>
                   </div>
-                )}
-
-                <div className="mt-4 pt-3 border-t border-neutral-100 dark:border-neutral-800 flex items-center justify-between">
-                  <span className="text-xs text-neutral-400">
-                    {candidate._count?.applications || 0} {t('candidates.applicationsCount')}
-                  </span>
-                  <span className="text-xs font-medium text-primary-600 dark:text-primary-400 group-hover:underline">
-                    {t('candidates.viewProfile')} →
-                  </span>
                 </div>
-              </div>
-            ))}
+              ))}
             </div>
           </div>
 

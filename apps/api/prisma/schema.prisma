@@ -145,7 +145,7 @@ model Tenant {
 
 model User {
   id           String     @id @default(uuid())
-  employeeId   String?    @unique
+  employeeId   String?
   email        String
   passwordHash String?
   firstName    String
@@ -248,6 +248,7 @@ model User {
   readAnnouncements AnnouncementReadStatus[]
 
   @@unique([email, tenantId])
+  @@unique([employeeId, tenantId])
   @@index([tenantId])
   @@index([email])
   @@map("users")
@@ -434,7 +435,7 @@ model Location {
 
 model Job {
   id              String         @id @default(uuid())
-  jobCode         String?        @unique // e.g. JOB-123456
+  jobCode         String?
   title           String
   description     String         @db.Text
   requirements    String?        @db.Text
@@ -490,6 +491,7 @@ model Job {
   // Vector embedding for semantic search
   embedding Unsupported("vector(1536)")?
 
+  @@unique([jobCode, tenantId])
   @@index([tenantId])
   @@index([status])
   @@index([departmentId])
@@ -578,7 +580,7 @@ model JobApproval {
 
 model Candidate {
   id             String   @id @default(uuid())
-  candidateId    String?  @unique
+  candidateId    String?
   email          String
   firstName      String
   lastName       String
@@ -620,6 +622,7 @@ model Candidate {
   embedding Unsupported("vector(1536)")?
 
   @@unique([email, tenantId])
+  @@unique([candidateId, tenantId])
   @@index([tenantId])
   @@index([email])
   @@map("candidates")

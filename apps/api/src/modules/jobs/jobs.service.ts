@@ -4,6 +4,7 @@ import { CreateJobDto } from './dto/create-job.dto';
 import { UpdateJobDto } from './dto/update-job.dto';
 import { JobQueryDto } from './dto/job-query.dto';
 import * as crypto from 'crypto';
+import { Prisma } from '@prisma/client';
 
 import { JobBoardsService } from '../integrations/job-boards.service';
 import { SettingsService } from '../settings/settings.service';
@@ -73,7 +74,12 @@ export class JobsService {
       let jobCode = await this.generateJobCode();
       let unique = false;
       while (!unique) {
-        const existing = await this.prisma.job.findUnique({ where: { jobCode } });
+        const existing = await this.prisma.job.findFirst({
+          where: {
+            jobCode,
+            tenantId
+          }
+        });
         if (!existing) unique = true;
         else jobCode = await this.generateJobCode();
       }
@@ -102,6 +108,27 @@ export class JobsService {
       });
     } catch (error) {
       console.error('[JobsService] Failed to create job:', error);
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2003') {
+          const field = error.meta?.field_name as string;
+          if (field?.includes('hiringManagerId')) {
+            throw new BadRequestException('Invalid Hiring Manager selected. The user may not exist.');
+          }
+          if (field?.includes('recruiterId')) {
+            throw new BadRequestException('Invalid Recruiter selected. The user may not exist.');
+          }
+          if (field?.includes('pipelineId')) {
+            throw new BadRequestException('Invalid Pipeline selected. The pipeline may not exist.');
+          }
+          if (field?.includes('scorecardTemplateId')) {
+            throw new BadRequestException('Invalid Scorecard Template selected.');
+          }
+          throw new BadRequestException(`Foreign key constraint failed on field: ${field}`);
+        }
+        if (error.code === 'P2002') {
+          throw new BadRequestException('A job with this unique code already exists. Please try again.');
+        }
+      }
       throw error;
     }
   }

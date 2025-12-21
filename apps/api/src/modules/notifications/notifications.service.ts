@@ -20,7 +20,7 @@ export interface NotificationFilters {
 
 @Injectable()
 export class NotificationsService {
-    constructor(private readonly prisma: PrismaService) {}
+    constructor(private readonly prisma: PrismaService) { }
 
     /**
      * Create a notification for a user
@@ -329,7 +329,7 @@ export class NotificationsService {
         const notifications = recipientIds.map(userId => ({
             type: 'JOB' as NotificationType,
             title: statusMessages[status] || `Job ${status}`,
-            message: `${job.title} - ${job.department || 'Position'}`,
+            message: `${job.title}${job.department ? ` - ${typeof job.department === 'object' ? job.department.name : job.department}` : ''}`,
             link: `/jobs/${job.id}`,
             metadata: { jobId: job.id, status },
             userId,

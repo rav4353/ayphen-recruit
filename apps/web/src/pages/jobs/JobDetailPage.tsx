@@ -17,6 +17,7 @@ import {
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../../stores/auth';
 import { jobsApi, applicationsApi, referenceApi } from '../../lib/api';
+import { useCreateApplication } from '../../hooks/queries';
 import { Button, Card, StatusBadge, RejectionModal } from '../../components/ui';
 import { PublishJobModal } from '../../components/jobs/PublishJobModal';
 import { AddApplicantModal } from '../../components/jobs/AddApplicantModal';
@@ -77,7 +78,6 @@ export function JobDetailPage() {
             setSelectedApplicantIds(prev => [...prev, id]);
         }
     };
-    const [isAddingApplicant, setIsAddingApplicant] = useState(false);
 
     const pendingApproval = job?.approvals?.find(
         (a) => a.approverId === user?.id && a.status === 'PENDING'
@@ -179,37 +179,24 @@ export function JobDetailPage() {
 
 
 
+    const createApplication = useCreateApplication();
+
     const handleAddApplicant = async (candidateId: string) => {
         if (!job || !tenantId) return;
-        setIsAddingApplicant(true);
         try {
-            await applicationsApi.create({
+            await createApplication.mutateAsync({
                 candidateId,
                 jobId: job.id
             });
-            toast.success('Candidate added to job');
-            // Refresh applicants
+            setIsAddApplicantModalOpen(false);
+
+            // Re-fetch applications manually as we are using local state for now
             const appsRes = await applicationsApi.getByJob(job.id);
             const appsData = (appsRes.data as any).data;
             setApplications(Array.isArray(appsData) ? appsData : (appsData?.items || []));
-            setIsAddApplicantModalOpen(false);
         } catch (err: any) {
             console.error(err);
-            if (err.response?.status === 400) {
-                toast.error('Candidate already applied to this job');
-                // Force refresh to sync state so duplicate is disabled in modal
-                try {
-                    const appsRes = await applicationsApi.getByJob(job.id);
-                    const appsData = (appsRes.data as any).data;
-                    setApplications(Array.isArray(appsData) ? appsData : (appsData?.items || []));
-                } catch (refreshErr) {
-                    console.error('Failed to refresh applications', refreshErr);
-                }
-            } else {
-                toast.error('Failed to add candidate to job');
-            }
-        } finally {
-            setIsAddingApplicant(false);
+            // Error toast handled by mutation
         }
     };
 
@@ -699,7 +686,7 @@ export function JobDetailPage() {
                 isOpen={isAddApplicantModalOpen}
                 onClose={() => setIsAddApplicantModalOpen(false)}
                 onAdd={handleAddApplicant}
-                isAdding={isAddingApplicant}
+                isAdding={createApplication.isPending}
                 alreadyAppliedIds={applications.map(app => app.candidateId)}
             />
 

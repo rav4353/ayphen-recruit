@@ -39,7 +39,7 @@ export function useCandidates(params: UseCandidatesParams = {}) {
     queryKey: candidateKeys.list(params as Record<string, unknown>),
     queryFn: async (): Promise<CandidatesResponse> => {
       log.debug('Fetching candidates', { params });
-      
+
       const response = await candidatesApi.getAll({
         page: params.page,
         take: params.take,
@@ -179,6 +179,28 @@ export function useUpdateCandidate() {
     onError: (error: Error & { response?: { data?: { message?: string } } }) => {
       const message = error.response?.data?.message || 'Failed to update candidate';
       log.error('Failed to update candidate', error);
+      toast.error(message);
+    },
+  });
+}
+
+// Create candidate
+export function useCreateCandidate() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: Record<string, unknown>) => {
+      log.info('Creating candidate');
+      const response = await candidatesApi.create(data);
+      return response.data;
+    },
+    onSuccess: () => {
+      toast.success('Candidate created successfully');
+      queryClient.invalidateQueries({ queryKey: candidateKeys.lists() });
+    },
+    onError: (error: Error & { response?: { data?: { message?: string } } }) => {
+      const message = error.response?.data?.message || 'Failed to create candidate';
+      log.error('Failed to create candidate', error);
       toast.error(message);
     },
   });

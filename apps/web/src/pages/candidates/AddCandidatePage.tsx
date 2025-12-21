@@ -1,19 +1,17 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
-import toast from 'react-hot-toast';
-import { candidatesApi } from '../../lib/api';
+import { useCreateCandidate } from '../../hooks/queries';
 import { CandidateForm, CandidateFormData } from '../../components/candidates/CandidateForm';
 
 export function AddCandidatePage() {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const { tenantId } = useParams<{ tenantId: string }>();
-    const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
+    const createCandidate = useCreateCandidate();
 
     const onSubmit = async (data: CandidateFormData) => {
-        setIsLoading(true);
         setError('');
 
         try {
@@ -21,12 +19,11 @@ export function AddCandidatePage() {
                 ? data.skills.split(',').map((s) => s.trim()).filter(Boolean)
                 : [];
 
-            await candidatesApi.create({
+            await createCandidate.mutateAsync({
                 ...data,
                 skills: skillsArray,
             });
 
-            toast.success(t('candidates.createSuccess', 'Candidate created successfully'));
             navigate(`/${tenantId}/candidates`);
         } catch (err: unknown) {
             const error = err as { response?: { status?: number; data?: { message?: string } } };
@@ -35,8 +32,6 @@ export function AddCandidatePage() {
             } else {
                 setError(error.response?.data?.message || t('candidates.createError'));
             }
-        } finally {
-            setIsLoading(false);
         }
     };
 
@@ -53,7 +48,7 @@ export function AddCandidatePage() {
 
             <CandidateForm
                 onSubmit={onSubmit}
-                isLoading={isLoading}
+                isLoading={createCandidate.isPending}
                 submitLabel={t('common.create', 'Create')}
                 error={error}
                 enableUnsavedWarning={true}

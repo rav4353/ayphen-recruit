@@ -21,22 +21,33 @@ export class UsersService {
     try {
       const { departmentId, role, password, customPermissions, roleId, ...userData } = dto as any;
 
-      // Check if user with this email or employeeId already exists in this tenant
-      const existingUser = await this.prisma.user.findFirst({
+      const email = dto.email.toLowerCase();
+      const employeeId = dto.employeeId?.trim();
+
+      // Check if user with this email already exists in this tenant (case-insensitive)
+      const existingEmail = await this.prisma.user.findFirst({
         where: {
           tenantId,
-          OR: [
-            { email: dto.email },
-            { employeeId: dto.employeeId }
-          ]
+          email: { equals: email, mode: 'insensitive' }
         },
       });
 
-      if (existingUser) {
-        if (existingUser.email === dto.email) {
-          throw new ConflictException(`User with email ${dto.email} already exists in this organization`);
+      if (existingEmail) {
+        throw new ConflictException(`User with email ${dto.email} already exists in this organization`);
+      }
+
+      // Check if user with this Employee ID / Vendor ID already exists in this organization
+      if (employeeId) {
+        const existingEmployee = await this.prisma.user.findFirst({
+          where: {
+            tenantId,
+            employeeId: { equals: employeeId, mode: 'insensitive' }
+          }
+        });
+
+        if (existingEmployee) {
+          throw new ConflictException(`User with Employee ID / Vendor ID ${employeeId} already exists in this organization`);
         }
-        throw new ConflictException(`User with Employee ID ${dto.employeeId} already exists in this organization`);
       }
 
       let passwordHash = undefined;
@@ -51,7 +62,8 @@ export class UsersService {
       const user = await this.prisma.user.create({
         data: {
           ...userData,
-          employeeId: dto.employeeId || this.generateEmployeeId(),
+          email: email,
+          employeeId: employeeId || await this.generateUniqueEmployeeId(tenantId),
           tenantId,
           ...(passwordHash && { passwordHash }),
           ...(role && { role }), // Ensure role is valid UserRole enum or ignored
@@ -160,10 +172,36 @@ export class UsersService {
   async update(id: string, dto: UpdateUserDto) {
     const user = await this.findById(id);
     const { departmentId, role, customPermissions, roleId, password, ...userData } = dto;
+
+    if (dto.email && dto.email.toLowerCase() !== user.email.toLowerCase()) {
+      const existing = await this.prisma.user.findFirst({
+        where: {
+          tenantId: user.tenantId,
+          email: { equals: dto.email, mode: 'insensitive' }
+        }
+      });
+      if (existing) {
+        throw new ConflictException(`User with email ${dto.email} already exists in this organization`);
+      }
+    }
+
+    if (dto.employeeId && dto.employeeId !== user.employeeId) {
+      const existing = await this.prisma.user.findFirst({
+        where: {
+          tenantId: user.tenantId,
+          employeeId: { equals: dto.employeeId, mode: 'insensitive' }
+        }
+      });
+      if (existing) {
+        throw new ConflictException(`User with Employee ID / Vendor ID ${dto.employeeId} already exists in this organization`);
+      }
+    }
+
     return this.prisma.user.update({
       where: { id: user.id },
       data: {
         ...userData,
+        ...(dto.email && { email: dto.email.toLowerCase() }),
         ...(role && { role }),
         ...(roleId !== undefined && { roleId: roleId || null }),
         ...(departmentId !== undefined && { departmentId: departmentId || null }),
@@ -304,6 +342,24 @@ export class UsersService {
   private generateEmployeeId(): string {
     const randomNum = crypto.randomInt(100000, 999999);
     return `EMP-${randomNum}`;
+  }
+
+  private async generateUniqueEmployeeId(tenantId: string): Promise<string> {
+    let id: string = '';
+    let exists = true;
+    let attempts = 0;
+    while (exists && attempts < 10) {
+      id = this.generateEmployeeId();
+      const existing = await this.prisma.user.findFirst({
+        where: {
+          tenantId,
+          employeeId: id
+        }
+      });
+      if (!existing) exists = false;
+      attempts++;
+    }
+    return id;
   }
 
   /**

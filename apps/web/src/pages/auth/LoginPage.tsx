@@ -179,7 +179,13 @@ export function LoginPage() {
       title={t('auth.login.title')}
       subtitle={t('auth.login.description')}
     >
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+      <form
+        id="login-form"
+        name="login"
+        onSubmit={handleSubmit(onSubmit)}
+        method="POST"
+        className="space-y-5"
+      >
         {error && (
           <Alert variant="error" className="animate-in fade-in slide-in-from-top-1 duration-200">
             {error}
@@ -193,29 +199,23 @@ export function LoginPage() {
           transition={{ duration: 0.4, delay: 0.1 }}
           className="space-y-2"
         >
-          <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 uppercase tracking-wide">
-            {t('auth.login.email')}
-          </label>
-          <div className="relative group">
-            <Mail
-              size={18}
-              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 group-focus-within:text-primary-500 transition-colors"
-            />
-            <Input
-              type="email"
-              placeholder={t('auth.login.emailPlaceholder')}
-              error={errors.email?.message}
-              autoComplete="username"
-              className="pl-11 h-12 text-base border-neutral-200 dark:border-neutral-700 focus:border-primary-500 focus:ring-primary-500/20 rounded-xl"
-              {...register('email', {
-                required: t('auth.validation.emailRequired'),
-                pattern: {
-                  value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                  message: t('auth.validation.emailInvalid'),
-                },
-              })}
-            />
-          </div>
+          <Input
+            id="email-login"
+            type="email"
+            label={t('auth.login.email')}
+            placeholder={t('auth.login.emailPlaceholder')}
+            error={errors.email?.message}
+            autoComplete="username"
+            leftIcon={<Mail size={18} />}
+            className="h-12 text-base rounded-xl transition-all"
+            {...register('email', {
+              required: t('auth.validation.emailRequired'),
+              pattern: {
+                value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                message: t('auth.validation.emailInvalid'),
+              },
+            })}
+          />
         </m.div>
 
         {/* Password Field */}
@@ -225,29 +225,23 @@ export function LoginPage() {
           transition={{ duration: 0.4, delay: 0.2 }}
           className="space-y-2"
         >
-          <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 uppercase tracking-wide">
-            {t('auth.login.password')}
-          </label>
-          <div className="relative group">
-            <Lock
-              size={18}
-              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 group-focus-within:text-primary-500 transition-colors"
-            />
-            <Input
-              type="password"
-              placeholder={t('auth.login.passwordPlaceholder')}
-              error={errors.password?.message}
-              autoComplete="current-password"
-              className="pl-11 h-12 text-base border-neutral-200 dark:border-neutral-700 focus:border-primary-500 focus:ring-primary-500/20 rounded-xl"
-              {...register('password', {
-                required: t('auth.validation.passwordRequired'),
-                minLength: {
-                  value: 6,
-                  message: t('auth.validation.passwordMin'),
-                },
-              })}
-            />
-          </div>
+          <Input
+            id="password-login"
+            type="password"
+            label={t('auth.login.password')}
+            placeholder={t('auth.login.passwordPlaceholder')}
+            error={errors.password?.message}
+            autoComplete="current-password"
+            leftIcon={<Lock size={18} />}
+            className="h-12 text-base rounded-xl transition-all"
+            {...register('password', {
+              required: t('auth.validation.passwordRequired'),
+              minLength: {
+                value: 6,
+                message: t('auth.validation.passwordMin'),
+              },
+            })}
+          />
         </m.div>
 
         {/* Remember Me & Forgot Password */}

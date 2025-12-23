@@ -22,7 +22,7 @@ export class HiringTeamService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
-  ) {}
+  ) { }
 
   private generateTeamMemberId(): string {
     const crypto = require('crypto');
@@ -218,7 +218,7 @@ export class HiringTeamService {
     }
 
     const member = currentTeam[memberIndex];
-    
+
     if (member.isDefault) {
       throw new BadRequestException('Cannot modify default team members. Update the job recruiter or hiring manager instead.');
     }
@@ -394,7 +394,7 @@ export class HiringTeamService {
         title: true,
         status: true,
         department: { select: { name: true } },
-        location: { select: { name: true } },
+        locations: { select: { name: true } },
       },
     });
 

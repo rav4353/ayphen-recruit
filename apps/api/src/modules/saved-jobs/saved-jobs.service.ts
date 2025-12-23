@@ -58,7 +58,7 @@ export class SavedJobsService {
                 job: {
                     include: {
                         department: true,
-                        location: true,
+                        locations: true,
                     },
                 },
             },

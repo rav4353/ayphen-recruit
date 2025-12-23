@@ -87,10 +87,10 @@ export function CareerPage() {
                                                     {job.department.name}
                                                 </div>
                                             )}
-                                            {job.location && (
+                                            {job.locations?.[0] && (
                                                 <div className="flex items-center gap-1">
                                                     <MapPin size={16} />
-                                                    {job.location.name}
+                                                    {job.locations[0].name}
                                                 </div>
                                             )}
                                             <div className="flex items-center gap-1">

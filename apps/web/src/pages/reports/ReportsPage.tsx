@@ -5,7 +5,7 @@ import { reportsApi, analyticsApi, jobsApi } from '../../lib/api';
 import toast from 'react-hot-toast';
 import {
     BarChart3, TrendingUp, Users, Briefcase, Clock, Target, Printer,
-    FileSpreadsheet, Activity, Calendar, Filter, RefreshCw,
+    FileSpreadsheet, Activity, Calendar, Filter,
     ArrowUpRight, ArrowDownRight, Minus,
     LayoutGrid, Zap, Award, UserCheck, XCircle, CheckCircle2, Timer
 } from 'lucide-react';
@@ -15,6 +15,8 @@ import {
     Legend
 } from 'recharts';
 import { Card, Button, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui';
+import { ColumnSelector, ExportColumn } from '../../components/common';
+import { convertToCSV, downloadCSV, CsvColumn } from '../../lib/csv-utils';
 import { format, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 
 // Chart colors
@@ -159,8 +161,8 @@ export function ReportsPage() {
     const [customEndDate, setCustomEndDate] = useState('');
     const [selectedJobId, setSelectedJobId] = useState<string>('');
     const [isLoading, setIsLoading] = useState(false);
-    const [isRefreshing, setIsRefreshing] = useState(false);
     const [jobs, setJobs] = useState<any[]>([]);
+    const [showColumnSelector, setShowColumnSelector] = useState(false);
 
     // Report data states
     const [summaryStats, setSummaryStats] = useState<any>(null);
@@ -249,34 +251,34 @@ export function ReportsPage() {
         }
     };
 
-    const handleRefresh = async () => {
-        setIsRefreshing(true);
-        await loadAllData();
-        setIsRefreshing(false);
-        toast.success('Reports refreshed');
-    };
+    // Define export columns for source data
+    const exportColumns: ExportColumn[] = [
+        { key: 'source', label: 'Source Name', defaultSelected: true },
+        { key: 'applications', label: 'Total Applications', defaultSelected: true },
+        { key: 'hired', label: 'Hired Count', defaultSelected: true },
+        { key: 'hireRate', label: 'Hire Rate (%)', defaultSelected: true },
+        { key: 'interviewRate', label: 'Interview Rate (%)', defaultSelected: false },
+        { key: 'avgDaysToHire', label: 'Avg Days to Hire', defaultSelected: false },
+    ];
 
-    const handleExport = async (exportFormat: 'csv' | 'pdf') => {
-        try {
-            toast.loading(`Exporting ${exportFormat.toUpperCase()}...`, { id: 'export' });
-            const { startDate, endDate } = getDateRange();
-            const response = await reportsApi.exportCsv({ startDate, endDate, jobId: selectedJobId });
+    const csvColumns: CsvColumn[] = [
+        { key: 'source', header: 'Source' },
+        { key: 'applications', header: 'Applications' },
+        { key: 'hired', header: 'Hired' },
+        { key: 'hireRate', header: 'Hire Rate (%)' },
+        { key: 'interviewRate', header: 'Interview Rate (%)' },
+        { key: 'avgDaysToHire', header: 'Avg Days to Hire' },
+    ];
 
-            const blob = new Blob([response.data], { type: exportFormat === 'csv' ? 'text/csv' : 'application/pdf' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `recruitment-report-${format(new Date(), 'yyyy-MM-dd')}.${exportFormat}`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-
-            toast.success('Report exported successfully', { id: 'export' });
-        } catch (error) {
-            console.error('Failed to export', error);
-            toast.error('Failed to export report', { id: 'export' });
+    const handleExportWithColumns = (selectedColumns: string[]) => {
+        if (!sourceData || sourceData.length === 0) {
+            toast.error('No source data to export');
+            return;
         }
+
+        const csvContent = convertToCSV(sourceData, csvColumns, selectedColumns);
+        downloadCSV(csvContent, `recruitment-report-${format(new Date(), 'yyyy-MM-dd')}.csv`);
+        toast.success('Report exported successfully');
     };
 
     // Prepare chart data
@@ -338,17 +340,7 @@ export function ReportsPage() {
                             <Button
                                 variant="secondary"
                                 size="sm"
-                                onClick={handleRefresh}
-                                disabled={isRefreshing}
-                                className="gap-2 bg-white dark:bg-neutral-800 shadow-sm"
-                            >
-                                <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
-                                Refresh
-                            </Button>
-                            <Button
-                                variant="secondary"
-                                size="sm"
-                                onClick={() => handleExport('csv')}
+                                onClick={() => setShowColumnSelector(true)}
                                 className="gap-2 bg-white dark:bg-neutral-800 shadow-sm"
                             >
                                 <FileSpreadsheet size={16} />
@@ -366,65 +358,76 @@ export function ReportsPage() {
                         </div>
                     </div>
 
-                    {/* Filters Bar */}
+                    {/* Filters Bar - Restructured */}
                     <div className="mt-6 p-4 bg-white dark:bg-neutral-900 rounded-2xl shadow-lg shadow-neutral-200/50 dark:shadow-neutral-900/50 border border-neutral-200/50 dark:border-neutral-800">
-                        <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
-                            <div className="flex items-center gap-2 text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                                <Filter size={16} />
+                        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+                            {/* Filters Label */}
+                            <div className="flex items-center gap-2 text-sm font-semibold text-neutral-700 dark:text-neutral-300 shrink-0">
+                                <Filter size={16} className="text-neutral-500" />
                                 Filters:
                             </div>
 
-                            <div className="flex flex-col gap-3 flex-1 w-full">
-                                <div className="flex flex-col sm:flex-row gap-3 w-full">
-                                    <Select value={datePreset} onValueChange={(v) => setDatePreset(v as DatePreset)}>
-                                        <SelectTrigger className="w-full sm:w-[220px] bg-neutral-50 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700">
-                                            <Calendar size={14} className="mr-2 text-neutral-500" />
+                            {/* Filter Controls */}
+                            <div className="flex flex-col sm:flex-row gap-3 flex-1 w-full">
+                                {/* Date Range Select */}
+                                <Select value={datePreset} onValueChange={(v) => setDatePreset(v as DatePreset)}>
+                                    <SelectTrigger className="w-full sm:w-[200px] bg-neutral-50 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800/80 transition-colors">
+                                        <div className="flex items-center gap-2">
+                                            <Calendar size={14} className="text-neutral-500" />
                                             <SelectValue placeholder="Date Range" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="today">Today</SelectItem>
-                                            <SelectItem value="7days">Last 7 Days</SelectItem>
-                                            <SelectItem value="30days">Last 30 Days</SelectItem>
-                                            <SelectItem value="90days">Last 90 Days</SelectItem>
-                                            <SelectItem value="thisMonth">This Month</SelectItem>
-                                            <SelectItem value="lastMonth">Last Month</SelectItem>
-                                            <SelectItem value="custom">Custom Range</SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                                        </div>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="today">Today</SelectItem>
+                                        <SelectItem value="7days">Last 7 Days</SelectItem>
+                                        <SelectItem value="30days">Last 30 Days</SelectItem>
+                                        <SelectItem value="90days">Last 90 Days</SelectItem>
+                                        <SelectItem value="thisMonth">This Month</SelectItem>
+                                        <SelectItem value="lastMonth">Last Month</SelectItem>
+                                        <SelectItem value="custom">Custom Range</SelectItem>
+                                    </SelectContent>
+                                </Select>
 
-                                    <Select value={selectedJobId || 'all'} onValueChange={(v) => setSelectedJobId(v === 'all' ? '' : v)}>
-                                        <SelectTrigger className="w-full sm:w-[260px] bg-neutral-50 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700">
-                                            <Briefcase size={14} className="mr-2 text-neutral-500" />
+                                {/* Job Filter Select */}
+                                <Select value={selectedJobId || 'all'} onValueChange={(v) => setSelectedJobId(v === 'all' ? '' : v)}>
+                                    <SelectTrigger className="w-full sm:w-[220px] bg-neutral-50 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800/80 transition-colors">
+                                        <div className="flex items-center gap-2">
+                                            <Briefcase size={14} className="text-neutral-500" />
                                             <SelectValue placeholder="All Jobs" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="all">All Jobs</SelectItem>
-                                            {jobs.map((job) => (
-                                                <SelectItem key={job.id} value={job.id}>{job.title}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
+                                        </div>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All Jobs</SelectItem>
+                                        {jobs.map((job) => (
+                                            <SelectItem key={job.id} value={job.id}>{job.title}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
 
+                                {/* Custom Date Range Inputs */}
                                 {datePreset === 'custom' && (
-                                    <div className="flex flex-col sm:flex-row gap-3 w-full">
+                                    <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
                                         <Input
                                             type="date"
                                             value={customStartDate}
                                             onChange={(e) => setCustomStartDate(e.target.value)}
-                                            className="w-full sm:w-[200px] bg-neutral-50 dark:bg-neutral-800"
+                                            placeholder="Start Date"
+                                            className="w-full sm:w-[160px] bg-neutral-50 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700"
                                         />
+                                        <span className="hidden sm:flex items-center text-neutral-400">→</span>
                                         <Input
                                             type="date"
                                             value={customEndDate}
                                             onChange={(e) => setCustomEndDate(e.target.value)}
-                                            className="w-full sm:w-[200px] bg-neutral-50 dark:bg-neutral-800"
+                                            placeholder="End Date"
+                                            className="w-full sm:w-[160px] bg-neutral-50 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700"
                                         />
                                     </div>
                                 )}
                             </div>
                         </div>
                     </div>
+
 
                     {/* Tabs */}
                     <div className="mt-6 flex items-center gap-1 p-1 bg-neutral-100 dark:bg-neutral-800 rounded-xl w-fit">
@@ -978,6 +981,17 @@ export function ReportsPage() {
                     </motion.div>
                 )}
             </AnimatePresence>
+
+            {/* Column Selector Modal */}
+            <ColumnSelector
+                isOpen={showColumnSelector}
+                onClose={() => setShowColumnSelector(false)}
+                columns={exportColumns}
+                onExport={handleExportWithColumns}
+                title="Select Report Metrics to Export"
+                description="Choose which source effectiveness metrics you want in your CSV report"
+                exportButtonText="Download Report"
+            />
         </div>
     );
 }

@@ -20,10 +20,11 @@ import { CandidateDedupController } from './candidate-dedup.controller';
 import { SemanticSearchService } from './semantic-search.service';
 import { SemanticSearchController } from './semantic-search.controller';
 import { ReferenceModule } from '../reference/reference.module';
+import { SettingsModule } from '../settings/settings.module';
 import { ComplianceService } from './compliance.service';
 
 @Module({
-  imports: [ReferenceModule],
+  imports: [ReferenceModule, SettingsModule],
   controllers: [CandidatesController, CandidateSearchController, ReferralsController, CandidateActivityController, CandidateNotesController, NotesSearchController, CandidateComparisonController, CandidateScoringController, CandidateTaggingController, CandidateDedupController, SemanticSearchController],
   providers: [CandidatesService, ComplianceService, CandidateSearchService, ReferralsService, CandidateActivityService, CandidateNotesService, CandidateComparisonService, CandidateScoringService, CandidateTaggingService, CandidateDedupService, SemanticSearchService],
   exports: [CandidatesService, CandidateSearchService, ReferralsService, CandidateActivityService, CandidateNotesService, CandidateComparisonService, CandidateScoringService, CandidateTaggingService, CandidateDedupService, SemanticSearchService],

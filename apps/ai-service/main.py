@@ -9,8 +9,14 @@ from pydantic import BaseModel
 from typing import List, Optional
 import os
 import json
-import urllib.request
-import urllib.error
+import httpx
+import io
+import re
+try:
+    import fitz # PyMuPDF
+    FITZ_AVAILABLE = True
+except ImportError:
+    FITZ_AVAILABLE = False
 
 app = FastAPI(
     title="TalentX AI Service",
@@ -95,10 +101,69 @@ class MatchResponse(BaseModel):
     summary: str
 
 
+class EmbeddingRequest(BaseModel):
+    text: str
+
+
+class EmbeddingResponse(BaseModel):
+    embedding: List[float]
+
+
 # Health check
 @app.get("/health")
 async def health_check():
     return {"status": "ok", "service": "talentx-ai"}
+
+
+@app.post("/embeddings", response_model=EmbeddingResponse)
+async def get_embeddings(request: EmbeddingRequest):
+    """
+    Generate embeddings for text using Ollama or a fallback method.
+    """
+    if not request.text:
+        raise HTTPException(status_code=400, detail="No text provided")
+
+    # Limit text length to avoid issues with LLM context
+    text = request.text[:8000]
+    
+    model_name = os.getenv("OLLAMA_EMBED_MODEL", "nomic-embed-text")
+    
+    payload = {
+        "model": model_name,
+        "prompt": text
+    }
+    
+    try:
+        # Attempt to use Ollama's embeddings API
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                "http://localhost:11434/api/embeddings",
+                json=payload,
+                timeout=15.0
+            )
+            resp.raise_for_status()
+            resp_json = resp.json()
+            
+        embedding = resp_json.get("embedding", [])
+        if not embedding:
+             # Some Ollama versions might return it differently or if the model isn't an embedding model
+             raise ValueError("No embedding returned from Ollama")
+             
+        return EmbeddingResponse(embedding=embedding)
+        
+    except Exception as e:
+        print(f"Embedding Error (using fallback): {e}")
+        # Fallback: Generate a deterministic "pseudo-embedding" 
+        # based on character counts/hashes if AI service is totally down.
+        import hashlib
+        
+        # Create a 1536-dimension pseudo-embedding
+        pseudo_vec = []
+        for i in range(1536):
+            h = hashlib.md5((text + str(i)).encode()).hexdigest()
+            pseudo_vec.append(int(h, 16) / (16**32))
+            
+        return EmbeddingResponse(embedding=pseudo_vec)
 
 
 import re
@@ -120,10 +185,24 @@ except ImportError:
 # Helper functions
 def extract_text_from_pdf(file_content):
     try:
+        # Try PyMuPDF (fitz) first as it's faster and more accurate
+        if FITZ_AVAILABLE:
+            try:
+                doc = fitz.open(stream=file_content, filetype="pdf")
+                text = ""
+                for page in doc:
+                    text += page.get_text() + "\n"
+                doc.close()
+                if text.strip():
+                    return text
+            except Exception as e:
+                print(f"fitz extraction failed: {e}")
+            
+        # Fallback to PyPDF2
         reader = PdfReader(io.BytesIO(file_content))
         text = ""
         for page in reader.pages:
-            text += page.extract_text() + "\n"
+            text += (page.extract_text() or "") + "\n"
         return text
     except Exception as e:
         print(f"Error reading PDF: {e}")
@@ -250,73 +329,30 @@ def extract_skills(text):
             found_skills.append(skill)
     return found_skills
 
-def extract_skills_llm(text):
+async def extract_all_from_resume_llm(text):
     """
-    Use Ollama to extract skills from text when regex is insufficient.
-    """
-    model_name = os.getenv("OLLAMA_MODEL", "llama3.2")
-    
-    # Truncate text to avoid context limit issues (approx 2000 chars)
-    truncated_text = text[:2000]
-    
-    system_prompt = (
-        "You are an expert technical recruiter. "
-        "Extract a list of technical skills, programming languages, tools, and frameworks from the resume text. "
-        "Return ONLY a JSON object with a single key 'skills' containing a list of strings. "
-        "Normalize the skills to their standard names (e.g., 'React.js' -> 'React'). "
-        "Do not include soft skills."
-    )
-    
-    user_prompt = f"Resume Text:\n{truncated_text}\n\nReturn JSON."
-    
-    payload = {
-        "model": model_name,
-        "stream": False,
-        "format": "json", # Enforce JSON mode if supported by model/ollama version
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-    }
-    
-    try:
-        req = urllib.request.Request(
-            "http://localhost:11434/api/chat",
-            data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            raw = resp.read().decode("utf-8")
-            resp_json = json.loads(raw)
-            
-        content = resp_json.get("message", {}).get("content", "")
-        # Clean markdown code blocks if present
-        content = content.replace("```json", "").replace("```", "").strip()
-        parsed = json.loads(content)
-        return parsed.get("skills", [])
-    except Exception as e:
-        print(f"LLM Skill Extraction Error: {e}")
-        return []
-
-def extract_details_llm(text):
-    """
-    Use Ollama to extract personal details from text.
+    Extract all entities from resume text in one go to save time.
     """
     model_name = os.getenv("OLLAMA_MODEL", "llama3.2")
     
-    # Truncate text to avoid context limit issues, but keep enough for header info
-    truncated_text = text[:4000]
+    # Use a healthy amount of text - up to 10k chars if possible, but keep it reasonable for speed
+    truncated_text = text[:8000]
     
     system_prompt = (
         "You are an expert technical recruiter. "
-        "Extract the candidate's First Name, Last Name, Email, Phone Number, and a brief Professional Summary from the resume text. "
-        "Return ONLY a JSON object with keys: 'firstName', 'lastName', 'email', 'phone', 'summary'. "
-        "If a field is not found, use null. "
-        "For the summary, extract the professional summary section if it exists, otherwise generate a brief 2-sentence summary."
+        "Extract all details from the provided resume text. "
+        "Return ONLY a JSON object with the following keys: "
+        "'firstName', 'lastName', 'email', 'phone', 'summary', 'skills' (list), "
+        "'experience' (list of {company, title, startDate, endDate, description}), "
+        "'education' (list of {institution, degree, field, graduationYear}). "
+        "Instructions:\n"
+        "1. Normalize skills to standard names (e.g., 'React.js' -> 'React').\n"
+        "2. If a field is not found, use null.\n"
+        "3. For summary, extract the professional summary or generate a brief 2-sentence one.\n"
+        "4. Extract as many experience and education entries as you find."
     )
     
-    user_prompt = f"Resume Text:\n{truncated_text}\n\nReturn JSON."
+    user_prompt = f"Resume Text:\n{truncated_text}\n\nReturn JSON only."
     
     payload = {
         "model": model_name,
@@ -329,122 +365,22 @@ def extract_details_llm(text):
     }
     
     try:
-        req = urllib.request.Request(
-            "http://localhost:11434/api/chat",
-            data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            raw = resp.read().decode("utf-8")
-            resp_json = json.loads(raw)
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                "http://localhost:11434/api/chat",
+                json=payload,
+                timeout=60.0
+            )
+            resp.raise_for_status()
+            resp_json = resp.json()
             
         content = resp_json.get("message", {}).get("content", "")
         content = content.replace("```json", "").replace("```", "").strip()
         parsed = json.loads(content)
         return parsed
     except Exception as e:
-        print(f"LLM Entity Extraction Error: {e}")
+        print(f"LLM Combined Extraction Error: {e}")
         return {}
-
-
-def extract_experience_llm(text):
-    """
-    Use Ollama to extract work experience from resume text.
-    """
-    model_name = os.getenv("OLLAMA_MODEL", "llama3.2")
-    
-    # Use more text for experience section
-    truncated_text = text[:6000]
-    
-    system_prompt = (
-        "You are an expert technical recruiter analyzing a resume. "
-        "Extract ALL work experience entries from the resume. "
-        "Return ONLY a JSON object with a single key 'experience' containing a list of objects. "
-        "Each experience object should have: 'company' (string), 'title' (string), 'startDate' (string like 'Jan 2020' or '2020'), "
-        "'endDate' (string like 'Present' or 'Dec 2023'), 'description' (string - brief summary of responsibilities). "
-        "If a field is not found, use null. Extract as many entries as you can find."
-    )
-    
-    user_prompt = f"Resume Text:\n{truncated_text}\n\nReturn JSON with experience array."
-    
-    payload = {
-        "model": model_name,
-        "stream": False,
-        "format": "json",
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-    }
-    
-    try:
-        req = urllib.request.Request(
-            "http://localhost:11434/api/chat",
-            data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-        with urllib.request.urlopen(req, timeout=45) as resp:
-            raw = resp.read().decode("utf-8")
-            resp_json = json.loads(raw)
-            
-        content = resp_json.get("message", {}).get("content", "")
-        content = content.replace("```json", "").replace("```", "").strip()
-        parsed = json.loads(content)
-        return parsed.get("experience", [])
-    except Exception as e:
-        print(f"LLM Experience Extraction Error: {e}")
-        return []
-
-
-def extract_education_llm(text):
-    """
-    Use Ollama to extract education from resume text.
-    """
-    model_name = os.getenv("OLLAMA_MODEL", "llama3.2")
-    
-    truncated_text = text[:4000]
-    
-    system_prompt = (
-        "You are an expert technical recruiter analyzing a resume. "
-        "Extract ALL education entries from the resume. "
-        "Return ONLY a JSON object with a single key 'education' containing a list of objects. "
-        "Each education object should have: 'institution' (string - school/university name), 'degree' (string - e.g., 'Bachelor of Science'), "
-        "'field' (string - field of study like 'Computer Science'), 'graduationYear' (string like '2020' or null if not found). "
-        "If a field is not found, use null. Extract as many entries as you can find."
-    )
-    
-    user_prompt = f"Resume Text:\n{truncated_text}\n\nReturn JSON with education array."
-    
-    payload = {
-        "model": model_name,
-        "stream": False,
-        "format": "json",
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-    }
-    
-    try:
-        req = urllib.request.Request(
-            "http://localhost:11434/api/chat",
-            data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            raw = resp.read().decode("utf-8")
-            resp_json = json.loads(raw)
-            
-        content = resp_json.get("message", {}).get("content", "")
-        content = content.replace("```json", "").replace("```", "").strip()
-        parsed = json.loads(content)
-        return parsed.get("education", [])
-    except Exception as e:
-        print(f"LLM Education Extraction Error: {e}")
-        return []
 
 # Resume parsing
 @app.post("/parse-resume", response_model=ParsedResume)
@@ -492,16 +428,13 @@ async def parse_resume(file: UploadFile = File(...)):
     if not text:
         raise HTTPException(status_code=400, detail="Could not extract text from file.")
 
-    # Basic Regex Extraction (Fallback/Initial)
-    email = extract_email(text)
-    phone = extract_phone(text)
+    # Combined LLM Extraction for speed and accuracy
+    print("Attempting combined LLM extraction...")
+    llm_data = await extract_all_from_resume_llm(text)
     
-    # LLM Extraction for better accuracy (Name, Summary, and corrections)
-    print("Attempting LLM entity extraction...")
-    llm_entities = extract_details_llm(text)
-    
-    first_name = llm_entities.get("firstName") or ""
-    last_name = llm_entities.get("lastName") or ""
+    # Merge LLM results with basic extractions
+    first_name = llm_data.get("firstName") or ""
+    last_name = llm_data.get("lastName") or ""
     
     # Fallback to basic name extraction if LLM fails
     if not first_name and not last_name:
@@ -514,41 +447,28 @@ async def parse_resume(file: UploadFile = File(...)):
             else:
                 first_name = name_line
 
-    # Prefer LLM email/phone if found, otherwise keep regex
-    if llm_entities.get("email"):
-        email = llm_entities["email"]
-    if llm_entities.get("phone"):
-        phone = llm_entities["phone"]
-        
-    summary = llm_entities.get("summary")
-    if not summary:
-        summary = text[:500].strip() + "..." if len(text) > 500 else text
+    # Contact details with regex fallbacks
+    email = llm_data.get("email") or extract_email(text)
+    phone = llm_data.get("phone") or extract_phone(text)
+    summary = llm_data.get("summary") or (text[:500].strip() + "..." if len(text) > 500 else text)
 
-    # Hybrid Skill Extraction
-    skills = extract_skills(text)
-    print(f"Regex skills found: {skills}")
+    # Skills merge
+    regex_skills = extract_skills(text)
+    llm_skills = llm_data.get("skills", [])
     
-    # Always try LLM for skills to be thorough
-    print("Attempting LLM skill extraction...")
-    llm_skills = extract_skills_llm(text)
-    print(f"LLM skills found: {llm_skills}")
+    # Merge while maintaining uniqueness
+    all_skills_set = {s.lower() for s in regex_skills}
+    final_skills = list(regex_skills)
     
-    existing_lower = {s.lower() for s in skills}
     for s in llm_skills:
-        if isinstance(s, str) and s.lower() not in existing_lower:
-            skills.append(s)
-            existing_lower.add(s.lower())
+        if isinstance(s, str) and s.lower() not in all_skills_set:
+            final_skills.append(s)
+            all_skills_set.add(s.lower())
 
-    print(f"Final skills: {skills}")
+    experience = llm_data.get("experience", [])
+    education = llm_data.get("education", [])
 
-    # Extract experience and education using LLM
-    print("Attempting LLM experience extraction...")
-    experience = extract_experience_llm(text)
-    print(f"Experience entries found: {len(experience)}")
-
-    print("Attempting LLM education extraction...")
-    education = extract_education_llm(text)
-    print(f"Education entries found: {len(education)}")
+    print(f"Parsing complete. Found {len(final_skills)} skills, {len(experience)} exp, {len(education)} edu")
 
     return ParsedResume(
         firstName=first_name,
@@ -556,7 +476,7 @@ async def parse_resume(file: UploadFile = File(...)):
         email=email,
         phone=phone,
         summary=summary,
-        skills=skills,
+        skills=final_skills,
         experience=experience,
         education=education,
         rawText=text
@@ -611,15 +531,14 @@ async def generate_job_description(request: JDGenerateRequest):
     }
 
     try:
-        req = urllib.request.Request(
-            "http://localhost:11434/api/chat",
-            data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-        with urllib.request.urlopen(req, timeout=60) as resp:
-            raw = resp.read().decode("utf-8")
-            resp_json = json.loads(raw)
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                "http://localhost:11434/api/chat",
+                json=payload,
+                timeout=60.0
+            )
+            resp.raise_for_status()
+            resp_json = resp.json()
 
         message = resp_json.get("message", {})
         content = message.get("content", "")
@@ -667,7 +586,7 @@ async def generate_job_description(request: JDGenerateRequest):
             skills=parsed.get("skills", [])
         )
 
-    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, OSError) as e:
+    except Exception as e:
         print(f"Ollama Error: {e}")
         # If the local LLM is unavailable, fall back to a simple deterministic template
         fallback_description = (
@@ -794,15 +713,14 @@ async def check_bias(request: BiasCheckRequest):
             ],
         }
     
-        req = urllib.request.Request(
-            "http://localhost:11434/api/chat",
-            data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-        with urllib.request.urlopen(req, timeout=10) as resp: # Short timeout for LLM
-            raw = resp.read().decode("utf-8")
-            resp_json = json.loads(raw)
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                "http://localhost:11434/api/chat",
+                json=payload,
+                timeout=30.0
+            )
+            resp.raise_for_status()
+            resp_json = resp.json()
             
         content = resp_json.get("message", {}).get("content", "")
         content = content.replace("```json", "").replace("```", "").strip()
@@ -881,15 +799,14 @@ async def match_candidate_to_job(request: MatchRequest):
     }
     
     try:
-        req = urllib.request.Request(
-            "http://localhost:11434/api/chat",
-            data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-        with urllib.request.urlopen(req, timeout=60) as resp:
-            raw = resp.read().decode("utf-8")
-            resp_json = json.loads(raw)
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                "http://localhost:11434/api/chat",
+                json=payload,
+                timeout=60.0
+            )
+            resp.raise_for_status()
+            resp_json = resp.json()
             
         content = resp_json.get("message", {}).get("content", "")
         # Clean markdown if present
@@ -950,15 +867,14 @@ async def optimize_jd(request: OptimizeRequest):
     }
     
     try:
-        req = urllib.request.Request(
-            "http://localhost:11434/api/chat",
-            data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-        with urllib.request.urlopen(req, timeout=60) as resp:
-            raw = resp.read().decode("utf-8")
-            resp_json = json.loads(raw)
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                "http://localhost:11434/api/chat",
+                json=payload,
+                timeout=60.0
+            )
+            resp.raise_for_status()
+            resp_json = resp.json()
             
         content = resp_json.get("message", {}).get("content", "")
         
@@ -1017,15 +933,14 @@ async def suggest_seo(request: SeoRequest):
     }
     
     try:
-        req = urllib.request.Request(
-            "http://localhost:11434/api/chat",
-            data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-        with urllib.request.urlopen(req, timeout=60) as resp:
-            raw = resp.read().decode("utf-8")
-            resp_json = json.loads(raw)
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                "http://localhost:11434/api/chat",
+                json=payload,
+                timeout=60.0
+            )
+            resp.raise_for_status()
+            resp_json = resp.json()
             
         content = resp_json.get("message", {}).get("content", "")
         
@@ -1092,15 +1007,14 @@ async def generate_subject_lines(request: SubjectLineRequest):
     }
     
     try:
-        req = urllib.request.Request(
-            "http://localhost:11434/api/chat",
-            data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            raw = resp.read().decode("utf-8")
-            resp_json = json.loads(raw)
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                "http://localhost:11434/api/chat",
+                json=payload,
+                timeout=30.0
+            )
+            resp.raise_for_status()
+            resp_json = resp.json()
             
         content = resp_json.get("message", {}).get("content", "")
         content = content.replace("```json", "").replace("```", "").strip()

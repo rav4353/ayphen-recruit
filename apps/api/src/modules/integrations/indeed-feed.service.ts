@@ -39,7 +39,7 @@ export class IndeedFeedService {
   constructor(
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
-  ) {}
+  ) { }
 
   /**
    * Get Indeed Feed configuration
@@ -51,7 +51,7 @@ export class IndeedFeedService {
 
     const config = setting?.value as unknown as IndeedFeedConfig;
     const baseUrl = this.configService.get<string>('API_URL') || 'http://localhost:3001';
-    
+
     return {
       isConfigured: !!config?.publisherId,
       feedUrl: config?.publisherId ? `${baseUrl}/api/integrations/indeed/feed/${tenantId}` : undefined,
@@ -110,7 +110,7 @@ export class IndeedFeedService {
         status: JobStatus.OPEN,
       },
       include: {
-        location: true,
+        locations: true,
         department: true,
       },
     });
@@ -134,7 +134,7 @@ ${jobsXml}
    * Convert job to Indeed XML format
    */
   private jobToXml(job: any, companyName: string, baseUrl: string, config: { includeDescription: boolean; includeSalary: boolean }): string {
-    const location = job.location;
+    const location = job.locations?.[0];
     const jobUrl = `${baseUrl}/careers/${job.id}`;
 
     // Map employment type to Indeed job type
@@ -217,9 +217,9 @@ ${jobsXml}
   /**
    * Validate feed format
    */
-  async validateFeed(tenantId: string): Promise<{ 
-    valid: boolean; 
-    jobCount: number; 
+  async validateFeed(tenantId: string): Promise<{
+    valid: boolean;
+    jobCount: number;
     errors: string[];
     warnings: string[];
     feedUrl: string;
@@ -230,7 +230,7 @@ ${jobsXml}
 
     const jobs = await this.prisma.job.findMany({
       where: { tenantId, status: JobStatus.OPEN },
-      include: { location: true, department: true },
+      include: { locations: true, department: true },
     });
 
     // Validate each job
@@ -238,12 +238,12 @@ ${jobsXml}
       // Required fields
       if (!job.title) errors.push(`Job ${job.jobCode || job.id}: Missing title (required)`);
       if (!job.description) errors.push(`Job ${job.jobCode || job.id}: Missing description (required)`);
-      
+
       // Recommended fields
-      if (!job.location?.city) warnings.push(`Job ${job.jobCode || job.id}: Missing city (recommended)`);
-      if (!job.location?.country) warnings.push(`Job ${job.jobCode || job.id}: Missing country (recommended)`);
+      if (!job.locations?.[0]?.city) warnings.push(`Job ${job.jobCode || job.id}: Missing city (recommended)`);
+      if (!job.locations?.[0]?.country) warnings.push(`Job ${job.jobCode || job.id}: Missing country (recommended)`);
       if (!job.employmentType) warnings.push(`Job ${job.jobCode || job.id}: Missing employment type (recommended)`);
-      
+
       // Indeed specific validations
       if (job.description && job.description.length < 100) {
         warnings.push(`Job ${job.jobCode || job.id}: Description too short (min 100 chars recommended)`);
@@ -290,7 +290,7 @@ ${jobsXml}
     try {
       const xml = await this.generateFeed(tenantId);
       const jobCount = (xml.match(/<job>/g) || []).length;
-      
+
       return {
         success: true,
         message: `Feed generated successfully with ${jobCount} job(s)`,

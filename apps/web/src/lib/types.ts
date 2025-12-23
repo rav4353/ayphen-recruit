@@ -90,8 +90,7 @@ export interface Job {
   tenantId: string;
   departmentId?: string;
   department?: Department;
-  locationId?: string;
-  location?: Location;
+  locations?: Location[];
   recruiterId: string;
   recruiter?: User;
   hiringManagerId?: string;
@@ -99,6 +98,8 @@ export interface Job {
   pipelineId?: string;
   publishedAt?: string;
   closesAt?: string;
+  duration?: string;
+  durationUnit?: string;
   createdAt: string;
   updatedAt: string;
   approvals?: JobApproval[];

@@ -1,1 +1,14 @@
-import { PrismaClient } from '@prisma/client'; const prisma = new PrismaClient(); async function main() { console.log('Users:', await prisma.user.count()); } main().catch(e => console.error(e)).finally(() => prisma.());
+import { PrismaClient } from '@prisma/client';
+const prisma = new PrismaClient();
+
+async function main() {
+    const count = await prisma.user.count();
+    console.log('Users:', count);
+}
+
+main()
+    .catch((e) => console.error(e))
+    .finally(async () => {
+        await prisma.$disconnect();
+    });
+

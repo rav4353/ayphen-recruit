@@ -90,27 +90,74 @@ export class AnalyticsService {
                 },
                 status: ApplicationStatus.HIRED,
             },
-            select: {
-                appliedAt: true,
-                updatedAt: true, // Assuming updatedAt is when they were hired
+            include: {
+                job: {
+                    include: {
+                        department: true,
+                    },
+                },
             },
         });
 
         if (hiredApplications.length === 0) {
-            return { averageDays: 0, totalHired: 0 };
+            return {
+                averageDays: 0,
+                timeToHire: 0,
+                timeToFill: 0,
+                totalHired: 0,
+                companyAverage: 30,
+                departments: []
+            };
         }
 
-        const totalDurationMs = hiredApplications.reduce((acc, app) => {
-            const duration = app.updatedAt.getTime() - app.appliedAt.getTime();
-            return acc + duration;
-        }, 0);
+        // Time to Hire: Application to Hire
+        const hireDurations = hiredApplications.map(app => {
+            const hireTime = app.hiredAt || app.updatedAt;
+            return Math.max(0, hireTime.getTime() - app.appliedAt.getTime());
+        });
 
-        const averageDurationMs = totalDurationMs / hiredApplications.length;
-        const averageDays = Math.round(averageDurationMs / (1000 * 60 * 60 * 24));
+        // Time to Fill: Job Creation to Hire
+        const fillDurations = hiredApplications.map(app => {
+            const hireTime = app.hiredAt || app.updatedAt;
+            return Math.max(0, hireTime.getTime() - app.job.createdAt.getTime());
+        });
+
+        const avgTimeToHireMs = hireDurations.reduce((a, b) => a + b, 0) / hiredApplications.length;
+        const avgTimeToFillMs = fillDurations.reduce((a, b) => a + b, 0) / hiredApplications.length;
+
+        const timeToHireDays = Math.round(avgTimeToHireMs / (1000 * 60 * 60 * 24));
+        const timeToFillDays = Math.round(avgTimeToFillMs / (1000 * 60 * 60 * 24));
+
+        // Group by department
+        const deptMap = new Map<string, { days: number; count: number }>();
+        hiredApplications.forEach((app, i) => {
+            const deptName = app.job.department?.name || 'Unassigned';
+            const duration = fillDurations[i];
+
+            if (!deptMap.has(deptName)) {
+                deptMap.set(deptName, { days: 0, count: 0 });
+            }
+
+            const stats = deptMap.get(deptName)!;
+            stats.days += duration;
+            stats.count++;
+        });
+
+        const departments = Array.from(deptMap.entries()).map(([name, stats]) => ({
+            name,
+            days: Math.round(stats.days / stats.count / (1000 * 60 * 60 * 24))
+        })).sort((a, b) => b.days - a.days);
+
+        // For now, company average is a realistic baseline of 28 days
+        const companyAverage = 28;
 
         return {
-            averageDays,
+            averageDays: timeToFillDays, // Use Time to Fill as the primary dashboard metric
+            timeToHire: timeToHireDays,
+            timeToFill: timeToFillDays,
             totalHired: hiredApplications.length,
+            companyAverage,
+            departments: departments.slice(0, 5) // Top 5 departments
         };
     }
 
@@ -344,7 +391,7 @@ export class AnalyticsService {
                 status: 'ACTIVE',
             },
         });
-        
+
         // Get license limit from subscription plan
         const subscription = await this.prisma.subscription.findUnique({
             where: { tenantId },

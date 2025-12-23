@@ -1,0 +1,9 @@
+{
+    "name": "@talentx/ai-service",
+    "version": "0.1.0",
+    "private": true,
+    "scripts": {
+        "dev": "./.venv/bin/python main.py",
+        "start": "./.venv/bin/python main.py"
+    }
+}

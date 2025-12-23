@@ -3,15 +3,16 @@ import { settingsApi } from '../lib/api';
 import { useAuthStore } from '../stores/auth';
 
 export interface StatusColors {
-    job: Record<string, { bg: string; text: string }>;
-    application: Record<string, { bg: string; text: string }>;
+    job: Record<string, { bg: string; text: string; label?: string }>;
+    application: Record<string, { bg: string; text: string; label?: string }>;
 }
 
 interface StatusColorContextType {
     colors: StatusColors | null;
     updateColors: (newColors: StatusColors) => Promise<void>;
     resetColors: () => Promise<void>;
-    getStatusColor: (type: 'job' | 'application', status: string) => { bg: string; text: string } | undefined;
+    getStatusColor: (type: 'job' | 'application', status: string) => { bg: string; text: string; label?: string } | undefined;
+    getStatusLabel: (type: 'job' | 'application', status: string) => string;
     isLoading: boolean;
 }
 
@@ -140,8 +141,17 @@ export function StatusColorProvider({ children }: { children: React.ReactNode })
         return typeColors[status] || typeColors[status.toUpperCase()];
     };
 
+    const getStatusLabel = (type: 'job' | 'application', status: string): string => {
+        const statusConfig = getStatusColor(type, status);
+        if (statusConfig?.label) {
+            return statusConfig.label;
+        }
+        // Fallback: Convert SNAKE_CASE to Title Case
+        return status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
+    };
+
     return (
-        <StatusColorContext.Provider value={{ colors, updateColors, resetColors, getStatusColor, isLoading }}>
+        <StatusColorContext.Provider value={{ colors, updateColors, resetColors, getStatusColor, getStatusLabel, isLoading }}>
             {children}
         </StatusColorContext.Provider>
     );

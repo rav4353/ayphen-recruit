@@ -149,42 +149,42 @@ export function CandidateDetailPage() {
                                             </span>
                                         )}
                                     </div>
-                                <p className="text-neutral-500 dark:text-neutral-400">
-                                    {candidate.currentTitle} {candidate.currentCompany && `${t('candidates.at', 'at')} ${candidate.currentCompany}`}
-                                </p>
-                            </div>
+                                    <p className="text-neutral-500 dark:text-neutral-400">
+                                        {candidate.currentTitle} {candidate.currentCompany && `${t('candidates.at', 'at')} ${candidate.currentCompany}`}
+                                    </p>
+                                </div>
                             </div>
 
-                        <div className="flex flex-wrap gap-3 sm:gap-4 mt-3 sm:mt-4">
-                            <div className="flex items-center gap-2 text-neutral-600 dark:text-neutral-300 text-sm">
-                                <Mail size={16} />
-                                <a href={`mailto:${candidate.email}`} className="hover:text-blue-600">{candidate.email}</a>
+                            <div className="flex flex-wrap gap-3 sm:gap-4 mt-3 sm:mt-4">
+                                <div className="flex items-center gap-2 text-neutral-600 dark:text-neutral-300 text-sm">
+                                    <Mail size={16} />
+                                    <a href={`mailto:${candidate.email}`} className="hover:text-blue-600">{candidate.email}</a>
+                                </div>
+                                {candidate.phone && (
+                                    <div className="flex items-center gap-2 text-neutral-600 dark:text-neutral-300 text-sm">
+                                        <Phone size={16} />
+                                        <a href={`tel:${candidate.phone}`} className="hover:text-blue-600">{candidate.phone}</a>
+                                    </div>
+                                )}
+                                {candidate.location && (
+                                    <div className="flex items-center gap-2 text-neutral-600 dark:text-neutral-300 text-sm">
+                                        <MapPin size={16} />
+                                        <span>{candidate.location}</span>
+                                    </div>
+                                )}
+                                {candidate.linkedinUrl && (
+                                    <div className="flex items-center gap-2 text-neutral-600 dark:text-neutral-300 text-sm">
+                                        <Linkedin size={16} />
+                                        <a href={candidate.linkedinUrl} target="_blank" rel="noopener noreferrer" className="hover:text-blue-600">LinkedIn</a>
+                                    </div>
+                                )}
+                                {candidate.portfolioUrl && (
+                                    <div className="flex items-center gap-2 text-neutral-600 dark:text-neutral-300 text-sm">
+                                        <Globe size={16} />
+                                        <a href={candidate.portfolioUrl} target="_blank" rel="noopener noreferrer" className="hover:text-blue-600">Portfolio</a>
+                                    </div>
+                                )}
                             </div>
-                            {candidate.phone && (
-                                <div className="flex items-center gap-2 text-neutral-600 dark:text-neutral-300 text-sm">
-                                    <Phone size={16} />
-                                    <a href={`tel:${candidate.phone}`} className="hover:text-blue-600">{candidate.phone}</a>
-                                </div>
-                            )}
-                            {candidate.location && (
-                                <div className="flex items-center gap-2 text-neutral-600 dark:text-neutral-300 text-sm">
-                                    <MapPin size={16} />
-                                    <span>{candidate.location}</span>
-                                </div>
-                            )}
-                            {candidate.linkedinUrl && (
-                                <div className="flex items-center gap-2 text-neutral-600 dark:text-neutral-300 text-sm">
-                                    <Linkedin size={16} />
-                                    <a href={candidate.linkedinUrl} target="_blank" rel="noopener noreferrer" className="hover:text-blue-600">LinkedIn</a>
-                                </div>
-                            )}
-                            {candidate.portfolioUrl && (
-                                <div className="flex items-center gap-2 text-neutral-600 dark:text-neutral-300 text-sm">
-                                    <Globe size={16} />
-                                    <a href={candidate.portfolioUrl} target="_blank" rel="noopener noreferrer" className="hover:text-blue-600">Portfolio</a>
-                                </div>
-                            )}
-                        </div>
                         </div>
                     </div>
 

@@ -3,11 +3,13 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import { EmailService } from '../../common/services/email.service';
 import { SkillsService } from '../reference/skills.service';
+import { SettingsService } from '../settings/settings.service';
 import { CreateCandidateDto } from './dto/create-candidate.dto';
 import { UpdateCandidateDto } from './dto/update-candidate.dto';
 import { CandidateQueryDto } from './dto/candidate-query.dto';
 import { Parser } from 'json2csv';
 import * as crypto from 'crypto';
+import { SemanticSearchService } from './semantic-search.service';
 
 @Injectable()
 export class CandidatesService {
@@ -15,9 +17,77 @@ export class CandidatesService {
     private readonly prisma: PrismaService,
     private readonly emailService: EmailService,
     private readonly skillsService: SkillsService,
+    private readonly settingsService: SettingsService,
+    private readonly semanticSearchService: SemanticSearchService,
   ) { }
 
-  private generateCandidateId() {
+  async peekCandidateId(tenantId: string) {
+    try {
+      const setting = await this.settingsService.getSettingByKey(tenantId, 'candidate_id_settings').catch(() => null);
+
+      if (setting && setting.value) {
+        const config = setting.value as any;
+        const prefix = config.prefix || 'CAND';
+        const minDigits = config.minDigits || 6;
+
+        if (config.type === 'sequential') {
+          const nextNumber = config.nextNumber || 1;
+          const numberStr = nextNumber.toString().padStart(minDigits, '0');
+          return `${prefix}-${numberStr}`;
+        } else {
+          // For random, we just return a placeholder or example
+          return `${prefix}-XXXXXX`;
+        }
+      }
+    } catch (error) {
+      console.error('Error peeking custom candidate ID:', error);
+    }
+    return `CAND-XXXXXX`;
+  }
+
+  private async generateCandidateId(tenantId: string) {
+    try {
+      const setting = await this.settingsService.getSettingByKey(tenantId, 'candidate_id_settings').catch(() => null);
+
+      if (setting && setting.value) {
+        const config = setting.value as any;
+        const prefix = config.prefix || 'CAND';
+        const minDigits = config.minDigits || 6;
+
+        if (config.type === 'sequential') {
+          // Atomic update using raw query or transaction if possible
+          // For now, simple update in transaction
+          return await this.prisma.$transaction(async (tx) => {
+            const currentSetting = await tx.setting.findUnique({
+              where: { tenantId_key: { tenantId, key: 'candidate_id_settings' } }
+            });
+
+            const currentConfig = currentSetting?.value as any;
+            const nextNumber = currentConfig?.nextNumber || 1;
+
+            await tx.setting.update({
+              where: { tenantId_key: { tenantId, key: 'candidate_id_settings' } },
+              data: {
+                value: {
+                  ...currentConfig,
+                  nextNumber: nextNumber + 1
+                }
+              }
+            });
+
+            const numberStr = nextNumber.toString().padStart(minDigits, '0');
+            return `${prefix}-${numberStr}`;
+          });
+        } else {
+          // Custom prefix with random number
+          const randomNum = crypto.randomInt(Math.pow(10, minDigits - 1), Math.pow(10, minDigits) - 1);
+          return `${prefix}-${randomNum}`;
+        }
+      }
+    } catch (error) {
+      console.error('Error generating custom candidate ID:', error);
+    }
+
     const randomNum = crypto.randomInt(100000, 999999);
     return `CAND-${randomNum}`;
   }
@@ -49,11 +119,13 @@ export class CandidatesService {
       skills = await this.skillsService.normalizeSkills(skills, tenantId);
     }
 
-    // Create candidate
+    // Use provided candidateId or generate one if enabled
+    const candidateId = dto.candidateId || await this.generateCandidateId(tenantId);
+
     const candidate = await this.prisma.candidate.create({
       data: {
         ...dto,
-        candidateId: this.generateCandidateId(),
+        candidateId,
         skills,
         tenantId,
         ...(dto.referrerId && { referrerId: dto.referrerId }),
@@ -72,6 +144,11 @@ export class CandidatesService {
           source: candidate.source,
         },
       },
+    });
+
+    // Generate embedding in background (don't block the main flow)
+    this.semanticSearchService.updateCandidateEmbedding(candidate.id, tenantId).catch(err => {
+      console.error(`Failed to update embedding for candidate ${candidate.id}:`, err);
     });
 
     return candidate;
@@ -368,13 +445,20 @@ export class CandidatesService {
       skills = await this.skillsService.normalizeSkills(skills, candidate.tenantId);
     }
 
-    return this.prisma.candidate.update({
+    const updatedCandidate = await this.prisma.candidate.update({
       where: { id },
       data: {
         ...dto,
         skills: skills || undefined,
       },
     });
+
+    // Generate embedding in background
+    this.semanticSearchService.updateCandidateEmbedding(id, updatedCandidate.tenantId).catch(err => {
+      console.error(`Failed to update embedding for candidate ${id}:`, err);
+    });
+
+    return updatedCandidate;
   }
 
   async remove(id: string) {
@@ -937,7 +1021,7 @@ export class CandidatesService {
         const candidate = await this.prisma.candidate.create({
           data: {
             ...candidateData,
-            candidateId: this.generateCandidateId(),
+            candidateId: await this.generateCandidateId(tenantId),
             tenantId,
           },
         });
@@ -1107,7 +1191,7 @@ export class CandidatesService {
 
     // Check for common column names
     const hasName = headers.includes('firstname') || headers.includes('first_name') ||
-                   headers.includes('first name') || headers.includes('name');
+      headers.includes('first name') || headers.includes('name');
     if (!hasName) {
       errors.push('Warning: No name columns found (firstname, first_name, name)');
     }

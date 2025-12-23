@@ -32,7 +32,7 @@ export class JobBoardsService {
     constructor(
         private configService: ConfigService,
         private prisma: PrismaService,
-    ) {}
+    ) { }
 
     /**
      * Get all job board configurations for a tenant
@@ -43,7 +43,7 @@ export class JobBoardsService {
         });
 
         const configs = (setting?.value as unknown as Record<string, JobBoardConfig>) || {};
-        
+
         // Return sanitized settings (no API keys exposed)
         const result: { [key: string]: { isConfigured: boolean; companyId?: string } } = {};
         for (const provider of ['LINKEDIN', 'INDEED', 'ZIPRECRUITER', 'GLASSDOOR', 'MONSTER'] as JobBoardProvider[]) {
@@ -115,6 +115,7 @@ export class JobBoardsService {
     async postJob(tenantId: string, jobId: string, providers?: JobBoardProvider[]): Promise<{ provider: string; status: string; url?: string }[]> {
         const job = await this.prisma.job.findFirst({
             where: { id: jobId, tenantId },
+            include: { locations: true },
         });
 
         if (!job) {
@@ -171,7 +172,7 @@ export class JobBoardsService {
 
     async postToLinkedIn(job: Job, config?: JobBoardConfig): Promise<string> {
         this.logger.log(`Posting job ${job.id} to LinkedIn...`);
-        
+
         if (!config?.apiKey || !config?.companyId) {
             throw new BadRequestException('LinkedIn API key and company ID required');
         }
@@ -188,7 +189,7 @@ export class JobBoardsService {
                 companyId: config.companyId,
                 title: job.title,
                 description: job.description,
-                location: job.locationId || 'Remote',
+                location: (job as any).locations?.[0]?.city || 'Remote',
                 employmentType: this.mapEmploymentType(job.employmentType, 'LINKEDIN'),
                 listedAt: Date.now(),
             }),
@@ -206,7 +207,7 @@ export class JobBoardsService {
 
     async postToIndeed(job: Job, config?: JobBoardConfig): Promise<string> {
         this.logger.log(`Posting job ${job.id} to Indeed...`);
-        
+
         if (!config?.apiKey) {
             throw new BadRequestException('Indeed API key required');
         }
@@ -222,7 +223,7 @@ export class JobBoardsService {
                 jobTitle: job.title,
                 jobDescription: job.description,
                 company: config.companyId || 'Company',
-                location: job.locationId || 'Remote',
+                location: (job as any).locations?.[0]?.city || 'Remote',
                 jobType: this.mapEmploymentType(job.employmentType, 'INDEED'),
                 salary: job.salaryMax ? { max: Number(job.salaryMax), currency: 'USD' } : undefined,
             }),
@@ -240,12 +241,12 @@ export class JobBoardsService {
 
     async postToZipRecruiter(job: Job, config?: JobBoardConfig): Promise<string> {
         this.logger.log(`Posting job ${job.id} to ZipRecruiter...`);
-        
+
         if (!config?.apiKey) {
             throw new BadRequestException('ZipRecruiter API key required');
         }
 
-        const apiUrl = config.sandboxMode 
+        const apiUrl = config.sandboxMode
             ? 'https://api.sandbox.ziprecruiter.com/jobs/v1/jobs'
             : 'https://api.ziprecruiter.com/jobs/v1/jobs';
 
@@ -275,7 +276,7 @@ export class JobBoardsService {
 
     async postToGlassdoor(job: Job, config?: JobBoardConfig): Promise<string> {
         this.logger.log(`Posting job ${job.id} to Glassdoor...`);
-        
+
         if (!config?.apiKey || !config?.companyId) {
             throw new BadRequestException('Glassdoor API key and company ID required');
         }
@@ -291,7 +292,7 @@ export class JobBoardsService {
                 employerId: config.companyId,
                 jobTitle: job.title,
                 jobDescription: job.description,
-                location: job.locationId || 'Remote',
+                location: (job as any).locations?.[0]?.city || 'Remote',
                 jobType: this.mapEmploymentType(job.employmentType, 'GLASSDOOR'),
             }),
         });
@@ -308,7 +309,7 @@ export class JobBoardsService {
 
     async postToMonster(job: Job, config?: JobBoardConfig): Promise<string> {
         this.logger.log(`Posting job ${job.id} to Monster...`);
-        
+
         if (!config?.apiKey) {
             throw new BadRequestException('Monster API key required');
         }
@@ -324,7 +325,7 @@ export class JobBoardsService {
                 jobTitle: job.title,
                 jobDescription: job.description,
                 companyName: config.companyId || 'Company',
-                location: job.locationId || 'Remote',
+                location: (job as any).locations?.[0]?.city || 'Remote',
                 jobType: this.mapEmploymentType(job.employmentType, 'MONSTER'),
             }),
         });

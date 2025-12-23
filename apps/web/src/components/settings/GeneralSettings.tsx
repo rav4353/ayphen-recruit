@@ -224,8 +224,16 @@ const localizationSchema = z.object({
     numberFormat: z.string(),
 });
 
+const candidateIdSettingsSchema = z.object({
+    type: z.enum(['random', 'sequential']),
+    prefix: z.string().min(1, 'Prefix is required'),
+    minDigits: z.number().min(3).max(10),
+    nextNumber: z.number().min(1),
+});
+
 type OrgProfileForm = z.infer<typeof orgProfileSchema>;
 type LocalizationForm = z.infer<typeof localizationSchema>;
+type CandidateIdSettingsForm = z.infer<typeof candidateIdSettingsSchema>;
 
 const DATE_FORMATS = [
     { value: 'MM/DD/YYYY', label: 'MM/DD/YYYY (US)', example: '12/31/2024' },
@@ -248,6 +256,7 @@ export function GeneralSettings() {
     const [isUploadingLogo, setIsUploadingLogo] = useState(false);
     const [isSavingProfile, setIsSavingProfile] = useState(false);
     const [isSavingLocalization, setIsSavingLocalization] = useState(false);
+    const [isSavingCandidateId, setIsSavingCandidateId] = useState(false);
     const { setSettings, setLogoUrl: setStoreLogo } = useOrganizationStore();
 
     // Fetch Reference Data
@@ -296,6 +305,16 @@ export function GeneralSettings() {
         }
     });
 
+    const candidateIdSettingsForm = useForm<CandidateIdSettingsForm>({
+        resolver: zodResolver(candidateIdSettingsSchema),
+        defaultValues: {
+            type: 'random',
+            prefix: 'CAND',
+            minDigits: 6,
+            nextNumber: 1,
+        }
+    });
+
     // Load settings on mount
     useEffect(() => {
         const loadSettings = async () => {
@@ -339,6 +358,18 @@ export function GeneralSettings() {
                         numberFormat: loc.numberFormat || 'en-US',
                     });
                     setSettings(loc);
+                }
+
+                // Find candidate ID settings
+                const candidateId = Array.isArray(settings) ? settings.find((s: any) => s.key === 'candidate_id_settings') : null;
+                if (candidateId?.value) {
+                    const cid = candidateId.value;
+                    candidateIdSettingsForm.reset({
+                        type: cid.type || 'random',
+                        prefix: cid.prefix || 'CAND',
+                        minDigits: cid.minDigits || 6,
+                        nextNumber: cid.nextNumber || 1,
+                    });
                 }
             } catch (error) {
                 console.error('Failed to load settings:', error);
@@ -430,6 +461,23 @@ export function GeneralSettings() {
             toast.error('Failed to save localization settings');
         } finally {
             setIsSavingLocalization(false);
+        }
+    };
+
+    const onSaveCandidateIdSettings = async (data: CandidateIdSettingsForm) => {
+        setIsSavingCandidateId(true);
+        try {
+            await settingsApi.update('candidate_id_settings', {
+                value: data,
+                category: 'CANDIDATE',
+                isPublic: false,
+            });
+            toast.success('Candidate ID settings saved successfully');
+        } catch (error) {
+            console.error('Failed to save candidate ID settings:', error);
+            toast.error('Failed to save candidate ID settings');
+        } finally {
+            setIsSavingCandidateId(false);
         }
     };
 
@@ -843,6 +891,86 @@ export function GeneralSettings() {
 
                         <div className="flex justify-end pt-4 border-t border-neutral-100 dark:border-neutral-800">
                             <Button type="submit" isLoading={isSavingLocalization}>Save Changes</Button>
+                        </div>
+                    </form>
+                </CardContent>
+            </Card>
+
+            {/* Candidate ID Customization */}
+            <Card className="overflow-hidden">
+                <CardHeader
+                    title="Candidate ID Customization"
+                    description="Customize how candidate IDs are generated and displayed throughout the system."
+                    icon={<Edit size={20} className="text-orange-500" />}
+                    className="border-b border-neutral-100 dark:border-neutral-800"
+                />
+                <CardContent className="pt-6">
+                    <form onSubmit={candidateIdSettingsForm.handleSubmit(onSaveCandidateIdSettings)} className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                                <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Generation Type</Label>
+                                <Controller
+                                    name="type"
+                                    control={candidateIdSettingsForm.control}
+                                    render={({ field }) => (
+                                        <Select onValueChange={field.onChange} value={field.value}>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select type" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="random">Random Numbers</SelectItem>
+                                                <SelectItem value="sequential">Sequential Numbers</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    )}
+                                />
+                                <p className="text-xs text-neutral-500">Choose between random 6-digit IDs or sequential numbers.</p>
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">ID Prefix</Label>
+                                <Input
+                                    {...candidateIdSettingsForm.register('prefix')}
+                                    placeholder="e.g. CAND, AYP, ABC"
+                                    error={candidateIdSettingsForm.formState.errors.prefix?.message}
+                                />
+                                <p className="text-xs text-neutral-500">The text appearing before the number (e.g. CAND-0001).</p>
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Minimum Digits</Label>
+                                <Input
+                                    type="number"
+                                    {...candidateIdSettingsForm.register('minDigits', { valueAsNumber: true })}
+                                    error={candidateIdSettingsForm.formState.errors.minDigits?.message}
+                                />
+                                <p className="text-xs text-neutral-500">How many digits the number should have (e.g. 6 digits: 000001).</p>
+                            </div>
+                            {candidateIdSettingsForm.watch('type') === 'sequential' && (
+                                <div className="space-y-2">
+                                    <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Next Number</Label>
+                                    <Input
+                                        type="number"
+                                        {...candidateIdSettingsForm.register('nextNumber', { valueAsNumber: true })}
+                                        error={candidateIdSettingsForm.formState.errors.nextNumber?.message}
+                                    />
+                                    <p className="text-xs text-neutral-500">The number to be assigned to the next new candidate.</p>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Preview */}
+                        <div className="bg-neutral-50 dark:bg-neutral-800/50 p-4 rounded-lg border border-neutral-200 dark:border-neutral-700">
+                            <h4 className="text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-2">Example Preview</h4>
+                            <div className="text-lg font-mono text-blue-600 dark:text-blue-400">
+                                {candidateIdSettingsForm.watch('prefix')}-{
+                                    candidateIdSettingsForm.watch('type') === 'sequential'
+                                        ? String(candidateIdSettingsForm.watch('nextNumber') || 1).padStart(candidateIdSettingsForm.watch('minDigits') || 6, '0')
+                                        : '123456'.slice(0, candidateIdSettingsForm.watch('minDigits') || 6).padStart(candidateIdSettingsForm.watch('minDigits') || 6, '0')
+                                }
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end pt-4 border-t border-neutral-100 dark:border-neutral-800">
+                            <Button type="submit" isLoading={isSavingCandidateId}>Save ID Settings</Button>
                         </div>
                     </form>
                 </CardContent>

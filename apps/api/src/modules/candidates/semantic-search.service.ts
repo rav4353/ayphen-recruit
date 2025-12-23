@@ -72,53 +72,81 @@ export class SemanticSearchService {
         try {
             // Step 1: Get query embedding from AI service
             const queryEmbedding = await this.getEmbedding(query);
+            const queryEmbeddingArray = `[${queryEmbedding.join(',')}]`;
 
-            // Step 2: Get candidates with embeddings using pgvector similarity search
-            // For now, we'll use a hybrid approach: keyword + semantic matching
-            const candidates = await this.getCandidatesForSearch(tenantId, filters);
+            // Step 2: Use pgvector similarity search in the database
+            // Cosine distance is 1 - cosine similarity. So distance <= (1 - minScore)
+            // We use raw query because pgvector operators are not supported in Prisma findMany
+            const results: any[] = await this.prisma.$queryRaw`
+                SELECT 
+                    id as "candidateId",
+                    "firstName",
+                    "lastName",
+                    email,
+                    "currentTitle",
+                    "currentCompany",
+                    location,
+                    skills,
+                    1 - (embedding <=> ${queryEmbeddingArray}::vector) as "matchScore"
+                FROM candidates
+                WHERE "tenantId" = ${tenantId}
+                AND embedding IS NOT NULL
+                AND (1 - (embedding <=> ${queryEmbeddingArray}::vector)) >= ${minScore}
+                ORDER BY embedding <=> ${queryEmbeddingArray}::vector ASC
+                LIMIT ${limit}
+            `;
 
-            // Step 3: Calculate semantic similarity for each candidate
-            const results: SemanticSearchResult[] = [];
-
-            for (const candidate of candidates) {
-                const candidateText = this.buildCandidateText(candidate);
-                
-                // Get candidate embedding (or use cached one)
-                let similarity: number;
-                
-                try {
-                    const candidateEmbedding = await this.getEmbedding(candidateText);
-                    similarity = this.cosineSimilarity(queryEmbedding, candidateEmbedding);
-                } catch {
-                    // Fallback to keyword matching if embedding fails
-                    similarity = this.keywordSimilarity(query, candidateText);
-                }
-
-                if (similarity >= minScore) {
-                    results.push({
-                        candidateId: candidate.id,
-                        firstName: candidate.firstName,
-                        lastName: candidate.lastName,
-                        email: candidate.email,
-                        currentTitle: candidate.currentTitle || undefined,
-                        currentCompany: candidate.currentCompany || undefined,
-                        location: candidate.location || undefined,
-                        skills: candidate.skills,
-                        matchScore: Math.round(similarity * 100) / 100,
-                        matchReason: this.generateMatchReason(query, candidate),
-                        highlights: this.extractHighlights(query, candidate),
-                    });
-                }
+            if (results.length === 0) {
+                // If no embeddings found in DB yet, fallback to original hybrid approach but limited
+                return this.fallbackKeywordSearch(options);
             }
 
-            // Sort by match score descending
-            results.sort((a, b) => b.matchScore - a.matchScore);
-
-            return results.slice(0, limit);
+            return results.map(r => ({
+                ...r,
+                matchReason: this.generateMatchReason(query, r),
+                highlights: this.extractHighlights(query, r),
+            }));
         } catch (error) {
             this.logger.error('Semantic search failed:', error);
-            // Fallback to keyword search
             return this.fallbackKeywordSearch(options);
+        }
+    }
+
+    /**
+     * Update a candidate's embedding in the database
+     */
+    async updateCandidateEmbedding(candidateId: string, tenantId: string): Promise<void> {
+        try {
+            const candidate = await this.prisma.candidate.findUnique({
+                where: { id: candidateId },
+                select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                    currentTitle: true,
+                    currentCompany: true,
+                    location: true,
+                    skills: true,
+                    summary: true,
+                    resumeText: true,
+                }
+            });
+
+            if (!candidate) return;
+
+            const text = this.buildCandidateText(candidate as CandidateWithEmbedding);
+            const embedding = await this.getEmbedding(text);
+            const embeddingArray = `[${embedding.join(',')}]`;
+
+            await this.prisma.$executeRaw`
+                UPDATE candidates 
+                SET embedding = ${embeddingArray}::vector 
+                WHERE id = ${candidateId}
+            `;
+
+            this.logger.log(`Updated embedding for candidate ${candidateId}`);
+        } catch (error) {
+            this.logger.error(`Failed to update candidate embedding for ${candidateId}:`, error);
         }
     }
 
@@ -166,7 +194,7 @@ export class SemanticSearchService {
                 description: true,
                 requirements: true,
                 skills: true,
-                location: true,
+                locations: { select: { city: true } },
             },
         });
 
@@ -187,7 +215,7 @@ export class SemanticSearchService {
             tenantId,
             limit,
             minScore: 0.4,
-            filters: typeof job.location === 'string' ? { location: job.location } : undefined,
+            filters: (job as any).locations?.[0]?.city ? { location: (job as any).locations[0].city } : undefined,
         });
     }
 
@@ -358,7 +386,7 @@ export class SemanticSearchService {
         const queryLower = query.toLowerCase();
 
         // Check skills match
-        const matchedSkills = candidate.skills.filter(skill => 
+        const matchedSkills = candidate.skills.filter(skill =>
             queryLower.includes(skill.toLowerCase())
         );
         if (matchedSkills.length > 0) {

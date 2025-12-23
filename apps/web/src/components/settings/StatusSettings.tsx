@@ -67,6 +67,27 @@ export function StatusSettings() {
         });
     };
 
+    const handleLabelChange = (
+        type: 'job' | 'application',
+        status: string,
+        value: string
+    ) => {
+        if (!localColors) return;
+        setLocalColors((prev) => {
+            if (!prev) return prev;
+            return {
+                ...prev,
+                [type]: {
+                    ...prev[type],
+                    [status]: {
+                        ...prev[type][status],
+                        label: value || undefined, // Remove label if empty
+                    },
+                },
+            };
+        });
+    };
+
     const handleSave = async () => {
         if (!localColors) return;
         setIsSaving(true);
@@ -127,7 +148,7 @@ export function StatusSettings() {
                 <div>
                     <h2 className="text-lg font-medium text-neutral-900 dark:text-white">Status Appearance</h2>
                     <p className="text-sm text-neutral-500 dark:text-neutral-400">
-                        Customize the colors for job and application statuses.
+                        Customize the display labels and colors for job and application statuses.
                     </p>
                 </div>
                 <div className="flex gap-2">
@@ -150,7 +171,16 @@ export function StatusSettings() {
                             <div className="flex-1">
                                 <div className="flex items-center justify-between mb-2">
                                     <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">{status}</span>
-                                    <Badge customColor={color}>{status}</Badge>
+                                    <Badge customColor={color}>{color.label || status}</Badge>
+                                </div>
+                                <div className="mb-3">
+                                    <label className="text-xs text-neutral-500 mb-1 block">Display Label</label>
+                                    <Input
+                                        value={color.label || ''}
+                                        onChange={(e) => handleLabelChange('job', status, e.target.value)}
+                                        placeholder={status.replace(/_/g, ' ')}
+                                        className="h-8 text-xs"
+                                    />
                                 </div>
                                 <div className="flex gap-4">
                                     <div className="flex-1">
@@ -202,7 +232,16 @@ export function StatusSettings() {
                             <div className="flex-1">
                                 <div className="flex items-center justify-between mb-2">
                                     <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">{status}</span>
-                                    <Badge customColor={color}>{status}</Badge>
+                                    <Badge customColor={color}>{color.label || status}</Badge>
+                                </div>
+                                <div className="mb-3">
+                                    <label className="text-xs text-neutral-500 mb-1 block">Display Label</label>
+                                    <Input
+                                        value={color.label || ''}
+                                        onChange={(e) => handleLabelChange('application', status, e.target.value)}
+                                        placeholder={status.replace(/_/g, ' ')}
+                                        className="h-8 text-xs"
+                                    />
                                 </div>
                                 <div className="flex gap-4">
                                     <div className="flex-1">

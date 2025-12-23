@@ -170,4 +170,4 @@ Errors return appropriate HTTP status codes with details:
 
 bootstrap();
 // Trigger rebuild 2025-12-16-11-20
-// DB Schema Sync forced rebuild
+// DB Schema Sync forced rebuild 2025-12-23 - Pre-offer documents

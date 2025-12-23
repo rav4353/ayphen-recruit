@@ -33,6 +33,13 @@ import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 export class CandidatesController {
   constructor(private readonly candidatesService: CandidatesService) { }
 
+  @Get('next-id')
+  @ApiOperation({ summary: 'Get the next available candidate ID' })
+  @RequirePermissions(Permission.CANDIDATE_CREATE)
+  getNextId(@CurrentUser() user: JwtPayload) {
+    return this.candidatesService.peekCandidateId(user.tenantId);
+  }
+
   @Post()
   @ApiOperation({ summary: 'Create a new candidate' })
   @RequirePermissions(Permission.CANDIDATE_CREATE)

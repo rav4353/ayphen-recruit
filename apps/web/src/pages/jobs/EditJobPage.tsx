@@ -31,6 +31,7 @@ export function EditJobPage() {
                 setInitialData({
                     title: job.title || '',
                     department: job.department?.name || '',
+                    locationIds: job.locations?.map((loc: any) => loc.id) || [],
                     employmentType: job.employmentType || 'FULL_TIME',
                     workLocation: job.workLocation || 'ONSITE',
                     description: job.description || '',

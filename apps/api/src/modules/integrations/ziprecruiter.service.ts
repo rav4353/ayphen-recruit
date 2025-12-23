@@ -38,7 +38,7 @@ export class ZipRecruiterService {
   constructor(
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
-  ) {}
+  ) { }
 
   /**
    * Get ZipRecruiter configuration
@@ -89,7 +89,7 @@ export class ZipRecruiterService {
 
     const job = await this.prisma.job.findFirst({
       where: { id: jobId, tenantId },
-      include: { location: true, tenant: true },
+      include: { locations: true, tenant: true },
     });
 
     if (!job) {
@@ -115,7 +115,7 @@ export class ZipRecruiterService {
       if (!response.ok) {
         const errorText = await response.text();
         this.logger.error(`ZipRecruiter API error: ${errorText}`);
-        
+
         // Log failed attempt
         await this.prisma.activityLog.create({
           data: {
@@ -124,7 +124,7 @@ export class ZipRecruiterService {
             metadata: { jobId, error: errorText, provider: 'ZIPRECRUITER' },
           },
         });
-        
+
         return { success: false, message: `API error: ${response.status}` };
       }
 
@@ -153,9 +153,9 @@ export class ZipRecruiterService {
    */
   async updateJob(tenantId: string, jobId: string, externalId: string): Promise<{ success: boolean }> {
     const config = await this.getConfigOrThrow(tenantId);
-    
+
     this.logger.log(`Updating job ${jobId} on ZipRecruiter (externalId: ${externalId})`);
-    
+
     return { success: true };
   }
 
@@ -164,9 +164,9 @@ export class ZipRecruiterService {
    */
   async removeJob(tenantId: string, externalId: string): Promise<{ success: boolean }> {
     const config = await this.getConfigOrThrow(tenantId);
-    
+
     this.logger.log(`Removing job ${externalId} from ZipRecruiter`);
-    
+
     return { success: true };
   }
 
@@ -180,7 +180,7 @@ export class ZipRecruiterService {
   }> {
     const config = await this.getConfigOrThrow(tenantId);
     const apiUrl = config.sandboxMode ? this.sandboxApiUrl : this.apiUrl;
-    
+
     try {
       const response = await fetch(`${apiUrl}/jobs/${externalId}/stats`, {
         headers: {
@@ -265,10 +265,10 @@ export class ZipRecruiterService {
       job_description: job.description,
       company_name: job.tenant?.name || 'Company',
       job_url: `${baseUrl}/careers/${job.id}`,
-      city: job.location?.city || '',
-      state: job.location?.state || '',
-      country: job.location?.country || 'US',
-      zip_code: job.location?.postalCode,
+      city: job.locations?.[0]?.city || '',
+      state: job.locations?.[0]?.state || '',
+      country: job.locations?.[0]?.country || 'US',
+      zip_code: job.locations?.[0]?.postalCode,
       posted_date: job.publishedAt?.toISOString() || job.createdAt.toISOString(),
       job_type: jobTypeMap[job.employmentType] || 'full_time',
       salary_min: job.salaryMin ? Number(job.salaryMin) : undefined,

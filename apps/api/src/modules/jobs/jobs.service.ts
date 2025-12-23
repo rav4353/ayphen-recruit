@@ -27,7 +27,7 @@ export class JobsService {
     const {
       departmentId: providedDepartmentId,
       department: departmentName,
-      locationId,
+      locationIds,
       hiringManagerId,
       pipelineId,
       scorecardTemplateId,
@@ -94,14 +94,18 @@ export class JobsService {
           ...(employmentType && { employmentType }),
           ...(workLocation && { workLocation }),
           ...(departmentId && { departmentId }),
-          ...(locationId && { locationId }),
+          ...(locationIds && locationIds.length > 0 && {
+            locations: {
+              connect: locationIds.map(id => ({ id }))
+            }
+          }),
           ...(hiringManagerId && { hiringManagerId }),
           ...(pipelineId && { pipelineId }),
           ...(scorecardTemplateId && { scorecardTemplateId }),
         },
         include: {
           department: true,
-          location: true,
+          locations: true,
           recruiter: true,
           hiringManager: true,
         },
@@ -144,7 +148,9 @@ export class JobsService {
       where.departmentId = query.departmentId;
     }
     if (query.locationId) {
-      where.locationId = query.locationId;
+      where.locations = {
+        some: { id: query.locationId }
+      };
     }
     if (query.employmentType) {
       where.employmentType = query.employmentType;
@@ -175,7 +181,7 @@ export class JobsService {
         orderBy,
         include: {
           department: true,
-          location: true,
+          locations: true,
           recruiter: { select: { id: true, firstName: true, lastName: true, employeeId: true } },
           hiringManager: { select: { id: true, firstName: true, lastName: true, employeeId: true } },
           _count: { select: { applications: true } },
@@ -197,7 +203,7 @@ export class JobsService {
       orderBy: { createdAt: 'desc' },
       include: {
         department: true,
-        location: true,
+        locations: true,
       },
     });
     return jobs;
@@ -208,7 +214,7 @@ export class JobsService {
       where: { id },
       include: {
         department: true,
-        location: true,
+        locations: true,
         recruiter: true,
         hiringManager: true,
         pipeline: { include: { stages: { orderBy: { order: 'asc' } } } },
@@ -241,7 +247,7 @@ export class JobsService {
     const {
       departmentId: providedDepartmentId,
       department: departmentName,
-      locationId,
+      locationIds,
       hiringManagerId,
       pipelineId,
       employmentType,
@@ -281,13 +287,17 @@ export class JobsService {
         ...(employmentType && { employmentType }),
         ...(workLocation && { workLocation }),
         ...(departmentId !== undefined && { departmentId }),
-        ...(locationId !== undefined && { locationId }),
+        ...(locationIds !== undefined && {
+          locations: {
+            set: locationIds.map(id => ({ id }))
+          }
+        }),
         ...(hiringManagerId !== undefined && { hiringManagerId }),
         ...(pipelineId !== undefined && { pipelineId }),
       },
       include: {
         department: true,
-        location: true,
+        locations: true,
         recruiter: true,
         hiringManager: true,
       },
@@ -338,7 +348,9 @@ export class JobsService {
         tenantId,
         recruiterId,
         departmentId: job.departmentId,
-        locationId: job.locationId,
+        locations: {
+          connect: job.locations.map(l => ({ id: l.id }))
+        },
         hiringManagerId: job.hiringManagerId,
         pipelineId: job.pipelineId,
       },
@@ -351,7 +363,11 @@ export class JobsService {
     // Apply filters (same as findAll)
     if (query.status) where.status = query.status;
     if (query.departmentId) where.departmentId = query.departmentId;
-    if (query.locationId) where.locationId = query.locationId;
+    if (query.locationId) {
+      where.locations = {
+        some: { id: query.locationId }
+      };
+    }
     if (query.employmentType) where.employmentType = query.employmentType;
     if (query.workLocation) where.workLocation = query.workLocation;
     if (query.ids && query.ids.length > 0) {
@@ -375,7 +391,7 @@ export class JobsService {
       orderBy,
       include: {
         department: true,
-        location: true,
+        locations: true,
         recruiter: { select: { firstName: true, lastName: true } },
         hiringManager: { select: { firstName: true, lastName: true } },
         _count: { select: { applications: true } },
@@ -413,7 +429,7 @@ export class JobsService {
         `"${job.title.replace(/"/g, '""')}"`,
         job.status,
         `"${(job.department?.name || '').replace(/"/g, '""')}"`,
-        `"${(job.location?.name || '').replace(/"/g, '""')}"`,
+        `"${(job.locations?.map(l => l.name).join(', ') || '').replace(/"/g, '""')}"`,
         job.employmentType,
         job.workLocation,
         job.salaryMin || '',
@@ -439,6 +455,41 @@ export class JobsService {
     }
 
     let finalApproverIds = approverIds || [];
+
+    if (finalApproverIds.length === 0) {
+      try {
+        // Try to fetch approval workflows from settings
+        const setting = await this.settingsService.getSettingByKey(job.tenantId, 'approval_workflows');
+        const workflows = setting?.value as any[];
+
+        if (workflows && workflows.length > 0) {
+          // Prioritize 'Job Requisition Approval' or similar, otherwise take the first one
+          const jobWorkflow = workflows.find(w => w.name.includes('Job') || w.name.includes('Requisition')) || workflows[0];
+
+          if (jobWorkflow && jobWorkflow.steps?.length > 0) {
+            console.log(`[JobsService] Using approval workflow: ${jobWorkflow.name}`);
+
+            // Extract user IDs from steps
+            finalApproverIds = jobWorkflow.steps.map((step: any) => {
+              // Handle new format (object with userId)
+              if (typeof step === 'object' && step.userId) {
+                return step.userId;
+              }
+              // Handle old format (string role name) - this is tricky without role resolution, 
+              // but we'll return null and filter it out, falling back to other methods if needed
+              return null;
+            }).filter(Boolean);
+
+            if (finalApproverIds.length === 0) {
+              console.warn('[JobsService] Workflow found but no valid user IDs in steps');
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('[JobsService] Failed to fetch approval workflows setting:', error);
+      }
+    }
+
     if (finalApproverIds.length === 0) {
       if (job.hiringManagerId) {
         console.log(`[JobsService] Using hiring manager ${job.hiringManagerId} as approver`);
@@ -688,7 +739,7 @@ export class JobsService {
       },
       include: {
         department: true,
-        location: true,
+        locations: true,
       },
     });
 
@@ -707,9 +758,9 @@ export class JobsService {
       xml += `    <referencenumber><![CDATA[${job.id}]]></referencenumber>\n`;
       xml += `    <url><![CDATA[${jobUrl}]]></url>\n`;
       xml += `    <company><![CDATA[${companyName}]]></company>\n`;
-      xml += `    <city><![CDATA[${job.location?.city || ''}]]></city>\n`;
-      xml += `    <state><![CDATA[${job.location?.state || ''}]]></state>\n`;
-      xml += `    <country><![CDATA[${job.location?.country || ''}]]></country>\n`;
+      xml += `    <city><![CDATA[${job.locations?.[0]?.city || ''}]]></city>\n`;
+      xml += `    <state><![CDATA[${job.locations?.[0]?.state || ''}]]></state>\n`;
+      xml += `    <country><![CDATA[${job.locations?.[0]?.country || ''}]]></country>\n`;
       xml += `    <description><![CDATA[${job.description}]]></description>\n`;
       if (job.showSalary && job.salaryMin && job.salaryMax) {
         xml += `    <salary><![CDATA[${job.salaryMin} - ${job.salaryMax} ${job.salaryCurrency}]]></salary>\n`;
@@ -970,7 +1021,7 @@ export class JobsService {
       title: reqData.title,
       description: additionalData?.description || `Position for ${reqData.title}`,
       departmentId: reqData.departmentId,
-      locationId: reqData.locationId,
+      locationIds: reqData.locationId ? [reqData.locationId] : [],
       employmentType: reqData.employmentType || 'FULL_TIME',
       skills: reqData.skills || [],
       salaryMin: reqData.salaryRange?.min,

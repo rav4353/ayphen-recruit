@@ -3,11 +3,11 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Plus, Search, Filter, Download, MoreVertical, Copy, XCircle, Briefcase, Sparkles } from 'lucide-react';
-import { jobsApi } from '../../lib/api';
 import { StatusBadge, Button, PageHeader } from '../../components/ui';
-import { SavedViews } from '../../components/common/SavedViews';
+import { SavedViews, ColumnSelector, ExportColumn } from '../../components/common';
 import { useJobs, useUpdateJobStatus, useCloneJob, useSubmitJobApproval, useBulkUpdateJobStatus } from '../../hooks/queries';
 import { logger } from '../../lib/logger';
+import { convertToCSV, downloadCSV, CSV_TRANSFORMERS, CsvColumn } from '../../lib/csv-utils';
 
 const log = logger.component('JobsPage');
 
@@ -39,6 +39,7 @@ export function JobsPage() {
   );
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [page, setPage] = useState(1);
+  const [showColumnSelector, setShowColumnSelector] = useState(false);
 
   // Debounce search input
   useEffect(() => {
@@ -116,33 +117,88 @@ export function JobsPage() {
     cloneMutation.mutate(jobId);
   };
 
-  const handleExport = async (ids?: string[]) => {
-    if (!tenantId) return;
-    try {
-      log.info('Exporting jobs', { count: ids?.length || 'all' });
-      const response = await jobsApi.export(tenantId, {
-        search: debouncedSearch || undefined,
-        status: statusFilter || undefined,
-        department: departmentFilter || undefined,
-        location: locationFilter || undefined,
-        employmentType: employmentTypeFilter || undefined,
-        sortBy: sortBy || undefined,
-        sortOrder: sortBy ? sortOrder : undefined,
-        ids: ids,
-      });
+  // Define export columns
+  const exportColumns: ExportColumn[] = [
+    { key: 'jobCode', label: 'Job ID', defaultSelected: true },
+    { key: 'title', label: 'Job Title', defaultSelected: true },
+    { key: 'department', label: 'Department', defaultSelected: true },
+    { key: 'location', label: 'Location', defaultSelected: true },
+    { key: 'status', label: 'Status', defaultSelected: true },
+    { key: 'employmentType', label: 'Employment Type', defaultSelected: false },
+    { key: 'applicants', label: 'Number of Applicants', defaultSelected: true },
+    { key: 'hiringManager', label: 'Hiring Manager', defaultSelected: false },
+    { key: 'recruiter', label: 'Recruiter', defaultSelected: false },
+    { key: 'salaryMin', label: 'Minimum Salary', defaultSelected: false },
+    { key: 'salaryMax', label: 'Maximum Salary', defaultSelected: false },
+    { key: 'createdAt', label: 'Created Date', defaultSelected: true },
+    { key: 'publishedAt', label: 'Published Date', defaultSelected: false },
+  ];
 
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `jobs_export_${new Date().toISOString().split('T')[0]}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      toast.success(t('jobs.exportSuccess'));
-    } catch (err) {
-      log.error('Export failed', err);
-      toast.error(t('jobs.exportError'));
-    }
+  // Define CSV column transformations
+  const csvColumns: CsvColumn[] = [
+    { key: 'jobCode', header: 'Job ID' },
+    { key: 'title', header: 'Job Title' },
+    {
+      key: 'department',
+      header: 'Department',
+      transform: (_val, row) => row.department?.name || ''
+    },
+    {
+      key: 'location',
+      header: 'Location',
+      transform: (_val, row) => row.locations?.map((l: any) => l.name).join('; ') || (row.workLocation === 'REMOTE' ? 'Remote' : '')
+    },
+    { key: 'status', header: 'Status' },
+    { key: 'employmentType', header: 'Employment Type' },
+    {
+      key: 'applicants',
+      header: 'Number of Applicants',
+      transform: (_val, row) => row._count?.applications || 0
+    },
+    {
+      key: 'hiringManager',
+      header: 'Hiring Manager',
+      transform: (_val, row) => row.hiringManager
+        ? `${row.hiringManager.firstName} ${row.hiringManager.lastName}`
+        : ''
+    },
+    {
+      key: 'recruiter',
+      header: 'Recruiter',
+      transform: (_val, row) => row.recruiter
+        ? `${row.recruiter.firstName} ${row.recruiter.lastName}`
+        : ''
+    },
+    {
+      key: 'salaryMin',
+      header: 'Minimum Salary',
+      transform: CSV_TRANSFORMERS.currency
+    },
+    {
+      key: 'salaryMax',
+      header: 'Maximum Salary',
+      transform: CSV_TRANSFORMERS.currency
+    },
+    {
+      key: 'createdAt',
+      header: 'Created Date',
+      transform: CSV_TRANSFORMERS.date
+    },
+    {
+      key: 'publishedAt',
+      header: 'Published Date',
+      transform: CSV_TRANSFORMERS.date
+    },
+  ];
+
+  const handleExportWithColumns = (selectedColumns: string[]) => {
+    const dataToExport = selectedJobIds.length > 0
+      ? jobs.filter(job => selectedJobIds.includes(job.id))
+      : jobs;
+
+    const csvContent = convertToCSV(dataToExport, csvColumns, selectedColumns);
+    downloadCSV(csvContent, `jobs_export_${new Date().toISOString().split('T')[0]}.csv`);
+    toast.success(t('jobs.exportSuccess'));
   };
 
   // Memoized filter options from current jobs data
@@ -152,7 +208,7 @@ export function JobsPage() {
   );
 
   const locationOptions = useMemo(() =>
-    Array.from(new Set(jobs.map((job) => job.location?.name).filter((name): name is string => Boolean(name)))),
+    Array.from(new Set(jobs.flatMap((job) => job.locations?.map(l => l.name) || []).filter((name): name is string => Boolean(name)))),
     [jobs]
   );
 
@@ -236,7 +292,7 @@ export function JobsPage() {
               variant="outline"
               size="sm"
               className="gap-2 bg-white dark:bg-neutral-800 shadow-sm"
-              onClick={() => handleExport()}
+              onClick={() => setShowColumnSelector(true)}
             >
               <Download size={16} />
               <span className="hidden sm:inline">{t('common.export', 'Export')}</span>
@@ -398,7 +454,7 @@ export function JobsPage() {
                 variant="outline"
                 size="sm"
                 className="gap-1.5"
-                onClick={() => handleExport(selectedJobIds)}
+                onClick={() => setShowColumnSelector(true)}
               >
                 <Download size={14} />
                 {t('jobs.bulk.exportSelected')}
@@ -489,7 +545,7 @@ export function JobsPage() {
                     {job.department?.name || '—'}
                   </td>
                   <td className="px-4 py-3 text-sm text-neutral-600 dark:text-neutral-400">
-                    {job.location?.name || '—'}
+                    {job.locations?.length ? job.locations.map(l => l.name).join(', ') : (job.workLocation === 'REMOTE' ? 'Remote' : '—')}
                   </td>
                   <td className="px-4 py-3">
                     <StatusBadge statusInfo={job.statusInfo} />
@@ -526,11 +582,12 @@ export function JobsPage() {
                     <div className="flex items-center justify-end gap-2">
                       {job.status === 'DRAFT' && (
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="sm"
-                          className="text-xs h-7"
+                          className="text-xs h-8 gap-1.5 border-primary-200 dark:border-primary-800 text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20"
                           onClick={() => handleSubmitApproval(job.id)}
                         >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>
                           {t('jobs.actions.sendForApproval')}
                         </Button>
                       )}
@@ -608,6 +665,17 @@ export function JobsPage() {
           </div>
         )}
       </div>
+
+      {/* Column Selector Modal */}
+      <ColumnSelector
+        isOpen={showColumnSelector}
+        onClose={() => setShowColumnSelector(false)}
+        columns={exportColumns}
+        onExport={handleExportWithColumns}
+        title="Select Job Fields to Export"
+        description="Choose which job details you want in your CSV download"
+        exportButtonText="Download CSV"
+      />
     </div>
   );
 }

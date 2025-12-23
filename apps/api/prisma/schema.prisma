@@ -247,6 +247,9 @@ model User {
   // Announcements
   readAnnouncements AnnouncementReadStatus[]
 
+  // Document reviews
+  applicationDocumentsReviewed ApplicationDocument[]
+
   @@unique([email, tenantId])
   @@unique([employeeId, tenantId])
   @@index([tenantId])
@@ -468,8 +471,7 @@ model Job {
   departmentId String?
   department   Department? @relation(fields: [departmentId], references: [id])
 
-  locationId String?
-  location   Location? @relation(fields: [locationId], references: [id])
+  locations    Location[]
 
   hiringManagerId String?
   hiringManager   User?   @relation("HiringManager", fields: [hiringManagerId], references: [id])
@@ -626,10 +628,44 @@ model Candidate {
   @@index([tenantId])
   @@index([email])
   @@map("candidates")
+
+}
+
+// Document collection before offer
+enum DocumentStatus {
+  REQUESTED
+  UPLOADED
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+}
+
+model ApplicationDocument {
+  id          String         @id @default(uuid())
+  title       String         // e.g., "Educational Certificates", "ID Proof"
+  description String?
+  isRequired  Boolean        @default(true)
+  status      DocumentStatus @default(REQUESTED)
+  documentUrl String?        // S3 or storage URL
+  rejectionReason String?
+  uploadedAt  DateTime?
+  reviewedAt  DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  reviewedById String?
+  reviewedBy   User?   @relation(fields: [reviewedById], references: [id])
+
+  @@index([applicationId])
+  @@index([status])
+  @@map("application_documents")
 }
 
 // ============================================
-// APPLICATION & PIPELINE
+// PIPELINE
 // ============================================
 
 model Application {
@@ -664,6 +700,7 @@ model Application {
   activities ActivityLog[]
   onboarding OnboardingWorkflow?
   bgvChecks  BGVCheck[]
+  documents  ApplicationDocument[] // Pre-offer document collection
 
   @@unique([candidateId, jobId])
   @@index([jobId])

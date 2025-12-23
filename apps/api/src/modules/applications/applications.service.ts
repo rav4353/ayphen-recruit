@@ -300,7 +300,7 @@ export class ApplicationsService {
           include: {
             hiringManager: { select: { firstName: true, lastName: true } },
             department: true,
-            location: true
+            locations: true
           }
         },
         currentStage: true,

@@ -33,7 +33,7 @@ export interface ImportPreview {
 export class BulkImportService {
   private readonly logger = new Logger(BulkImportService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   // Get available fields for candidate import
   getCandidateImportFields(): ImportField[] {
@@ -101,7 +101,7 @@ export class BulkImportService {
 
     for (let i = 0; i < line.length; i++) {
       const char = line[i];
-      
+
       if (char === '"') {
         if (inQuotes && line[i + 1] === '"') {
           current += '"';
@@ -116,7 +116,7 @@ export class BulkImportService {
         current += char;
       }
     }
-    
+
     result.push(current.trim());
     return result;
   }
@@ -127,24 +127,24 @@ export class BulkImportService {
     entityType: 'candidates' | 'jobs',
   ): ImportPreview {
     const { headers, rows } = this.parseCSV(content);
-    const fields = entityType === 'candidates' 
-      ? this.getCandidateImportFields() 
+    const fields = entityType === 'candidates'
+      ? this.getCandidateImportFields()
       : this.getJobImportFields();
 
     // Auto-suggest mappings based on header similarity
     const suggestedMappings: ImportMapping[] = [];
-    
+
     for (const header of headers) {
       const normalizedHeader = header.toLowerCase().replace(/[^a-z0-9]/g, '');
-      
+
       for (const field of fields) {
         const normalizedField = field.name.toLowerCase();
         const normalizedLabel = field.label.toLowerCase().replace(/[^a-z0-9]/g, '');
-        
-        if (normalizedHeader === normalizedField || 
-            normalizedHeader === normalizedLabel ||
-            normalizedHeader.includes(normalizedField) ||
-            normalizedField.includes(normalizedHeader)) {
+
+        if (normalizedHeader === normalizedField ||
+          normalizedHeader === normalizedLabel ||
+          normalizedHeader.includes(normalizedField) ||
+          normalizedField.includes(normalizedHeader)) {
           suggestedMappings.push({
             sourceColumn: header,
             targetField: field.name,
@@ -255,8 +255,8 @@ export class BulkImportService {
             location: getValue('location'),
             skills: skillsStr ? skillsStr.split(',').map(s => s.trim()) : [],
             source: getValue('source') || options.defaultSource || 'Import',
-            tags: tagsStr 
-              ? tagsStr.split(',').map(t => t.trim()) 
+            tags: tagsStr
+              ? tagsStr.split(',').map(t => t.trim())
               : options.defaultTags || [],
           },
         });
@@ -267,10 +267,10 @@ export class BulkImportService {
       } catch (error) {
         this.logger.error(`Error importing row ${rowNum}:`, error);
         result.failed++;
-        result.errors.push({ 
-          row: rowNum, 
-          field: 'general', 
-          message: error instanceof Error ? error.message : 'Unknown error' 
+        result.errors.push({
+          row: rowNum,
+          field: 'general',
+          message: error instanceof Error ? error.message : 'Unknown error'
         });
       }
     }
@@ -298,8 +298,8 @@ export class BulkImportService {
       location: getValue('location'),
       skills: skillsStr ? skillsStr.split(',').map(s => s.trim()) : undefined,
       source: getValue('source') || options.defaultSource,
-      tags: tagsStr 
-        ? tagsStr.split(',').map(t => t.trim()) 
+      tags: tagsStr
+        ? tagsStr.split(',').map(t => t.trim())
         : options.defaultTags,
     };
   }
@@ -380,7 +380,7 @@ export class BulkImportService {
             tenantId,
             title,
             departmentId,
-            locationId,
+            locations: locationId ? { connect: { id: locationId } } : undefined,
             employmentType: (getValue('employmentType') as any) || 'FULL_TIME',
             workLocation: (getValue('workLocation') as any) || 'ONSITE',
             salaryMin: getValue('salaryMin') ? parseFloat(getValue('salaryMin')!) : undefined,
@@ -401,10 +401,10 @@ export class BulkImportService {
       } catch (error) {
         this.logger.error(`Error importing job row ${rowNum}:`, error);
         result.failed++;
-        result.errors.push({ 
-          row: rowNum, 
-          field: 'general', 
-          message: error instanceof Error ? error.message : 'Unknown error' 
+        result.errors.push({
+          row: rowNum,
+          field: 'general',
+          message: error instanceof Error ? error.message : 'Unknown error'
         });
       }
     }
@@ -425,12 +425,12 @@ export class BulkImportService {
 
   // Generate sample CSV template
   generateTemplate(entityType: 'candidates' | 'jobs'): string {
-    const fields = entityType === 'candidates' 
-      ? this.getCandidateImportFields() 
+    const fields = entityType === 'candidates'
+      ? this.getCandidateImportFields()
       : this.getJobImportFields();
 
     const headers = fields.map(f => f.label).join(',');
-    
+
     // Add sample row
     const sampleRow = fields.map(f => {
       if (f.type === 'email') return 'john@example.com';

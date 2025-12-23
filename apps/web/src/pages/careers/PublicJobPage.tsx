@@ -78,7 +78,7 @@ export function PublicJobPage() {
                                 )}
                                 <div className="flex items-center gap-1.5">
                                     <MapPin size={16} />
-                                    {job.location?.name || job.workLocation}
+                                    {job.locations?.[0]?.name || job.workLocation}
                                 </div>
                                 <div className="flex items-center gap-1.5">
                                     <Users size={16} />

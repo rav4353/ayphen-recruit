@@ -8,7 +8,7 @@ export interface CareerSiteConfig {
   subdomain?: string;
   customDomain?: string;
   customDomainVerified?: boolean;
-  
+
   // Branding
   branding: {
     logo?: string;
@@ -19,7 +19,7 @@ export interface CareerSiteConfig {
     textColor: string;
     fontFamily: string;
   };
-  
+
   // Layout
   layout: {
     template: 'modern' | 'classic' | 'minimal' | 'corporate';
@@ -37,7 +37,7 @@ export interface CareerSiteConfig {
     showBenefits: boolean;
     showTestimonials: boolean;
   };
-  
+
   // Company Info
   companyInfo: {
     name: string;
@@ -55,7 +55,7 @@ export interface CareerSiteConfig {
       youtube?: string;
     };
   };
-  
+
   // SEO
   seo: {
     title?: string;
@@ -63,14 +63,14 @@ export interface CareerSiteConfig {
     keywords?: string[];
     ogImage?: string;
   };
-  
+
   // Custom CSS/JS
   customCode: {
     css?: string;
     headerScript?: string;
     footerScript?: string;
   };
-  
+
   // Pages
   pages: {
     id: string;
@@ -80,7 +80,7 @@ export interface CareerSiteConfig {
     isPublished: boolean;
     order: number;
   }[];
-  
+
   // Testimonials
   testimonials: {
     id: string;
@@ -101,7 +101,7 @@ export class CareerSiteService {
   constructor(
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
-  ) {}
+  ) { }
 
   /**
    * Get career site configuration
@@ -252,7 +252,7 @@ export class CareerSiteService {
     limit?: number;
   }) {
     const config = await this.getConfig(tenantId);
-    
+
     if (!config.enabled) {
       throw new NotFoundException('Career site is not enabled');
     }
@@ -305,7 +305,7 @@ export class CareerSiteService {
           showSalary: true,
           publishedAt: true,
           department: { select: { id: true, name: true } },
-          location: { select: { id: true, city: true, state: true, country: true } },
+          locations: { select: { id: true, city: true, state: true, country: true } },
         },
         orderBy: { publishedAt: 'desc' },
         skip,
@@ -317,6 +317,7 @@ export class CareerSiteService {
     return {
       jobs: jobs.map(job => ({
         ...job,
+        location: (job as any).locations?.[0],
         salary: job.showSalary && job.salaryMin && job.salaryMax
           ? `${job.salaryCurrency} ${job.salaryMin.toNumber().toLocaleString()} - ${job.salaryMax.toNumber().toLocaleString()}`
           : null,
@@ -335,7 +336,7 @@ export class CareerSiteService {
    */
   async getPublicJob(tenantId: string, jobId: string) {
     const config = await this.getConfig(tenantId);
-    
+
     if (!config.enabled) {
       throw new NotFoundException('Career site is not enabled');
     }
@@ -349,7 +350,7 @@ export class CareerSiteService {
       },
       include: {
         department: { select: { id: true, name: true } },
-        location: { select: { id: true, city: true, state: true, country: true } },
+        locations: { select: { id: true, city: true, state: true, country: true } },
         tenant: { select: { id: true, name: true, logo: true } },
       },
     });
@@ -374,7 +375,7 @@ export class CareerSiteService {
         id: true,
         title: true,
         employmentType: true,
-        location: { select: { city: true, country: true } },
+        locations: { select: { city: true, country: true } },
       },
       take: 3,
     });
@@ -396,7 +397,7 @@ export class CareerSiteService {
         experience: job.experience,
         education: job.education,
         department: job.department,
-        location: job.location,
+        location: (job as any).locations?.[0],
         publishedAt: job.publishedAt,
         company: {
           name: job.tenant.name,
@@ -416,15 +417,15 @@ export class CareerSiteService {
    */
   getCareerSiteUrl(tenantId: string, config: CareerSiteConfig): string {
     const baseUrl = this.configService.get<string>('WEB_URL') || 'http://localhost:3000';
-    
+
     if (config.customDomain && config.customDomainVerified) {
       return `https://${config.customDomain}`;
     }
-    
+
     if (config.subdomain) {
       return `https://${config.subdomain}.careers.ayphen.com`;
     }
-    
+
     return `${baseUrl}/careers/${tenantId}`;
   }
 
@@ -438,7 +439,7 @@ export class CareerSiteService {
     isPublished?: boolean;
   }) {
     const config = await this.getConfig(tenantId);
-    
+
     // Check slug uniqueness
     if (config.pages.some(p => p.slug === page.slug)) {
       throw new BadRequestException('Page with this slug already exists');

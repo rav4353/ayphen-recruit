@@ -63,6 +63,8 @@ const settingsItems = [
     { id: 'org-numberformat', label: 'Number Format', description: 'Thousand and decimal separators', tabId: 'general', keywords: ['number', 'format', 'decimal', 'separator'] },
     { id: 'departments', label: 'Departments', description: 'Manage company departments', tabId: 'general', keywords: ['department', 'team', 'division', 'unit'] },
     { id: 'locations', label: 'Locations', description: 'Manage office locations', tabId: 'general', keywords: ['location', 'office', 'city', 'country', 'address'] },
+    { id: 'candidate-id', label: 'Candidate ID Customization', description: 'Format and sequence for candidate IDs', tabId: 'general', keywords: ['candidate', 'id', 'customization', 'prefix', 'sequential', 'random', 'identification'] },
+
 
     // === SECURITY SETTINGS ===
     { id: 'security-settings', label: 'Security Settings', description: 'Manage password and security preferences', tabId: 'security', keywords: ['security', 'password', 'protection'] },

@@ -316,7 +316,7 @@ async function main() {
         salaryMax: j.salaryMax,
         salaryCurrency: j.currency,
         departmentId: dept?.id,
-        locationId: loc?.id,
+        locations: loc ? { connect: { id: loc.id } } : undefined,
         hiringManagerId: hm?.id,
         tenantId: tenant.id,
         pipelineId: pipeline!.id,

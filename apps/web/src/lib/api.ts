@@ -33,12 +33,12 @@ api.interceptors.response.use(
       '/payments',  // All payments endpoints
       '/analytics', // Analytics can fail gracefully
     ];
-    
+
     const requestUrl = error.config?.url || '';
     if (skipRedirectUrls.some(url => requestUrl.includes(url))) {
       return Promise.reject(error);
     }
-    
+
     // Log 401 errors for debugging
     if (error.response?.status === 401) {
       console.warn('[API] 401 error on:', requestUrl, '- triggering logout');
@@ -174,6 +174,7 @@ export const candidatesApi = {
     status?: string;
     source?: string;
   }) => api.get('/candidates', { params }),
+  getNextId: () => api.get('/candidates/next-id'),
   getById: (id: string) => api.get(`/candidates/${id}`),
   getActivities: (id: string) => api.get(`/candidates/${id}/activities`),
   create: (data: Record<string, unknown>) => api.post('/candidates', data),
@@ -443,10 +444,10 @@ export const interviewsApi = {
   }) => api.post('/interviews/feedback', data),
   updateFeedback: (id: string, data: Record<string, unknown>) => api.patch(`/interviews/feedback/${id}`, data),
   getFeedback: (interviewId: string) => api.get(`/interviews/${interviewId}/feedback`),
-  
+
   // SMS Reminders
   sendSmsReminder: (interviewId: string) => api.post(`/interviews/${interviewId}/send-sms-reminder`),
-  
+
   // AI Scheduling Optimization
   getSuggestedSlots: (data: {
     interviewerIds: string[];
@@ -456,7 +457,7 @@ export const interviewsApi = {
     preferredDates?: string[];
   }) => api.post('/interview-scheduling/suggest-slots', data),
   getSchedulingRecommendations: (jobId: string) => api.get(`/interview-scheduling/recommendations/${jobId}`),
-  
+
   // Interview Analytics
   getFeedbackAnalytics: (filters?: {
     startDate?: string;
@@ -1319,7 +1320,7 @@ export const bulkImportApi = {
   },
   // History
   getHistory: (limit?: number) => api.get('/bulk-import/history', { params: { limit } }),
-  
+
   // Bulk Resume Upload
   uploadResumes: (files: File[], options?: {
     source?: string;
@@ -1597,7 +1598,7 @@ export const emailTemplatesApi = {
   }>) => api.patch(`/email-templates/${id}`, data),
   delete: (id: string) => api.delete(`/email-templates/${id}`),
   duplicate: (id: string) => api.post(`/email-templates/${id}/duplicate`),
-  preview: (id: string, sampleData?: Record<string, any>) => 
+  preview: (id: string, sampleData?: Record<string, any>) =>
     api.post(`/email-templates/${id}/preview`, sampleData),
   render: (id: string, data: {
     candidate?: any;
@@ -1611,13 +1612,13 @@ export const emailTemplatesApi = {
 
 // Candidate Scoring API
 export const candidateScoringApi = {
-  getScore: (candidateId: string, jobId: string) => 
+  getScore: (candidateId: string, jobId: string) =>
     api.get(`/candidate-scoring/score/${candidateId}/${jobId}`),
-  rankCandidates: (jobId: string) => 
+  rankCandidates: (jobId: string) =>
     api.get(`/candidate-scoring/rank/${jobId}`),
-  getTopCandidates: (limit?: number) => 
+  getTopCandidates: (limit?: number) =>
     api.get('/candidate-scoring/top-candidates', { params: { limit } }),
-  batchScore: (candidateIds: string[], jobId: string) => 
+  batchScore: (candidateIds: string[], jobId: string) =>
     api.post('/candidate-scoring/batch-score', { candidateIds, jobId }),
 };
 
@@ -1635,7 +1636,7 @@ export const collaborationApi = {
   updateComment: (commentId: string, content: string) =>
     api.patch(`/collaboration/comments/${commentId}`, { content }),
   deleteComment: (commentId: string) => api.delete(`/collaboration/comments/${commentId}`),
-  
+
   // Shared Notes
   createNote: (data: {
     title: string;
@@ -1656,7 +1657,7 @@ export const collaborationApi = {
     isPinned: boolean;
   }>) => api.patch(`/collaboration/notes/${noteId}`, data),
   deleteNote: (noteId: string) => api.delete(`/collaboration/notes/${noteId}`),
-  
+
   // Mentions
   getMentionSuggestions: (query: string) =>
     api.get('/collaboration/mentions/suggestions', { params: { query } }),
@@ -1786,7 +1787,7 @@ export const dripCampaignsApi = {
   pause: (id: string) => api.post(`/drip-campaigns/${id}/pause`),
   delete: (id: string) => api.delete(`/drip-campaigns/${id}`),
   getEnrollments: (id: string) => api.get(`/drip-campaigns/${id}/enrollments`),
-  unsubscribe: (id: string, candidateId: string) => 
+  unsubscribe: (id: string, candidateId: string) =>
     api.post(`/drip-campaigns/${id}/unsubscribe/${candidateId}`),
   getStats: (id: string) => api.get(`/drip-campaigns/${id}/stats`),
 };

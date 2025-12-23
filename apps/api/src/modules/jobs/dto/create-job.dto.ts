@@ -90,10 +90,11 @@ export class CreateJobDto {
   @IsString()
   departmentId?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ example: ['location-uuid-1', 'location-uuid-2'] })
   @IsOptional()
-  @IsString()
-  locationId?: string;
+  @IsArray()
+  @IsString({ each: true })
+  locationIds?: string[];
 
   @ApiPropertyOptional()
   @IsOptional()

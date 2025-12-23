@@ -20,6 +20,8 @@ import {
 } from 'lucide-react';
 import { superAdminAuditApi } from '../../lib/superAdminApi';
 import { Button } from '../../components/ui';
+import { ColumnSelector, ExportColumn } from '../../components/common';
+import { convertToCSV, downloadCSV, CSV_TRANSFORMERS, CsvColumn } from '../../lib/csv-utils';
 import toast from 'react-hot-toast';
 import { cn } from '../../lib/utils';
 
@@ -71,10 +73,15 @@ export function AuditLogsPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
+  const [showColumnSelector, setShowColumnSelector] = useState(false);
 
   useEffect(() => {
     fetchLogs();
   }, [searchQuery, actionFilter, entityFilter, dateRange, page]);
+
+  useEffect(() => {
+    console.log('Modal state changed:', showColumnSelector);
+  }, [showColumnSelector]);
 
   const fetchLogs = async () => {
     setIsLoading(true);
@@ -96,27 +103,58 @@ export function AuditLogsPage() {
     }
   };
 
-  const handleExport = async () => {
-    try {
-      const response = await superAdminAuditApi.export({
-        action: actionFilter || undefined,
-        entityType: entityFilter || undefined,
-        startDate: dateRange.start || undefined,
-        endDate: dateRange.end || undefined,
-      });
+  // Define export columns
+  const exportColumns: ExportColumn[] = [
+    { key: 'id', label: 'Log ID', defaultSelected: false },
+    { key: 'createdAt', label: 'Timestamp', defaultSelected: true },
+    { key: 'action', label: 'Action', defaultSelected: true },
+    { key: 'entityType', label: 'Entity Type', defaultSelected: true },
+    { key: 'entityId', label: 'Entity ID', defaultSelected: false },
+    { key: 'userName', label: 'User Name', defaultSelected: true },
+    { key: 'userId', label: 'User ID', defaultSelected: false },
+    { key: 'tenantName', label: 'Tenant Name', defaultSelected: true },
+    { key: 'tenantId', label: 'Tenant ID', defaultSelected: false },
+    { key: 'ipAddress', label: 'IP Address', defaultSelected: true },
+    { key: 'userAgent', label: 'User Agent', defaultSelected: false },
+    { key: 'details', label: 'Details (JSON)', defaultSelected: false },
+  ];
 
-      const blob = new Blob([response.data], { type: 'text/csv' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `audit-logs-${new Date().toISOString().split('T')[0]}.csv`;
-      a.click();
-      window.URL.revokeObjectURL(url);
+  // Define CSV column transformations
+  const csvColumns: CsvColumn[] = [
+    { key: 'id', header: 'Log ID' },
+    {
+      key: 'createdAt',
+      header: 'Timestamp',
+      transform: CSV_TRANSFORMERS.datetime,
+    },
+    { key: 'action', header: 'Action' },
+    { key: 'entityType', header: 'Entity Type' },
+    { key: 'entityId', header: 'Entity ID' },
+    { key: 'userName', header: 'User Name' },
+    { key: 'userId', header: 'User ID' },
+    { key: 'tenantName', header: 'Tenant Name' },
+    { key: 'tenantId', header: 'Tenant ID' },
+    { key: 'ipAddress', header: 'IP Address' },
+    { key: 'userAgent', header: 'User Agent' },
+    {
+      key: 'details',
+      header: 'Details',
+      transform: CSV_TRANSFORMERS.json,
+    },
+  ];
 
-      toast.success('Audit logs exported successfully');
-    } catch (error) {
-      toast.error('Failed to export audit logs');
+  const handleExportWithColumns = (selectedColumns: string[]) => {
+    console.log('Export called with columns:', selectedColumns);
+    console.log('Logs data:', logs);
+
+    if (!logs || logs.length === 0) {
+      toast.error('No audit logs to export');
+      return;
     }
+
+    const csvContent = convertToCSV(logs, csvColumns, selectedColumns);
+    downloadCSV(csvContent, `audit-logs_${new Date().toISOString().split('T')[0]}.csv`);
+    toast.success('Audit logs exported successfully');
   };
 
   const getActionIcon = (action: string) => {
@@ -181,7 +219,10 @@ export function AuditLogsPage() {
           <Button
             variant="outline"
             className="border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 h-11 px-5 rounded-xl font-bold transition-all active:scale-95"
-            onClick={handleExport}
+            onClick={() => {
+              console.log('Archive Dump clicked, opening modal');
+              setShowColumnSelector(true);
+            }}
           >
             <Download size={18} className="mr-2 text-blue-500" />
             Archive Dump
@@ -472,6 +513,17 @@ export function AuditLogsPage() {
           </div>
         )}
       </div>
+
+      {/* Column Selector Modal */}
+      <ColumnSelector
+        isOpen={showColumnSelector}
+        onClose={() => setShowColumnSelector(false)}
+        columns={exportColumns}
+        onExport={handleExportWithColumns}
+        title="Select Audit Log Fields to Export"
+        description="Choose which audit trail details you want in your CSV archive"
+        exportButtonText="Download Archive"
+      />
     </div>
   );
 }

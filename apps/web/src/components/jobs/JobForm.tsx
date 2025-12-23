@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { Check, ChevronRight, ChevronLeft, Wand2, AlertTriangle, Sparkles, MessageSquare } from 'lucide-react';
+import { Check, ChevronRight, ChevronLeft, Wand2, AlertTriangle, Sparkles, MessageSquare, ChevronDown, MapPin, X } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { cn } from '../../lib/utils';
 import { Button, Input, Card, SkillSelector, Modal } from '../ui';
 import { aiApi, usersApi, referenceApi, pipelinesApi, settingsApi, scorecardTemplatesApi, departmentsApi } from '../../lib/api';
 import { useUnsavedChanges } from '../../hooks/useUnsavedChanges';
@@ -27,6 +29,7 @@ export type JobFormData = {
     skills: string[];
     hiringManagerId: string;
     recruiterId: string;
+    locationIds: string[];
     pipelineId?: string;
     duration?: string;
     durationUnit?: string;
@@ -44,6 +47,8 @@ interface JobFormProps {
 
 export function JobForm({ initialData, mode, onSubmit, onCancel, isSubmitting = false }: JobFormProps) {
     const { t } = useTranslation();
+    const navigate = useNavigate();
+    const { tenantId } = useParams();
     const [currentStep, setCurrentStep] = useState(0);
     const [isGenerating, setIsGenerating] = useState(false);
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -66,11 +71,14 @@ export function JobForm({ initialData, mode, onSubmit, onCancel, isSubmitting = 
     const [departments, setDepartments] = useState<any[]>([]);
     const [isCreateDepartmentModalOpen, setIsCreateDepartmentModalOpen] = useState(false);
     const [isCreatingDepartment, setIsCreatingDepartment] = useState(false);
+    const [locations, setLocations] = useState<any[]>([]);
 
     // AI Generation Mode
     const [aiGenerationMode, setAiGenerationMode] = useState<'fields' | 'prompt'>('fields');
     const [aiPrompt, setAiPrompt] = useState('');
     const [isGeneratingFromPrompt, setIsGeneratingFromPrompt] = useState(false);
+    const [isLocationDropdownOpen, setIsLocationDropdownOpen] = useState(false);
+    const locationDropdownRef = useRef<HTMLDivElement>(null);
 
     const STEPS = [
         { id: 'basics', title: t('jobs.create.steps.basics') },
@@ -96,6 +104,7 @@ export function JobForm({ initialData, mode, onSubmit, onCancel, isSubmitting = 
             salaryCurrency: 'USD',
             showSalary: false,
             skills: [],
+            locationIds: [],
             ...initialData,
         },
     });
@@ -141,6 +150,30 @@ export function JobForm({ initialData, mode, onSubmit, onCancel, isSubmitting = 
             }
         };
         fetchUsers();
+    }, []);
+
+    // Handle click outside for location dropdown
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (locationDropdownRef.current && !locationDropdownRef.current.contains(event.target as Node)) {
+                setIsLocationDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    // Fetch locations
+    useEffect(() => {
+        const fetchLocations = async () => {
+            try {
+                const res = await referenceApi.getLocations();
+                setLocations(res.data.data);
+            } catch (err) {
+                console.error('Failed to fetch locations', err);
+            }
+        };
+        fetchLocations();
     }, []);
 
     // Fetch currencies
@@ -434,9 +467,12 @@ export function JobForm({ initialData, mode, onSubmit, onCancel, isSubmitting = 
         if (currentStep === 0) {
             const fields = ['title', 'department', 'employmentType', 'workLocation', 'hiringManagerId', 'recruiterId'];
             if (mode === 'create') fields.push('pipelineId');
-            if (formData.employmentType === 'PART_TIME') {
+            if (formData.employmentType !== 'FULL_TIME') {
                 fields.push('duration');
                 fields.push('durationUnit');
+            }
+            if (formData.workLocation !== 'REMOTE') {
+                fields.push('locationIds');
             }
             // Add custom fields validation for basics
             customFieldsConfig.filter(f => !f.step || f.step === 'basics').forEach(field => {
@@ -471,12 +507,20 @@ export function JobForm({ initialData, mode, onSubmit, onCancel, isSubmitting = 
     };
 
     const onSubmitForm = async (data: JobFormData) => {
+        // If remote, clear locationIds to ensure it's not saved
+        if (data.workLocation === 'REMOTE') {
+            data.locationIds = [];
+        }
         // Set success flag BEFORE calling onSubmit to prevent unsaved changes warning during navigation
         setIsSubmitSuccess(true);
         await onSubmit(data, false);
     };
 
     const onSubmitWithApproval = async (data: JobFormData) => {
+        // If remote, clear locationIds to ensure it's not saved
+        if (data.workLocation === 'REMOTE') {
+            data.locationIds = [];
+        }
         // Set success flag BEFORE calling onSubmit to prevent unsaved changes warning during navigation
         setIsSubmitSuccess(true);
         await onSubmit(data, true);
@@ -737,12 +781,12 @@ export function JobForm({ initialData, mode, onSubmit, onCancel, isSubmitting = 
                                     {errors.employmentType && (
                                         <p className="text-error text-sm mt-1">{errors.employmentType.message}</p>
                                     )}
-                                    {formData.employmentType === 'PART_TIME' && (
+                                    {formData.employmentType !== 'FULL_TIME' && (
                                         <div className="mt-4 grid grid-cols-2 gap-4">
                                             <Input
                                                 label={t('jobs.create.form.duration', 'Duration')}
                                                 placeholder="e.g. 20"
-                                                {...register('duration', { required: t('jobs.create.validation.durationRequired', 'Duration is required for part-time jobs') })}
+                                                {...register('duration', { required: t('jobs.create.validation.durationRequired', 'Duration is required') })}
                                                 error={errors.duration?.message}
                                             />
                                             <div>
@@ -780,6 +824,130 @@ export function JobForm({ initialData, mode, onSubmit, onCancel, isSubmitting = 
                                     )}
                                 </div>
                             </div>
+
+                            {formData.workLocation !== 'REMOTE' && (
+                                <div>
+                                    <label className="label">{t('jobs.create.form.locations', 'Location')}</label>
+                                    <div className="relative" ref={locationDropdownRef}>
+                                        <button
+                                            type="button"
+                                            className={cn(
+                                                "input flex items-center justify-between text-left transition-all",
+                                                isLocationDropdownOpen && "border-primary-500 ring-2 ring-primary-500/10"
+                                            )}
+                                            onClick={() => setIsLocationDropdownOpen(!isLocationDropdownOpen)}
+                                        >
+                                            <div className="flex items-center gap-2 overflow-hidden flex-1">
+                                                {formData.locationIds?.length > 0 ? (
+                                                    <div className="flex items-center gap-1.5 overflow-hidden">
+                                                        <span className="truncate text-neutral-900 dark:text-neutral-100">
+                                                            {locations.filter(l => formData.locationIds.includes(l.id)).map(l => l.name).join(', ')}
+                                                        </span>
+                                                        <span className="shrink-0 text-[10px] bg-primary-100 dark:bg-primary-900/40 text-primary-600 dark:text-primary-400 px-1.5 py-0.5 rounded-full font-medium">
+                                                            {formData.locationIds.length}
+                                                        </span>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-neutral-400 dark:text-neutral-500">
+                                                        {t('jobs.create.form.selectLocations', 'Select locations...')}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="flex items-center gap-1 ml-2">
+                                                {formData.locationIds?.length > 0 && (
+                                                    <button
+                                                        type="button"
+                                                        className="p-1 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-md text-neutral-400 hover:text-neutral-600 transition-colors"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setValue('locationIds', [], { shouldDirty: true, shouldValidate: true });
+                                                        }}
+                                                    >
+                                                        <X size={14} />
+                                                    </button>
+                                                )}
+                                                <ChevronDown
+                                                    size={16}
+                                                    className={cn(
+                                                        "text-neutral-400 transition-transform duration-200",
+                                                        isLocationDropdownOpen && "rotate-180"
+                                                    )}
+                                                />
+                                            </div>
+                                        </button>
+
+                                        {isLocationDropdownOpen && (
+                                            <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg shadow-xl z-50 py-2 max-h-64 overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
+                                                {locations.length > 0 ? (
+                                                    <div className="px-1">
+                                                        {locations.map((loc) => (
+                                                            <div
+                                                                key={loc.id}
+                                                                className={cn(
+                                                                    "flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer transition-colors m-1",
+                                                                    formData.locationIds?.includes(loc.id)
+                                                                        ? "bg-blue-50 dark:bg-blue-900/20"
+                                                                        : "hover:bg-neutral-50 dark:hover:bg-neutral-800"
+                                                                )}
+                                                                onClick={() => {
+                                                                    const currentIds = getValues('locationIds') || [];
+                                                                    if (currentIds.includes(loc.id)) {
+                                                                        setValue('locationIds', currentIds.filter(id => id !== loc.id), { shouldDirty: true, shouldValidate: true });
+                                                                    } else {
+                                                                        setValue('locationIds', [...currentIds, loc.id], { shouldDirty: true, shouldValidate: true });
+                                                                    }
+                                                                }}
+                                                            >
+                                                                <div className={cn(
+                                                                    "w-4 h-4 rounded border flex items-center justify-center transition-colors",
+                                                                    formData.locationIds?.includes(loc.id)
+                                                                        ? "bg-blue-600 border-blue-600 text-white"
+                                                                        : "border-neutral-300 dark:border-neutral-600"
+                                                                )}>
+                                                                    {formData.locationIds?.includes(loc.id) && <Check size={12} strokeWidth={3} />}
+                                                                </div>
+                                                                <div className="flex flex-col min-w-0 flex-1">
+                                                                    <div className="flex items-center justify-between gap-2">
+                                                                        <span className="text-sm font-medium text-neutral-700 dark:text-neutral-200 truncate">
+                                                                            {loc.name}
+                                                                        </span>
+                                                                        <span className="text-[10px] text-neutral-400 uppercase tracking-wider">
+                                                                            {loc.country}
+                                                                        </span>
+                                                                    </div>
+                                                                    {loc.city && (
+                                                                        <span className="text-[10px] text-neutral-500 truncate">
+                                                                            {loc.city}, {loc.state || loc.country}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <div className="px-4 py-8 text-center bg-neutral-50 dark:bg-neutral-800/50 m-2 rounded-lg border border-dashed border-neutral-200 dark:border-neutral-700">
+                                                        <MapPin size={24} className="mx-auto text-neutral-300 mb-2" />
+                                                        <p className="text-sm text-neutral-500 italic">
+                                                            {t('jobs.create.form.noLocations', 'No office locations found.')}
+                                                        </p>
+                                                        <button
+                                                            type="button"
+                                                            className="text-xs text-blue-600 mt-2 hover:underline"
+                                                            onClick={() => navigate(`/${tenantId}/settings/locations`)}
+                                                        >
+                                                            Add locations in settings
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {errors.locationIds && (
+                                        <p className="text-error text-sm mt-1">{errors.locationIds.message}</p>
+                                    )}
+                                </div>
+                            )}
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>

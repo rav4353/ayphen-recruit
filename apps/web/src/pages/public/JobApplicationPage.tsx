@@ -137,10 +137,10 @@ export function JobApplicationPage() {
                                     {job.department.name}
                                 </div>
                             )}
-                            {job.location && (
+                            {job.locations?.[0] && (
                                 <div className="flex items-center gap-2">
                                     <MapPin size={18} />
-                                    {job.location.name}
+                                    {job.locations[0].name}
                                 </div>
                             )}
                             <div className="flex items-center gap-2">

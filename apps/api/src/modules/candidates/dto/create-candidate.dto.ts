@@ -14,6 +14,11 @@ export class CreateCandidateDto {
   @IsString()
   lastName: string;
 
+  @ApiPropertyOptional({ example: 'CAND-001' })
+  @IsOptional()
+  @IsString()
+  candidateId?: string;
+
   @ApiPropertyOptional({ example: '+1234567890' })
   @IsOptional()
   @IsString()

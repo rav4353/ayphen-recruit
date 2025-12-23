@@ -1,15 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Plus, Search, Filter, Mail, Phone, Trash2, X, ChevronDown, Download, RefreshCw, Users, Sparkles } from 'lucide-react';
+import { Plus, Search, Filter, Mail, Phone, Trash2, X, ChevronDown, Download, Users, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { candidatesApi } from '../../lib/api';
 import { CandidateFilterModal } from '../../components/candidates/CandidateFilterModal';
 import { BulkEmailModal } from '../../components/candidates/BulkEmailModal';
 import { Button, ConfirmationModal, PageHeader } from '../../components/ui';
-import { SavedViews } from '../../components/common/SavedViews';
+import { SavedViews, ColumnSelector, ExportColumn } from '../../components/common';
 import { useCandidates, useBulkDeleteCandidates, useSendBulkEmail } from '../../hooks/queries';
 import { logger } from '../../lib/logger';
+import { convertToCSV, downloadCSV, CSV_TRANSFORMERS, CsvColumn } from '../../lib/csv-utils';
 
 const log = logger.component('CandidatesPage');
 
@@ -31,6 +31,7 @@ export function CandidatesPage() {
   const [filters, setFilters] = useState<{ location?: string; skills?: string[]; status?: string; source?: string }>({});
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [showColumnSelector, setShowColumnSelector] = useState(false);
 
   // Debounce search
   useEffect(() => {
@@ -45,7 +46,6 @@ export function CandidatesPage() {
   const {
     data: candidatesData,
     isLoading,
-    refetch,
   } = useCandidates({
     page,
     take: LIMIT,
@@ -116,29 +116,67 @@ export function CandidatesPage() {
     });
   };
 
-  const handleExport = async () => {
-    try {
-      log.info('Exporting candidates');
-      const response = await candidatesApi.export({
-        search: debouncedSearch,
-        sortBy,
-        sortOrder,
-        location: filters.location,
-        skills: filters.skills
-      });
+  // Define export columns
+  const exportColumns: ExportColumn[] = [
+    { key: 'candidateId', label: 'Candidate ID', defaultSelected: true },
+    { key: 'firstName', label: 'First Name', defaultSelected: true },
+    { key: 'lastName', label: 'Last Name', defaultSelected: true },
+    { key: 'email', label: 'Email', defaultSelected: true },
+    { key: 'phone', label: 'Phone', defaultSelected: true },
+    { key: 'currentTitle', label: 'Current Title', defaultSelected: false },
+    { key: 'currentCompany', label: 'Current Company', defaultSelected: false },
+    { key: 'location', label: 'Location', defaultSelected: false },
+    { key: 'skills', label: 'Skills', defaultSelected: true },
+    { key: 'experience', label: 'Years of Experience', defaultSelected: false },
+    { key: 'education', label: 'Education', defaultSelected: false },
+    { key: 'source', label: 'Source', defaultSelected: false },
+    { key: 'applications', label: 'Application Count', defaultSelected: true },
+    { key: 'referredBy', label: 'Referred By', defaultSelected: false },
+    { key: 'createdAt', label: 'Created Date', defaultSelected: true },
+  ];
 
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `candidates-${new Date().toISOString().split('T')[0]}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      toast.success(t('candidates.exportSuccess'));
-    } catch (error) {
-      log.error('Export failed', error);
-      toast.error(t('candidates.exportError'));
-    }
+  // Define CSV column transformations
+  const csvColumns: CsvColumn[] = [
+    { key: 'candidateId', header: 'Candidate ID' },
+    { key: 'firstName', header: 'First Name' },
+    { key: 'lastName', header: 'Last Name' },
+    { key: 'email', header: 'Email' },
+    { key: 'phone', header: 'Phone' },
+    { key: 'currentTitle', header: 'Current Title' },
+    { key: 'currentCompany', header: 'Current Company' },
+    { key: 'location', header: 'Location' },
+    {
+      key: 'skills',
+      header: 'Skills',
+      transform: CSV_TRANSFORMERS.array,
+    },
+    { key: 'experience', header: 'Years of Experience' },
+    { key: 'education', header: 'Education' },
+    { key: 'source', header: 'Source' },
+    {
+      key: 'applications',
+      header: 'Application Count',
+      transform: (_val, row) => row._count?.applications || 0,
+    },
+    {
+      key: 'referredBy',
+      header: 'Referred By',
+      transform: (_val, row) =>
+        row.referredBy
+          ? `${row.referredBy.firstName} ${row.referredBy.lastName}`
+          : '',
+    },
+    {
+      key: 'createdAt',
+      header: 'Created Date',
+      transform: CSV_TRANSFORMERS.date,
+    },
+  ];
+
+  const handleExportWithColumns = (selectedColumns: string[]) => {
+    const csvContent = convertToCSV(candidates, csvColumns, selectedColumns);
+    downloadCSV(csvContent, `candidates_export_${new Date().toISOString().split('T')[0]}.csv`);
+    toast.success(t('candidates.exportSuccess'));
   };
 
   const handleApplyView = (viewFilters: Record<string, unknown>) => {
@@ -210,17 +248,7 @@ export function CandidatesPage() {
               variant="outline"
               size="sm"
               className="gap-2 bg-white dark:bg-neutral-800 shadow-sm"
-              onClick={() => refetch()}
-              disabled={isLoading}
-            >
-              <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
-              <span className="hidden sm:inline">{t('common.refresh', 'Refresh')}</span>
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-2 bg-white dark:bg-neutral-800 shadow-sm"
-              onClick={handleExport}
+              onClick={() => setShowColumnSelector(true)}
             >
               <Download size={16} />
               <span className="hidden sm:inline">{t('common.export')}</span>
@@ -459,6 +487,17 @@ export function CandidatesPage() {
         cancelLabel={t('common.cancel')}
         isLoading={bulkDeleteMutation.isPending}
         variant="danger"
+      />
+
+      {/* Column Selector Modal */}
+      <ColumnSelector
+        isOpen={showColumnSelector}
+        onClose={() => setShowColumnSelector(false)}
+        columns={exportColumns}
+        onExport={handleExportWithColumns}
+        title="Select Candidate Fields to Export"
+        description="Choose which candidate details you want in your CSV download"
+        exportButtonText="Download CSV"
       />
     </div>
   );

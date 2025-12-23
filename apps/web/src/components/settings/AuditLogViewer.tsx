@@ -16,6 +16,9 @@ import {
   X,
 } from 'lucide-react';
 import { auditLogApi } from '../../lib/api';
+import { ColumnSelector, ExportColumn } from '../common';
+import { convertToCSV, downloadCSV, CSV_TRANSFORMERS, CsvColumn } from '../../lib/csv-utils';
+import toast from 'react-hot-toast';
 
 interface AuditLog {
   id: string;
@@ -105,6 +108,7 @@ export function AuditLogViewer() {
   const [searchQuery, setSearchQuery] = useState('');
   const [datePreset, setDatePreset] = useState<string>('month');
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
+  const [showColumnSelector, setShowColumnSelector] = useState(false);
 
   // Fetch logs with error handling
   const { data: logsResponse, isLoading, isError, refetch } = useQuery({
@@ -147,20 +151,61 @@ export function AuditLogViewer() {
         ? payload.totalPages
         : Math.max(1, Math.ceil(total / 20));
 
-  const handleExport = async () => {
-    try {
-      const dateRange = getDateRange(datePreset);
-      const response = await auditLogApi.exportLogs(dateRange);
-      const blob = new Blob([response.data as BlobPart], { type: 'text/csv' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `audit_logs_${new Date().toISOString().split('T')[0]}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Export failed:', error);
+  // Define export columns
+  const exportColumns: ExportColumn[] = [
+    { key: 'id', label: 'Log ID', defaultSelected: false },
+    { key: 'createdAt', label: 'Timestamp', defaultSelected: true },
+    { key: 'action', label: 'Action', defaultSelected: true },
+    { key: 'userName', label: 'User Name', defaultSelected: true },
+    { key: 'userEmail', label: 'User Email', defaultSelected: true },
+    { key: 'description', label: 'Description', defaultSelected: true },
+    { key: 'applicationId', label: 'Application ID', defaultSelected: false },
+    { key: 'candidateId', label: 'Candidate ID', defaultSelected: false },
+    { key: 'metadata', label: 'Metadata (JSON)', defaultSelected: false },
+  ];
+
+  // Define CSV column transformations
+  const csvColumns: CsvColumn[] = [
+    { key: 'id', header: 'Log ID' },
+    {
+      key: 'createdAt',
+      header: 'Timestamp',
+      transform: CSV_TRANSFORMERS.datetime,
+    },
+    {
+      key: 'action',
+      header: 'Action',
+      transform: (val) => val?.replace(/_/g, ' ') || 'Unknown'
+    },
+    {
+      key: 'userName',
+      header: 'User Name',
+      transform: (_val, row) => getUserName(row),
+    },
+    {
+      key: 'userEmail',
+      header: 'User Email',
+      transform: (_val, row) => getUserEmail(row) || '',
+    },
+    { key: 'description', header: 'Description' },
+    { key: 'applicationId', header: 'Application ID' },
+    { key: 'candidateId', header: 'Candidate ID' },
+    {
+      key: 'metadata',
+      header: 'Metadata',
+      transform: CSV_TRANSFORMERS.json,
+    },
+  ];
+
+  const handleExportWithColumns = (selectedColumns: string[]) => {
+    if (!logs || logs.length === 0) {
+      toast.error('No audit logs to export');
+      return;
     }
+
+    const csvContent = convertToCSV(logs, csvColumns, selectedColumns);
+    downloadCSV(csvContent, `audit_logs_${new Date().toISOString().split('T')[0]}.csv`);
+    toast.success('Audit logs exported successfully');
   };
 
   const getUserName = (log: AuditLog): string => {
@@ -197,7 +242,7 @@ export function AuditLogViewer() {
             <RefreshCw className="h-4 w-4" />
           </button>
           <button
-            onClick={handleExport}
+            onClick={() => setShowColumnSelector(true)}
             className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-neutral-700 dark:text-neutral-300 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors"
           >
             <Download className="h-4 w-4" />
@@ -218,11 +263,10 @@ export function AuditLogViewer() {
                   setDatePreset(preset.value);
                   setPage(1);
                 }}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
-                  datePreset === preset.value
-                    ? 'bg-white dark:bg-neutral-700 text-neutral-900 dark:text-white shadow-sm'
-                    : 'text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'
-                }`}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${datePreset === preset.value
+                  ? 'bg-white dark:bg-neutral-700 text-neutral-900 dark:text-white shadow-sm'
+                  : 'text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'
+                  }`}
               >
                 {preset.label}
               </button>
@@ -455,6 +499,17 @@ export function AuditLogViewer() {
           </div>
         </div>
       )}
+
+      {/* Column Selector Modal */}
+      <ColumnSelector
+        isOpen={showColumnSelector}
+        onClose={() => setShowColumnSelector(false)}
+        columns={exportColumns}
+        onExport={handleExportWithColumns}
+        title="Select Audit Log Fields to Export"
+        description="Choose which audit log details you want in your CSV download"
+        exportButtonText="Download CSV"
+      />
     </div>
   );
 }

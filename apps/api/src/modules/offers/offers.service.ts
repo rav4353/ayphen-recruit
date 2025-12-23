@@ -9,6 +9,7 @@ import { ConfigService } from '@nestjs/config';
 
 import { OnboardingService } from '../onboarding/onboarding.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { SettingsService } from '../settings/settings.service';
 
 @Injectable()
 export class OffersService {
@@ -18,6 +19,7 @@ export class OffersService {
         private readonly configService: ConfigService,
         private readonly onboardingService: OnboardingService,
         private readonly notificationsService: NotificationsService,
+        private readonly settingsService: SettingsService,
     ) { }
 
     async create(tenantId: string, data: CreateOfferDto) {
@@ -71,7 +73,7 @@ export class OffersService {
                     include: {
                         candidate: true,
                         job: {
-                            include: { tenant: { select: { name: true } } }
+                            include: { tenant: { select: { name: true } }, locations: true }
                         },
                     },
                 },
@@ -139,22 +141,49 @@ export class OffersService {
         }
 
         const job = offer.application.job;
-        let approverId = job.hiringManagerId || job.recruiterId;
+        let finalApproverIds: string[] = [];
 
-        if (!approverId) {
+        // Try to fetch approval workflows from settings
+        try {
+            const setting = await this.settingsService.getSettingByKey(tenantId, 'approval_workflows');
+            const workflows = setting?.value as any[];
+
+            if (workflows && workflows.length > 0) {
+                // Prioritize 'Offer Approval', otherwise take the first one
+                const offerWorkflow = workflows.find(w => w.name.includes('Offer')) || workflows[0];
+
+                if (offerWorkflow && offerWorkflow.steps?.length > 0) {
+                    console.log(`[OffersService] Using approval workflow: ${offerWorkflow.name}`);
+                    finalApproverIds = offerWorkflow.steps.map((step: any) => {
+                        if (typeof step === 'object' && step.userId) return step.userId;
+                        return null;
+                    }).filter(Boolean);
+                }
+            }
+        } catch (e) {
+            console.warn('Failed to fetch approval workflows', e);
+        }
+
+        // Fallback to old logic
+        if (finalApproverIds.length === 0) {
+            const approverId = job.hiringManagerId || job.recruiterId;
+            if (approverId) finalApproverIds.push(approverId);
+        }
+
+        if (finalApproverIds.length === 0) {
             return this.prisma.offer.update({
                 where: { id },
                 data: { status: OfferStatus.APPROVED },
             });
         }
 
-        await this.prisma.offerApproval.create({
-            data: {
+        await this.prisma.offerApproval.createMany({
+            data: finalApproverIds.map((approverId, index) => ({
                 offerId: id,
                 approverId: approverId,
                 status: 'PENDING',
-                order: 1,
-            },
+                order: index + 1,
+            })),
         });
 
         const updated = await this.prisma.offer.update({
@@ -162,11 +191,15 @@ export class OffersService {
             data: { status: OfferStatus.PENDING_APPROVAL },
         });
 
-        // Notify approver
+        // Notify approvers
         try {
-            await this.notificationsService.notifyApprovalRequest('offer', offer, approverId, tenantId);
+            await Promise.all(
+                finalApproverIds.map(approverId =>
+                    this.notificationsService.notifyApprovalRequest('offer', offer, approverId, tenantId)
+                )
+            );
         } catch (error) {
-            console.error('Failed to notify offer approver:', error);
+            console.error('Failed to notify offer approvers:', error);
         }
 
         return updated;
@@ -442,7 +475,7 @@ export class OffersService {
      */
     async generateOfferLetter(tenantId: string, offerId: string) {
         const offer = await this.findOne(tenantId, offerId);
-        
+
         // Get template content
         let letterContent = offer.template?.content || offer.content || this.getDefaultOfferTemplate();
 
@@ -459,29 +492,29 @@ export class OffersService {
             '{{candidate_first_name}}': offer.application.candidate.firstName || '',
             '{{candidate_last_name}}': offer.application.candidate.lastName || '',
             '{{candidate_email}}': offer.application.candidate.email || '',
-            
+
             // Job info
             '{{job_title}}': offer.application.job.title || '',
             '{{department}}': offer.application.job.departmentId || '',
-            '{{location}}': offer.application.job.locationId || '',
+            '{{location}}': offer.application.job.locations?.[0]?.name || '',
             '{{employment_type}}': offer.application.job.employmentType || 'Full-time',
-            
+
             // Compensation
             '{{salary}}': this.formatCurrency(Number(offer.salary), offer.currency),
             '{{salary_amount}}': offer.salary?.toString() || '',
             '{{currency}}': offer.currency || 'USD',
             '{{bonus}}': offer.bonus ? this.formatCurrency(Number(offer.bonus), offer.currency) : 'N/A',
             '{{equity}}': offer.equity || 'N/A',
-            
+
             // Dates
             '{{start_date}}': offer.startDate ? this.formatDate(offer.startDate) : 'TBD',
             '{{offer_date}}': this.formatDate(new Date()),
             '{{expiry_date}}': offer.expiresAt ? this.formatDate(offer.expiresAt) : 'N/A',
-            
+
             // Company info
             '{{company_name}}': tenant?.name || 'Our Company',
             '{{company_logo}}': tenant?.logo || '',
-            
+
             // Other
             '{{offer_id}}': offer.id,
         };
@@ -516,7 +549,7 @@ export class OffersService {
             include: {
                 candidate: true,
                 job: {
-                    include: { tenant: { select: { name: true, logo: true } } }
+                    include: { tenant: { select: { name: true, logo: true } }, locations: true }
                 },
             },
         });
@@ -542,7 +575,7 @@ export class OffersService {
             '{{candidate_first_name}}': application.candidate.firstName || '',
             '{{job_title}}': application.job.title || '',
             '{{department}}': application.job.departmentId || '',
-            '{{location}}': application.job.locationId || '',
+            '{{location}}': application.job.locations?.[0]?.name || '',
             '{{salary}}': data.salary ? this.formatCurrency(data.salary, data.currency || 'USD') : '[SALARY]',
             '{{bonus}}': data.bonus ? this.formatCurrency(data.bonus, data.currency || 'USD') : 'N/A',
             '{{equity}}': data.equity || 'N/A',
@@ -942,7 +975,7 @@ export class OffersService {
                 equity: offer.equity,
                 startDate: offer.startDate,
             },
-            negotiationCount: activities.filter(a => 
+            negotiationCount: activities.filter(a =>
                 a.action === 'OFFER_COUNTER_SUBMITTED' || a.action === 'OFFER_REVISED'
             ).length,
             history: activities.map(activity => ({
@@ -987,7 +1020,7 @@ export class OffersService {
 
         // Calculate differences
         const changes: any[] = [];
-        
+
         if (originalTerms.salary !== currentTerms.salary) {
             const diff = Number(currentTerms.salary) - Number(originalTerms.salary);
             changes.push({

@@ -19,7 +19,7 @@ interface UpdateJobTemplateDto extends Partial<CreateJobTemplateDto> {
 
 @Injectable()
 export class JobTemplatesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   /**
    * Create a new job template
@@ -180,13 +180,13 @@ export class JobTemplatesService {
         tenantId,
         recruiterId,
         ...(overrides?.departmentId && { departmentId: overrides.departmentId }),
-        ...(overrides?.locationId && { locationId: overrides.locationId }),
+        ...(overrides?.locationId && { locations: { connect: { id: overrides.locationId } } }),
         ...(overrides?.hiringManagerId && { hiringManagerId: overrides.hiringManagerId }),
         ...(overrides?.pipelineId && { pipelineId: overrides.pipelineId }),
       },
       include: {
         department: true,
-        location: true,
+        locations: true,
         recruiter: true,
         hiringManager: true,
       },

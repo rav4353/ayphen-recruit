@@ -245,11 +245,16 @@ export function JobDetailPage() {
                             )}
                             <div className="flex items-center gap-1.5">
                                 <MapPin size={16} />
-                                {job.location?.name || job.workLocation}
+                                {job.locations?.length ? job.locations.map(l => l.name).join(', ') : (job.workLocation === 'REMOTE' ? 'Remote' : job.workLocation)}
                             </div>
-                            <div className="flex items-center gap-1.5">
-                                <Users size={16} />
-                                {job.employmentType}
+                            <div className="flex items-center gap-1.5 line-clamp-1">
+                                <Users size={16} className="shrink-0" />
+                                <span className="capitalize">{(job.employmentType || 'Full Time').toLowerCase().replace('_', ' ')}</span>
+                                {job.employmentType !== 'FULL_TIME' && job.duration && (
+                                    <span className="text-neutral-400 dark:text-neutral-500 ml-1">
+                                        ({job.duration} {job.durationUnit?.toLowerCase()}{Number(job.duration) !== 1 ? 's' : ''})
+                                    </span>
+                                )}
                             </div>
                             <div className="flex items-center gap-1.5">
                                 <Calendar size={16} />

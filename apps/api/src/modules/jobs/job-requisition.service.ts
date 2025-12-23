@@ -48,7 +48,7 @@ export class JobRequisitionService {
     constructor(
         private readonly prisma: PrismaService,
         private readonly notificationsService: NotificationsService,
-    ) {}
+    ) { }
 
     private newId(): string {
         return `req-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -133,7 +133,7 @@ export class JobRequisitionService {
 
         // Build approval chain
         let approverIds = dto.approverIds || config.defaultApprovers || [];
-        
+
         // Add finance approver if salary exceeds threshold
         if (config.requireFinanceApproval && dto.salaryMax && dto.salaryMax > config.salaryThresholdForFinance) {
             // Would look up finance approver - simplified for now
@@ -210,7 +210,7 @@ export class JobRequisitionService {
             requisitions = requisitions.filter(r => r.requestedBy === filters.requestedBy);
         }
 
-        return requisitions.sort((a, b) => 
+        return requisitions.sort((a, b) =>
             new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
     }
@@ -446,7 +446,7 @@ export class JobRequisitionService {
                 requirements: additionalData.requirements,
                 responsibilities: additionalData.responsibilities,
                 skills: additionalData.skills || [],
-                locationId: undefined, // Will be set separately if needed
+                locations: undefined, // Will be set separately if needed
                 employmentType: requisition.employmentType as any,
                 salaryMin: requisition.salaryMin,
                 salaryMax: requisition.salaryMax,
@@ -526,7 +526,7 @@ export class JobRequisitionService {
             total: requisitions.length,
             byStatus,
             pendingApprovals: byStatus.PENDING_APPROVAL,
-            avgApprovalTime: approvedCount > 0 
+            avgApprovalTime: approvedCount > 0
                 ? Math.round(totalApprovalTime / approvedCount / (1000 * 60 * 60)) // hours
                 : 0,
         };

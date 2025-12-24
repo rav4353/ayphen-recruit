@@ -1,5 +1,5 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../../prisma/prisma.service';
+import { Injectable } from "@nestjs/common";
+import { PrismaService } from "../../../prisma/prisma.service";
 
 interface AuditLogInput {
   superAdminId: string;
@@ -13,7 +13,7 @@ interface AuditLogInput {
 
 @Injectable()
 export class SuperAdminAuditService {
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
   async log(input: AuditLogInput) {
     await this.prisma.superAdminAuditLog.create({
@@ -69,10 +69,14 @@ export class SuperAdminAuditService {
 
     if (params.search) {
       where.OR = [
-        { action: { contains: params.search, mode: 'insensitive' } },
-        { entityType: { contains: params.search, mode: 'insensitive' } },
-        { entityId: { contains: params.search, mode: 'insensitive' } },
-        { superAdmin: { name: { contains: params.search, mode: 'insensitive' } } },
+        { action: { contains: params.search, mode: "insensitive" } },
+        { entityType: { contains: params.search, mode: "insensitive" } },
+        { entityId: { contains: params.search, mode: "insensitive" } },
+        {
+          superAdmin: {
+            name: { contains: params.search, mode: "insensitive" },
+          },
+        },
       ];
     }
 
@@ -81,7 +85,7 @@ export class SuperAdminAuditService {
         where,
         skip,
         take: limit,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         include: {
           superAdmin: {
             select: { name: true, email: true },

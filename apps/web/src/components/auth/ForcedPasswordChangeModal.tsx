@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useForm } from 'react-hook-form';
 import { Lock, AlertCircle } from 'lucide-react';
 import { useAuthStore } from '../../stores/auth';
@@ -55,7 +56,7 @@ export function ForcedPasswordChangeModal({ isOpen }: ForcedPasswordChangeModalP
 
     if (!isOpen) return null;
 
-    return (
+    return createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
             <div className="bg-white dark:bg-neutral-900 rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
                 <div className="flex items-start gap-3 mb-4">
@@ -143,6 +144,7 @@ export function ForcedPasswordChangeModal({ isOpen }: ForcedPasswordChangeModalP
                     </p>
                 </form>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }

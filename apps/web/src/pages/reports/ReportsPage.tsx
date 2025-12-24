@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import { reportsApi, analyticsApi, jobsApi } from '../../lib/api';
@@ -11,9 +12,10 @@ import {
 } from 'lucide-react';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-    PieChart as RechartsPieChart, Pie, Cell, LineChart, AreaChart, Area,
+    PieChart as RechartsPieChart, Pie, Cell, AreaChart, Area,
     Legend
 } from 'recharts';
+import { Download, FileText } from 'lucide-react';
 import { Card, Button, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui';
 import { ColumnSelector, ExportColumn } from '../../components/common';
 import { convertToCSV, downloadCSV, CsvColumn } from '../../lib/csv-utils';
@@ -154,6 +156,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export function ReportsPage() {
+    const { tenantId } = useParams<{ tenantId: string }>();
     useTranslation();
     const [activeTab, setActiveTab] = useState<ReportType>('overview');
     const [datePreset, setDatePreset] = useState<DatePreset>('30days');
@@ -163,6 +166,7 @@ export function ReportsPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [jobs, setJobs] = useState<any[]>([]);
     const [showColumnSelector, setShowColumnSelector] = useState(false);
+    const [showExportModal, setShowExportModal] = useState(false);
 
     // Report data states
     const [summaryStats, setSummaryStats] = useState<any>(null);
@@ -201,7 +205,7 @@ export function ReportsPage() {
     useEffect(() => {
         loadJobs();
         loadAllData();
-    }, []);
+    }, [tenantId]);
 
     // Reload data when filters change
     useEffect(() => {
@@ -212,7 +216,7 @@ export function ReportsPage() {
 
     const loadJobs = async () => {
         try {
-            const response = await jobsApi.getAll('current-tenant', {});
+            const response = await jobsApi.getAll(tenantId || 'current-tenant', {});
             const data = response.data.data || response.data || [];
             setJobs(Array.isArray(data) ? data : (data.jobs || []));
         } catch (error) {
@@ -227,13 +231,13 @@ export function ReportsPage() {
 
         try {
             const [summary, pipeline, funnel, sources, time, report, activity] = await Promise.allSettled([
-                analyticsApi.getSummary(),
-                analyticsApi.getPipelineHealth(),
-                analyticsApi.getHiringFunnel(selectedJobId || undefined),
-                analyticsApi.getSourceEffectiveness(),
-                analyticsApi.getTimeToHire(),
+                analyticsApi.getSummary(filters),
+                analyticsApi.getPipelineHealth(filters),
+                analyticsApi.getHiringFunnel(selectedJobId || undefined, { startDate, endDate }),
+                analyticsApi.getSourceEffectiveness(filters),
+                analyticsApi.getTimeToHire(filters),
                 reportsApi.getCustomReport(filters),
-                analyticsApi.getUserActivity(),
+                analyticsApi.getUserActivity({ startDate, endDate }),
             ]);
 
             if (summary.status === 'fulfilled') setSummaryStats(summary.value.data.data || summary.value.data);
@@ -279,6 +283,28 @@ export function ReportsPage() {
         const csvContent = convertToCSV(sourceData, csvColumns, selectedColumns);
         downloadCSV(csvContent, `recruitment-report-${format(new Date(), 'yyyy-MM-dd')}.csv`);
         toast.success('Report exported successfully');
+    };
+
+    const handleDetailedExport = async () => {
+        try {
+            const { startDate, endDate } = getDateRange();
+            const filters = { startDate, endDate, jobId: selectedJobId };
+            const response = await reportsApi.exportCsv(filters);
+            
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `detailed_report_${format(new Date(), 'yyyy-MM-dd')}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            
+            toast.success('Detailed report exported successfully');
+            setShowExportModal(false);
+        } catch (error) {
+            console.error('Export failed', error);
+            toast.error('Failed to export detailed report');
+        }
     };
 
     // Prepare chart data
@@ -340,11 +366,11 @@ export function ReportsPage() {
                             <Button
                                 variant="secondary"
                                 size="sm"
-                                onClick={() => setShowColumnSelector(true)}
+                                onClick={() => setShowExportModal(true)}
                                 className="gap-2 bg-white dark:bg-neutral-800 shadow-sm"
                             >
-                                <FileSpreadsheet size={16} />
-                                Export CSV
+                                <Download size={16} />
+                                Export
                             </Button>
                             <Button
                                 variant="secondary"
@@ -917,7 +943,7 @@ export function ReportsPage() {
                             <ChartCard title="Activity Trend (Last 7 Days)">
                                 <div className="h-[300px]">
                                     <ResponsiveContainer width="100%" height="100%">
-                                        <LineChart data={userActivity?.activityTrend || []}>
+                                        <AreaChart data={userActivity?.activityTrend || []}>
                                             <defs>
                                                 <linearGradient id="activityGradient" x1="0" y1="0" x2="0" y2="1">
                                                     <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.3} />
@@ -929,7 +955,7 @@ export function ReportsPage() {
                                             <YAxis tick={{ fontSize: 12 }} />
                                             <Tooltip content={<CustomTooltip />} />
                                             <Area type="monotone" dataKey="count" stroke="#8B5CF6" strokeWidth={2} fill="url(#activityGradient)" name="Actions" />
-                                        </LineChart>
+                                        </AreaChart>
                                     </ResponsiveContainer>
                                 </div>
                             </ChartCard>
@@ -992,6 +1018,61 @@ export function ReportsPage() {
                 description="Choose which source effectiveness metrics you want in your CSV report"
                 exportButtonText="Download Report"
             />
+            
+            {/* Export Options Modal */}
+            <AnimatePresence>
+                {showExportModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="bg-white dark:bg-neutral-900 rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
+                        >
+                            <div className="p-6 border-b border-neutral-100 dark:border-neutral-800">
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">Export Report</h3>
+                                    <button onClick={() => setShowExportModal(false)} className="text-neutral-400 hover:text-neutral-500">
+                                        <XCircle size={20} />
+                                    </button>
+                                </div>
+                                <p className="text-sm text-neutral-500 mt-1">Choose the type of report you want to download</p>
+                            </div>
+                            
+                            <div className="p-6 space-y-4">
+                                <button
+                                    onClick={handleDetailedExport}
+                                    className="w-full flex items-start gap-4 p-4 rounded-xl border border-neutral-200 dark:border-neutral-800 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all group text-left"
+                                >
+                                    <div className="p-3 bg-blue-100 dark:bg-blue-900/40 rounded-lg text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">
+                                        <FileText size={24} />
+                                    </div>
+                                    <div>
+                                        <h4 className="font-semibold text-neutral-900 dark:text-white">Detailed Applications Report</h4>
+                                        <p className="text-sm text-neutral-500 mt-1">Full list of applications with candidate details, stages, and status history.</p>
+                                    </div>
+                                </button>
+
+                                <button
+                                    onClick={() => {
+                                        setShowExportModal(false);
+                                        setShowColumnSelector(true);
+                                    }}
+                                    className="w-full flex items-start gap-4 p-4 rounded-xl border border-neutral-200 dark:border-neutral-800 hover:border-emerald-500 dark:hover:border-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all group text-left"
+                                >
+                                    <div className="p-3 bg-emerald-100 dark:bg-emerald-900/40 rounded-lg text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform">
+                                        <FileSpreadsheet size={24} />
+                                    </div>
+                                    <div>
+                                        <h4 className="font-semibold text-neutral-900 dark:text-white">Source Effectiveness</h4>
+                                        <p className="text-sm text-neutral-500 mt-1">Aggregated metrics on channel performance, hire rates, and costs.</p>
+                                    </div>
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

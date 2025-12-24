@@ -1,14 +1,14 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
-import { Prisma } from '@prisma/client';
+import { Injectable } from "@nestjs/common";
+import { PrismaService } from "../../prisma/prisma.service";
+import { Prisma } from "@prisma/client";
 
 interface AdvancedSearchQuery {
   // Boolean search
   query?: string; // Supports AND, OR, NOT operators
-  
+
   // Field-specific filters
   skills?: string[];
-  skillsMatch?: 'ALL' | 'ANY'; // Match all skills or any skill
+  skillsMatch?: "ALL" | "ANY"; // Match all skills or any skill
   locations?: string[];
   experience?: { min?: number; max?: number };
   education?: string[];
@@ -16,20 +16,20 @@ interface AdvancedSearchQuery {
   titles?: string[];
   sources?: string[];
   tags?: string[];
-  
+
   // Date filters
   createdAfter?: string;
   createdBefore?: string;
   lastActivityAfter?: string;
-  
+
   // Status filters
   hasApplications?: boolean;
   applicationStatus?: string[];
   excludeJobIds?: string[];
-  
+
   // Sorting and pagination
-  sortBy?: 'relevance' | 'createdAt' | 'updatedAt' | 'name' | 'matchScore';
-  sortOrder?: 'asc' | 'desc';
+  sortBy?: "relevance" | "createdAt" | "updatedAt" | "name" | "matchScore";
+  sortOrder?: "asc" | "desc";
   page?: number;
   limit?: number;
 }
@@ -54,7 +54,10 @@ export class CandidateSearchService {
   /**
    * Advanced candidate search with boolean query support
    */
-  async search(tenantId: string, query: AdvancedSearchQuery): Promise<SearchResult> {
+  async search(
+    tenantId: string,
+    query: AdvancedSearchQuery,
+  ): Promise<SearchResult> {
     const page = query.page || 1;
     const limit = Math.min(query.limit || 20, 100);
     const skip = (page - 1) * limit;
@@ -136,7 +139,7 @@ export class CandidateSearchService {
 
     // Handle quoted phrases
     const phrases: string[] = [];
-    let processedQuery = query.replace(/"([^"]+)"/g, (_, phrase) => {
+    const processedQuery = query.replace(/"([^"]+)"/g, (_, phrase) => {
       phrases.push(phrase);
       return `__PHRASE_${phrases.length - 1}__`;
     });
@@ -146,7 +149,7 @@ export class CandidateSearchService {
 
     if (orParts.length > 1) {
       return {
-        OR: orParts.map(part => this.parseAndNotTerms(part, phrases)),
+        OR: orParts.map((part) => this.parseAndNotTerms(part, phrases)),
       };
     }
 
@@ -156,18 +159,23 @@ export class CandidateSearchService {
   /**
    * Parse AND and NOT terms
    */
-  private parseAndNotTerms(query: string, phrases: string[]): Prisma.CandidateWhereInput {
+  private parseAndNotTerms(
+    query: string,
+    phrases: string[],
+  ): Prisma.CandidateWhereInput {
     const notTerms: string[] = [];
     const andTerms: string[] = [];
 
     // Extract NOT terms
-    let processedQuery = query.replace(/NOT\s+(\S+)/gi, (_, term) => {
+    const processedQuery = query.replace(/NOT\s+(\S+)/gi, (_, term) => {
       notTerms.push(this.resolveTerm(term, phrases));
-      return '';
+      return "";
     });
 
     // Extract AND terms (or implicit AND)
-    const parts = processedQuery.split(/\s+AND\s+|\s+/i).filter(p => p.trim());
+    const parts = processedQuery
+      .split(/\s+AND\s+|\s+/i)
+      .filter((p) => p.trim());
     for (const part of parts) {
       const term = this.resolveTerm(part, phrases);
       if (term) andTerms.push(term);
@@ -216,13 +224,13 @@ export class CandidateSearchService {
     const searchTerm = term.toLowerCase();
     return {
       OR: [
-        { firstName: { contains: searchTerm, mode: 'insensitive' } },
-        { lastName: { contains: searchTerm, mode: 'insensitive' } },
-        { email: { contains: searchTerm, mode: 'insensitive' } },
-        { currentTitle: { contains: searchTerm, mode: 'insensitive' } },
-        { currentCompany: { contains: searchTerm, mode: 'insensitive' } },
-        { location: { contains: searchTerm, mode: 'insensitive' } },
-        { summary: { contains: searchTerm, mode: 'insensitive' } },
+        { firstName: { contains: searchTerm, mode: "insensitive" } },
+        { lastName: { contains: searchTerm, mode: "insensitive" } },
+        { email: { contains: searchTerm, mode: "insensitive" } },
+        { currentTitle: { contains: searchTerm, mode: "insensitive" } },
+        { currentCompany: { contains: searchTerm, mode: "insensitive" } },
+        { location: { contains: searchTerm, mode: "insensitive" } },
+        { summary: { contains: searchTerm, mode: "insensitive" } },
         { skills: { has: searchTerm } },
         { tags: { has: searchTerm } },
       ],
@@ -232,12 +240,14 @@ export class CandidateSearchService {
   /**
    * Build field-specific filters
    */
-  private buildFieldFilters(query: AdvancedSearchQuery): Prisma.CandidateWhereInput {
+  private buildFieldFilters(
+    query: AdvancedSearchQuery,
+  ): Prisma.CandidateWhereInput {
     const filters: Prisma.CandidateWhereInput = {};
 
     // Skills filter
     if (query.skills?.length) {
-      if (query.skillsMatch === 'ALL') {
+      if (query.skillsMatch === "ALL") {
         filters.skills = { hasEvery: query.skills };
       } else {
         filters.skills = { hasSome: query.skills };
@@ -246,8 +256,8 @@ export class CandidateSearchService {
 
     // Location filter
     if (query.locations?.length) {
-      filters.OR = query.locations.map(loc => ({
-        location: { contains: loc, mode: 'insensitive' as const },
+      filters.OR = query.locations.map((loc) => ({
+        location: { contains: loc, mode: "insensitive" as const },
       }));
     }
 
@@ -255,7 +265,7 @@ export class CandidateSearchService {
     if (query.companies?.length) {
       filters.currentCompany = {
         in: query.companies,
-        mode: 'insensitive',
+        mode: "insensitive",
       };
     }
 
@@ -263,8 +273,8 @@ export class CandidateSearchService {
     if (query.titles?.length) {
       filters.OR = [
         ...(filters.OR || []),
-        ...query.titles.map(title => ({
-          currentTitle: { contains: title, mode: 'insensitive' as const },
+        ...query.titles.map((title) => ({
+          currentTitle: { contains: title, mode: "insensitive" as const },
         })),
       ];
     }
@@ -281,10 +291,16 @@ export class CandidateSearchService {
 
     // Date filters
     if (query.createdAfter) {
-      filters.createdAt = { ...filters.createdAt as any, gte: new Date(query.createdAfter) };
+      filters.createdAt = {
+        ...(filters.createdAt as any),
+        gte: new Date(query.createdAfter),
+      };
     }
     if (query.createdBefore) {
-      filters.createdAt = { ...filters.createdAt as any, lte: new Date(query.createdBefore) };
+      filters.createdAt = {
+        ...(filters.createdAt as any),
+        lte: new Date(query.createdBefore),
+      };
     }
 
     // Application status filter
@@ -307,7 +323,7 @@ export class CandidateSearchService {
     // Exclude candidates already applied to specific jobs
     if (query.excludeJobIds?.length) {
       filters.applications = {
-        ...filters.applications as any,
+        ...(filters.applications as any),
         none: {
           jobId: { in: query.excludeJobIds },
         },
@@ -322,20 +338,20 @@ export class CandidateSearchService {
    */
   private buildOrderBy(
     sortBy?: string,
-    sortOrder?: 'asc' | 'desc',
+    sortOrder?: "asc" | "desc",
   ): Prisma.CandidateOrderByWithRelationInput[] {
-    const order = sortOrder || 'desc';
+    const order = sortOrder || "desc";
 
     switch (sortBy) {
-      case 'name':
+      case "name":
         return [{ firstName: order }, { lastName: order }];
-      case 'createdAt':
+      case "createdAt":
         return [{ createdAt: order }];
-      case 'updatedAt':
+      case "updatedAt":
         return [{ updatedAt: order }];
-      case 'relevance':
+      case "relevance":
       default:
-        return [{ updatedAt: 'desc' }, { createdAt: 'desc' }];
+        return [{ updatedAt: "desc" }, { createdAt: "desc" }];
     }
   }
 
@@ -371,12 +387,18 @@ export class CandidateSearchService {
 
       // Location
       if (candidate.location) {
-        locationCounts.set(candidate.location, (locationCounts.get(candidate.location) || 0) + 1);
+        locationCounts.set(
+          candidate.location,
+          (locationCounts.get(candidate.location) || 0) + 1,
+        );
       }
 
       // Source
       if (candidate.source) {
-        sourceCounts.set(candidate.source, (sourceCounts.get(candidate.source) || 0) + 1);
+        sourceCounts.set(
+          candidate.source,
+          (sourceCounts.get(candidate.source) || 0) + 1,
+        );
       }
 
       // Tags
@@ -385,7 +407,8 @@ export class CandidateSearchService {
       }
     }
 
-    const sortByCount = (a: { count: number }, b: { count: number }) => b.count - a.count;
+    const sortByCount = (a: { count: number }, b: { count: number }) =>
+      b.count - a.count;
 
     return {
       skills: Array.from(skillCounts.entries())
@@ -410,7 +433,11 @@ export class CandidateSearchService {
   /**
    * Get search suggestions based on partial query
    */
-  async getSuggestions(tenantId: string, query: string, field?: string): Promise<string[]> {
+  async getSuggestions(
+    tenantId: string,
+    query: string,
+    field?: string,
+  ): Promise<string[]> {
     if (!query || query.length < 2) {
       return [];
     }
@@ -418,7 +445,7 @@ export class CandidateSearchService {
     const searchTerm = query.toLowerCase();
     const suggestions: Set<string> = new Set();
 
-    if (!field || field === 'skills') {
+    if (!field || field === "skills") {
       const skillCandidates = await this.prisma.candidate.findMany({
         where: { tenantId },
         select: { skills: true },
@@ -434,14 +461,14 @@ export class CandidateSearchService {
       }
     }
 
-    if (!field || field === 'location') {
+    if (!field || field === "location") {
       const locations = await this.prisma.candidate.findMany({
         where: {
           tenantId,
-          location: { contains: searchTerm, mode: 'insensitive' },
+          location: { contains: searchTerm, mode: "insensitive" },
         },
         select: { location: true },
-        distinct: ['location'],
+        distinct: ["location"],
         take: 10,
       });
 
@@ -450,14 +477,14 @@ export class CandidateSearchService {
       }
     }
 
-    if (!field || field === 'company') {
+    if (!field || field === "company") {
       const companies = await this.prisma.candidate.findMany({
         where: {
           tenantId,
-          currentCompany: { contains: searchTerm, mode: 'insensitive' },
+          currentCompany: { contains: searchTerm, mode: "insensitive" },
         },
         select: { currentCompany: true },
-        distinct: ['currentCompany'],
+        distinct: ["currentCompany"],
         take: 10,
       });
 
@@ -466,14 +493,14 @@ export class CandidateSearchService {
       }
     }
 
-    if (!field || field === 'title') {
+    if (!field || field === "title") {
       const titles = await this.prisma.candidate.findMany({
         where: {
           tenantId,
-          currentTitle: { contains: searchTerm, mode: 'insensitive' },
+          currentTitle: { contains: searchTerm, mode: "insensitive" },
         },
         select: { currentTitle: true },
-        distinct: ['currentTitle'],
+        distinct: ["currentTitle"],
         take: 10,
       });
 
@@ -496,11 +523,11 @@ export class CandidateSearchService {
   ) {
     await this.prisma.activityLog.create({
       data: {
-        action: 'SAVED_SEARCH_CREATED',
+        action: "SAVED_SEARCH_CREATED",
         description: `Saved search: ${name}`,
         userId,
         metadata: {
-          searchId: `search-${Date.now()}-${require('crypto').randomBytes(6).toString('hex')}`,
+          searchId: `search-${Date.now()}-${require("crypto").randomBytes(6).toString("hex")}`,
           tenantId,
           name,
           query: JSON.parse(JSON.stringify(query)),
@@ -519,17 +546,17 @@ export class CandidateSearchService {
   async getSavedSearches(tenantId: string, userId: string) {
     const logs = await this.prisma.activityLog.findMany({
       where: {
-        action: 'SAVED_SEARCH_CREATED',
+        action: "SAVED_SEARCH_CREATED",
         userId,
         metadata: {
-          path: ['tenantId'],
+          path: ["tenantId"],
           equals: tenantId,
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
-    return logs.map(log => {
+    return logs.map((log) => {
       const meta = log.metadata as any;
       return {
         id: meta.searchId,

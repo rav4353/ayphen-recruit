@@ -1,5 +1,5 @@
-import { IsString, IsOptional } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsString, IsOptional } from "class-validator";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 export class CreateApplicationDto {
   @ApiProperty()
@@ -15,7 +15,7 @@ export class CreateApplicationDto {
   @IsString()
   coverLetter?: string;
 
-  @ApiPropertyOptional({ description: 'Answers to screening questions' })
+  @ApiPropertyOptional({ description: "Answers to screening questions" })
   @IsOptional()
   answers?: Record<string, unknown>;
 }

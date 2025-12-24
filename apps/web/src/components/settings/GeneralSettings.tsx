@@ -32,6 +32,7 @@ const LocationModal = ({ isOpen, onClose, initialData, onSubmit, isLoading }: {
     onSubmit: (data: any) => void;
     isLoading: boolean;
 }) => {
+    const { t } = useTranslation();
     const [formData, setFormData] = useState({
         name: '',
         address: '',
@@ -60,7 +61,7 @@ const LocationModal = ({ isOpen, onClose, initialData, onSubmit, isLoading }: {
     };
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title={initialData ? 'Edit Location' : 'Add Location'}>
+        <Modal isOpen={isOpen} onClose={onClose} title={initialData ? t('settings.locations.edit') : t('settings.locations.add')}>
             <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                     <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Location Name *</label>
@@ -136,8 +137,8 @@ const LocationModal = ({ isOpen, onClose, initialData, onSubmit, isLoading }: {
                     </select>
                 </div>
                 <div className="flex justify-end gap-3 pt-4 border-t border-neutral-200 dark:border-neutral-700">
-                    <Button variant="ghost" onClick={onClose} type="button">Cancel</Button>
-                    <Button type="submit" isLoading={isLoading}>{initialData ? 'Save Changes' : 'Add Location'}</Button>
+                    <Button variant="ghost" onClick={onClose} type="button">{t('settings.locations.cancel')}</Button>
+                    <Button type="submit" isLoading={isLoading}>{initialData ? t('settings.locations.saveChanges') : t('settings.locations.addLocation')}</Button>
                 </div>
             </form>
         </Modal>
@@ -152,6 +153,7 @@ const DepartmentModal = ({ isOpen, onClose, initialData, onSubmit, isLoading }: 
     onSubmit: (data: any) => void;
     isLoading: boolean;
 }) => {
+    const { t } = useTranslation();
     const [formData, setFormData] = useState({
         name: '',
         code: '',
@@ -172,7 +174,7 @@ const DepartmentModal = ({ isOpen, onClose, initialData, onSubmit, isLoading }: 
     };
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title={initialData ? 'Edit Department' : 'Add Department'}>
+        <Modal isOpen={isOpen} onClose={onClose} title={initialData ? t('settings.departments.edit') : t('settings.departments.add')}>
             <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                     <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Department Name *</label>
@@ -197,8 +199,8 @@ const DepartmentModal = ({ isOpen, onClose, initialData, onSubmit, isLoading }: 
                     <p className="text-xs text-neutral-500 mt-1">Optional short code for the department</p>
                 </div>
                 <div className="flex justify-end gap-3 pt-4 border-t border-neutral-200 dark:border-neutral-700">
-                    <Button variant="ghost" onClick={onClose} type="button">Cancel</Button>
-                    <Button type="submit" isLoading={isLoading}>{initialData ? 'Save Changes' : 'Add Department'}</Button>
+                    <Button variant="ghost" onClick={onClose} type="button">{t('settings.departments.cancel')}</Button>
+                    <Button type="submit" isLoading={isLoading}>{initialData ? t('settings.departments.saveChanges') : t('settings.departments.addDepartment')}</Button>
                 </div>
             </form>
         </Modal>
@@ -224,16 +226,8 @@ const localizationSchema = z.object({
     numberFormat: z.string(),
 });
 
-const candidateIdSettingsSchema = z.object({
-    type: z.enum(['random', 'sequential']),
-    prefix: z.string().min(1, 'Prefix is required'),
-    minDigits: z.number().min(3).max(10),
-    nextNumber: z.number().min(1),
-});
-
 type OrgProfileForm = z.infer<typeof orgProfileSchema>;
 type LocalizationForm = z.infer<typeof localizationSchema>;
-type CandidateIdSettingsForm = z.infer<typeof candidateIdSettingsSchema>;
 
 const DATE_FORMATS = [
     { value: 'MM/DD/YYYY', label: 'MM/DD/YYYY (US)', example: '12/31/2024' },
@@ -250,13 +244,13 @@ const LANGUAGES = [
 ];
 
 export function GeneralSettings() {
-    const { i18n } = useTranslation();
+    const { t, i18n } = useTranslation();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [logoUrl, setLogoUrl] = useState<string | null>(null);
     const [isUploadingLogo, setIsUploadingLogo] = useState(false);
     const [isSavingProfile, setIsSavingProfile] = useState(false);
     const [isSavingLocalization, setIsSavingLocalization] = useState(false);
-    const [isSavingCandidateId, setIsSavingCandidateId] = useState(false);
+
     const { setSettings, setLogoUrl: setStoreLogo } = useOrganizationStore();
 
     // Fetch Reference Data
@@ -305,15 +299,7 @@ export function GeneralSettings() {
         }
     });
 
-    const candidateIdSettingsForm = useForm<CandidateIdSettingsForm>({
-        resolver: zodResolver(candidateIdSettingsSchema),
-        defaultValues: {
-            type: 'random',
-            prefix: 'CAND',
-            minDigits: 6,
-            nextNumber: 1,
-        }
-    });
+
 
     // Load settings on mount
     useEffect(() => {
@@ -359,18 +345,6 @@ export function GeneralSettings() {
                     });
                     setSettings(loc);
                 }
-
-                // Find candidate ID settings
-                const candidateId = Array.isArray(settings) ? settings.find((s: any) => s.key === 'candidate_id_settings') : null;
-                if (candidateId?.value) {
-                    const cid = candidateId.value;
-                    candidateIdSettingsForm.reset({
-                        type: cid.type || 'random',
-                        prefix: cid.prefix || 'CAND',
-                        minDigits: cid.minDigits || 6,
-                        nextNumber: cid.nextNumber || 1,
-                    });
-                }
             } catch (error) {
                 console.error('Failed to load settings:', error);
             }
@@ -385,13 +359,13 @@ export function GeneralSettings() {
 
         // Validate file type
         if (!file.type.startsWith('image/')) {
-            toast.error('Please upload an image file');
+            toast.error(t('settings.upload.imageError'));
             return;
         }
 
         // Validate file size (max 2MB)
         if (file.size > 2 * 1024 * 1024) {
-            toast.error('Image size should be less than 2MB');
+            toast.error(t('settings.upload.sizeError'));
             return;
         }
 
@@ -402,11 +376,11 @@ export function GeneralSettings() {
             if (uploadedUrl) {
                 setLogoUrl(uploadedUrl);
                 setStoreLogo(uploadedUrl);
-                toast.success('Logo uploaded successfully');
+                toast.success(t('settings.upload.success'));
             }
         } catch (error) {
             console.error('Failed to upload logo:', error);
-            toast.error('Failed to upload logo');
+            toast.error(t('settings.upload.error'));
         } finally {
             setIsUploadingLogo(false);
         }
@@ -433,10 +407,10 @@ export function GeneralSettings() {
                 isPublic: true,
             });
             setSettings(profileData);
-            toast.success('Organization profile saved successfully');
+            toast.success(t('settings.organizationProfile.savedSuccess'));
         } catch (error) {
             console.error('Failed to save organization profile:', error);
-            toast.error('Failed to save organization profile');
+            toast.error(t('settings.organizationProfile.savedError'));
         } finally {
             setIsSavingProfile(false);
         }
@@ -455,31 +429,16 @@ export function GeneralSettings() {
             if (data.language !== i18n.language) {
                 i18n.changeLanguage(data.language);
             }
-            toast.success('Localization settings saved successfully');
+            toast.success(t('settings.localization.savedSuccess'));
         } catch (error) {
             console.error('Failed to save localization settings:', error);
-            toast.error('Failed to save localization settings');
+            toast.error(t('settings.localization.savedError'));
         } finally {
             setIsSavingLocalization(false);
         }
     };
 
-    const onSaveCandidateIdSettings = async (data: CandidateIdSettingsForm) => {
-        setIsSavingCandidateId(true);
-        try {
-            await settingsApi.update('candidate_id_settings', {
-                value: data,
-                category: 'CANDIDATE',
-                isPublic: false,
-            });
-            toast.success('Candidate ID settings saved successfully');
-        } catch (error) {
-            console.error('Failed to save candidate ID settings:', error);
-            toast.error('Failed to save candidate ID settings');
-        } finally {
-            setIsSavingCandidateId(false);
-        }
-    };
+
 
     const queryClient = useQueryClient();
 
@@ -500,7 +459,7 @@ export function GeneralSettings() {
         mutationFn: (data: any) => referenceApi.createLocation(data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['locations'] });
-            toast.success('Location created successfully');
+            toast.success(t('settings.locations.createdSuccess'));
             setLocationModalOpen(false);
             setEditingLocation(null);
         },
@@ -514,21 +473,21 @@ export function GeneralSettings() {
         mutationFn: ({ id, data }: { id: string; data: any }) => referenceApi.updateLocation(id, data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['locations'] });
-            toast.success('Location updated successfully');
+            toast.success(t('settings.locations.updatedSuccess'));
             setLocationModalOpen(false);
             setEditingLocation(null);
         },
-        onError: () => toast.error('Failed to update location'),
+        onError: () => toast.error(t('settings.locations.updatedError')),
     });
 
     const deleteLocationMutation = useMutation({
         mutationFn: (id: string) => referenceApi.deleteLocation(id),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['locations'] });
-            toast.success('Location deleted successfully');
+            toast.success(t('settings.locations.deletedSuccess'));
             setDeleteLocationId(null);
         },
-        onError: () => toast.error('Failed to delete location'),
+        onError: () => toast.error(t('settings.locations.deletedError')),
     });
 
     // Departments state and queries
@@ -548,14 +507,14 @@ export function GeneralSettings() {
         mutationFn: (data: any) => departmentsApi.create(data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['departments'] });
-            toast.success('Department created successfully');
+            toast.success(t('settings.departments.createdSuccess'));
             setDepartmentModalOpen(false);
             setEditingDepartment(null);
         },
         onError: (error: any) => {
             const message = error?.response?.data?.message || 'Failed to create department';
             if (message.includes('Unique constraint') || message.includes('already exists')) {
-                toast.error('A department with this name already exists');
+                toast.error(t('settings.departments.duplicateError'));
             } else {
                 toast.error(message);
             }
@@ -566,21 +525,21 @@ export function GeneralSettings() {
         mutationFn: ({ id, data }: { id: string; data: any }) => departmentsApi.update(id, data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['departments'] });
-            toast.success('Department updated successfully');
+            toast.success(t('settings.departments.updatedSuccess'));
             setDepartmentModalOpen(false);
             setEditingDepartment(null);
         },
-        onError: () => toast.error('Failed to update department'),
+        onError: () => toast.error(t('settings.departments.updatedError')),
     });
 
     const deleteDepartmentMutation = useMutation({
         mutationFn: (id: string) => departmentsApi.delete(id),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['departments'] });
-            toast.success('Department deleted successfully');
+            toast.success(t('settings.departments.deletedSuccess'));
             setDeleteDepartmentId(null);
         },
-        onError: () => toast.error('Failed to delete department'),
+        onError: () => toast.error(t('settings.departments.deletedError')),
     });
 
     return (
@@ -588,8 +547,8 @@ export function GeneralSettings() {
             {/* Organization Profile */}
             <Card className="overflow-hidden">
                 <CardHeader
-                    title="Organization Profile"
-                    description="Manage your company details. The logo will be displayed in the application header."
+                    title={t('settings.organizationProfile.title')}
+                    description={t('settings.organizationProfile.description')}
                     icon={<Building2 size={20} className="text-blue-500" />}
                     className="border-b border-neutral-100 dark:border-neutral-800"
                 />
@@ -602,7 +561,7 @@ export function GeneralSettings() {
                                     <div className="relative">
                                         <img
                                             src={logoUrl}
-                                            alt="Organization Logo"
+                                            alt={t('settings.organizationProfile.logo.alt')}
                                             className="w-24 h-24 object-contain rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-2"
                                         />
                                         <button
@@ -616,15 +575,15 @@ export function GeneralSettings() {
                                 ) : (
                                     <div className="w-24 h-24 bg-neutral-100 dark:bg-neutral-800 rounded-xl flex flex-col items-center justify-center text-neutral-400 border-2 border-dashed border-neutral-300 dark:border-neutral-600">
                                         <Building2 size={24} />
-                                        <span className="text-xs mt-1">No Logo</span>
+                                        <span className="text-xs mt-1">{t('settings.organizationProfile.logo.noLogo')}</span>
                                     </div>
                                 )}
                             </div>
                             <div className="flex-1 space-y-3">
                                 <div>
-                                    <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Company Logo</Label>
+                                    <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">{t('settings.organizationProfile.fields.companyLogo')}</Label>
                                     <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
-                                        Upload your company logo. Recommended size: 200x200px. Max file size: 2MB.
+                                        {t('settings.organizationProfile.logo.description')}
                                     </p>
                                 </div>
                                 <div className="flex items-center gap-3">
@@ -645,7 +604,7 @@ export function GeneralSettings() {
                                         className="gap-2"
                                     >
                                         <Upload size={14} />
-                                        {logoUrl ? 'Change Logo' : 'Upload Logo'}
+                                        {logoUrl ? t('settings.organizationProfile.logo.change') : t('settings.organizationProfile.logo.upload')}
                                     </Button>
                                     {logoUrl && (
                                         <Button
@@ -655,7 +614,7 @@ export function GeneralSettings() {
                                             onClick={handleRemoveLogo}
                                             className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
                                         >
-                                            Remove
+                                            {t('settings.organizationProfile.logo.remove')}
                                         </Button>
                                     )}
                                 </div>
@@ -665,19 +624,19 @@ export function GeneralSettings() {
                         {/* Organization Details */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
                             <div className="space-y-2">
-                                <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Organization Name *</Label>
-                                <Input {...orgProfileForm.register('name')} error={orgProfileForm.formState.errors.name?.message} placeholder="Enter organization name" />
+                                <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">{t('settings.organizationProfile.fields.organizationName')} *</Label>
+                                <Input {...orgProfileForm.register('name')} error={orgProfileForm.formState.errors.name?.message} placeholder={t('settings.organizationProfile.placeholders.organizationName')} />
                             </div>
                             <div className="space-y-2">
-                                <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Website</Label>
-                                <Input {...orgProfileForm.register('website')} placeholder="https://example.com" />
+                                <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">{t('settings.organizationProfile.fields.website')}</Label>
+                                <Input {...orgProfileForm.register('website')} placeholder={t('settings.organizationProfile.placeholders.website')} />
                             </div>
                             <div className="space-y-2">
-                                <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Industry</Label>
-                                <Input {...orgProfileForm.register('industry')} placeholder="e.g. Technology, Finance, Healthcare" />
+                                <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">{t('settings.organizationProfile.fields.industry')}</Label>
+                                <Input {...orgProfileForm.register('industry')} placeholder={t('settings.organizationProfile.placeholders.industry')} />
                             </div>
                             <div className="space-y-2">
-                                <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Phone</Label>
+                                <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">{t('settings.organizationProfile.fields.phone')}</Label>
                                 <Controller
                                     name="phone"
                                     control={orgProfileForm.control}
@@ -685,31 +644,31 @@ export function GeneralSettings() {
                                         <PhoneInput
                                             value={field.value || ''}
                                             onChange={field.onChange}
-                                            placeholder="+1 (555) 000-0000"
+                                            placeholder={t('settings.organizationProfile.placeholders.phone')}
                                             error={orgProfileForm.formState.errors.phone?.message}
                                         />
                                     )}
                                 />
                             </div>
                             <div className="space-y-2">
-                                <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Email</Label>
-                                <Input {...orgProfileForm.register('email')} type="email" placeholder="contact@company.com" />
+                                <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">{t('settings.organizationProfile.fields.email')}</Label>
+                                <Input {...orgProfileForm.register('email')} type="email" placeholder={t('settings.organizationProfile.placeholders.email')} />
                             </div>
                             <div className="space-y-2">
-                                <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Address</Label>
-                                <Input {...orgProfileForm.register('address')} placeholder="123 Business St, City, Country" />
+                                <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">{t('settings.organizationProfile.fields.address')}</Label>
+                                <Input {...orgProfileForm.register('address')} placeholder={t('settings.organizationProfile.placeholders.address')} />
                             </div>
                             <div className="space-y-2 md:col-span-2">
-                                <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Description</Label>
+                                <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">{t('settings.organizationProfile.fields.description')}</Label>
                                 <textarea
                                     {...orgProfileForm.register('description')}
-                                    placeholder="Brief description of your organization..."
+                                    placeholder={t('settings.organizationProfile.placeholders.description')}
                                     className="w-full px-4 py-2.5 rounded-lg bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all resize-none h-24"
                                 />
                             </div>
                         </div>
                         <div className="flex justify-end pt-4 border-t border-neutral-100 dark:border-neutral-800">
-                            <Button type="submit" isLoading={isSavingProfile}>Save Changes</Button>
+                            <Button type="submit" isLoading={isSavingProfile}>{t('settings.organizationProfile.saveChanges')}</Button>
                         </div>
                     </form>
                 </CardContent>
@@ -718,8 +677,8 @@ export function GeneralSettings() {
             {/* Localization */}
             <Card className="overflow-hidden">
                 <CardHeader
-                    title="Localization"
-                    description="Configure timezone, currency, date format, and language preferences for your organization."
+                    title={t('settings.localization.title')}
+                    description={t('settings.localization.description')}
                     icon={<Languages size={20} className="text-purple-500" />}
                     className="border-b border-neutral-100 dark:border-neutral-800"
                 />
@@ -730,11 +689,11 @@ export function GeneralSettings() {
                         <div className="space-y-4">
                             <h3 className="text-sm font-medium text-neutral-900 dark:text-white flex items-center gap-2 border-b border-neutral-100 dark:border-neutral-800 pb-2">
                                 <Globe size={16} className="text-blue-500" />
-                                Regional Settings
+                                {t('settings.localization.regionalSettings')}
                             </h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="space-y-2">
-                                    <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Default Language</Label>
+                                    <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">{t('settings.localization.defaultLanguage')}</Label>
                                     <Controller
                                         name="language"
                                         control={localizationForm.control}
@@ -753,7 +712,7 @@ export function GeneralSettings() {
                                             </Select>
                                         )}
                                     />
-                                    <p className="text-xs text-neutral-500">The language used for the system interface.</p>
+                                    <p className="text-xs text-neutral-500">{t('settings.localization.languageDescription')}</p>
                                 </div>
                                 <div className="space-y-2">
                                     <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Number Format</Label>
@@ -890,107 +849,29 @@ export function GeneralSettings() {
                         </div>
 
                         <div className="flex justify-end pt-4 border-t border-neutral-100 dark:border-neutral-800">
-                            <Button type="submit" isLoading={isSavingLocalization}>Save Changes</Button>
+                            <Button type="submit" isLoading={isSavingLocalization}>{t('settings.localization.saveChanges')}</Button>
                         </div>
                     </form>
                 </CardContent>
             </Card>
 
-            {/* Candidate ID Customization */}
-            <Card className="overflow-hidden">
-                <CardHeader
-                    title="Candidate ID Customization"
-                    description="Customize how candidate IDs are generated and displayed throughout the system."
-                    icon={<Edit size={20} className="text-orange-500" />}
-                    className="border-b border-neutral-100 dark:border-neutral-800"
-                />
-                <CardContent className="pt-6">
-                    <form onSubmit={candidateIdSettingsForm.handleSubmit(onSaveCandidateIdSettings)} className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="space-y-2">
-                                <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Generation Type</Label>
-                                <Controller
-                                    name="type"
-                                    control={candidateIdSettingsForm.control}
-                                    render={({ field }) => (
-                                        <Select onValueChange={field.onChange} value={field.value}>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Select type" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="random">Random Numbers</SelectItem>
-                                                <SelectItem value="sequential">Sequential Numbers</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    )}
-                                />
-                                <p className="text-xs text-neutral-500">Choose between random 6-digit IDs or sequential numbers.</p>
-                            </div>
-                            <div className="space-y-2">
-                                <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">ID Prefix</Label>
-                                <Input
-                                    {...candidateIdSettingsForm.register('prefix')}
-                                    placeholder="e.g. CAND, AYP, ABC"
-                                    error={candidateIdSettingsForm.formState.errors.prefix?.message}
-                                />
-                                <p className="text-xs text-neutral-500">The text appearing before the number (e.g. CAND-0001).</p>
-                            </div>
-                            <div className="space-y-2">
-                                <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Minimum Digits</Label>
-                                <Input
-                                    type="number"
-                                    {...candidateIdSettingsForm.register('minDigits', { valueAsNumber: true })}
-                                    error={candidateIdSettingsForm.formState.errors.minDigits?.message}
-                                />
-                                <p className="text-xs text-neutral-500">How many digits the number should have (e.g. 6 digits: 000001).</p>
-                            </div>
-                            {candidateIdSettingsForm.watch('type') === 'sequential' && (
-                                <div className="space-y-2">
-                                    <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Next Number</Label>
-                                    <Input
-                                        type="number"
-                                        {...candidateIdSettingsForm.register('nextNumber', { valueAsNumber: true })}
-                                        error={candidateIdSettingsForm.formState.errors.nextNumber?.message}
-                                    />
-                                    <p className="text-xs text-neutral-500">The number to be assigned to the next new candidate.</p>
-                                </div>
-                            )}
-                        </div>
 
-                        {/* Preview */}
-                        <div className="bg-neutral-50 dark:bg-neutral-800/50 p-4 rounded-lg border border-neutral-200 dark:border-neutral-700">
-                            <h4 className="text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-2">Example Preview</h4>
-                            <div className="text-lg font-mono text-blue-600 dark:text-blue-400">
-                                {candidateIdSettingsForm.watch('prefix')}-{
-                                    candidateIdSettingsForm.watch('type') === 'sequential'
-                                        ? String(candidateIdSettingsForm.watch('nextNumber') || 1).padStart(candidateIdSettingsForm.watch('minDigits') || 6, '0')
-                                        : '123456'.slice(0, candidateIdSettingsForm.watch('minDigits') || 6).padStart(candidateIdSettingsForm.watch('minDigits') || 6, '0')
-                                }
-                            </div>
-                        </div>
-
-                        <div className="flex justify-end pt-4 border-t border-neutral-100 dark:border-neutral-800">
-                            <Button type="submit" isLoading={isSavingCandidateId}>Save ID Settings</Button>
-                        </div>
-                    </form>
-                </CardContent>
-            </Card>
 
             {/* Locations */}
             <Card className="overflow-hidden">
                 <CardHeader
-                    title="Locations"
-                    description="Manage your office locations."
+                    title={t('settings.locations.title')}
+                    description={t('settings.locations.description')}
                     icon={<MapPin size={20} className="text-green-500" />}
                     className="border-b border-neutral-100 dark:border-neutral-800"
                 />
                 <CardContent className="pt-6 space-y-4">
                     {locationsLoading ? (
-                        <div className="text-center py-8 text-neutral-500">Loading locations...</div>
+                        <div className="text-center py-8 text-neutral-500">{t('settings.locations.loading')}</div>
                     ) : locations.length === 0 ? (
                         <div className="text-center py-8">
                             <MapPin className="mx-auto h-10 w-10 text-neutral-300 dark:text-neutral-600 mb-2" />
-                            <p className="text-neutral-500">No locations added yet</p>
+                            <p className="text-neutral-500">{t('settings.locations.empty')}</p>
                         </div>
                     ) : (
                         <div className="space-y-3">
@@ -1057,30 +938,30 @@ export function GeneralSettings() {
 
             {/* Delete Location Confirmation */}
             <ConfirmationModal
-                isOpen={!!deleteLocationId}
+                isOpen={deleteLocationId !== null}
                 onCancel={() => setDeleteLocationId(null)}
                 onConfirm={() => deleteLocationId && deleteLocationMutation.mutate(deleteLocationId)}
-                title="Delete Location"
-                message="Are you sure you want to delete this location? Jobs using this location may be affected."
-                confirmLabel="Delete"
+                title={t('settings.locations.deleteTitle')}
+                message={t('settings.locations.deleteMessage')}
+                confirmLabel={t('settings.locations.deleteConfirm')}
                 variant="danger"
             />
 
             {/* Departments */}
             <Card className="overflow-hidden">
                 <CardHeader
-                    title="Departments"
-                    description="Manage your organization's departments."
+                    title={t('settings.departments.title')}
+                    description={t('settings.departments.description')}
                     icon={<Users size={20} className="text-orange-500" />}
                     className="border-b border-neutral-100 dark:border-neutral-800"
                 />
                 <CardContent className="pt-6 space-y-4">
                     {departmentsLoading ? (
-                        <div className="text-center py-8 text-neutral-500">Loading departments...</div>
+                        <div className="text-center py-8 text-neutral-500">{t('settings.departments.loading')}</div>
                     ) : departments.length === 0 ? (
                         <div className="text-center py-8">
                             <Users className="mx-auto h-10 w-10 text-neutral-300 dark:text-neutral-600 mb-2" />
-                            <p className="text-neutral-500">No departments added yet</p>
+                            <p className="text-neutral-500">{t('settings.departments.empty')}</p>
                         </div>
                     ) : (
                         <div className="space-y-3">
@@ -1144,12 +1025,12 @@ export function GeneralSettings() {
 
             {/* Delete Department Confirmation */}
             <ConfirmationModal
-                isOpen={!!deleteDepartmentId}
+                isOpen={deleteDepartmentId !== null}
                 onCancel={() => setDeleteDepartmentId(null)}
                 onConfirm={() => deleteDepartmentId && deleteDepartmentMutation.mutate(deleteDepartmentId)}
-                title="Delete Department"
-                message="Are you sure you want to delete this department? Users and jobs in this department may be affected."
-                confirmLabel="Delete"
+                title={t('settings.departments.deleteTitle')}
+                message={t('settings.departments.deleteMessage')}
+                confirmLabel={t('settings.departments.deleteConfirm')}
                 variant="danger"
             />
         </div>

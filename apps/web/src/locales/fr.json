@@ -758,6 +758,121 @@
       "appearance": "Apparence",
       "language": "Langue"
     },
+    "organizationProfile": {
+      "title": "Profil de l'organisation",
+      "description": "Gérez les détails de votre entreprise. Le logo sera affiché dans l'en-tête de l'application.",
+      "logo": {
+        "upload": "Télécharger le logo",
+        "change": "Changer le logo",
+        "remove": "Supprimer",
+        "alt": "Logo de l'organisation",
+        "noLogo": "Aucun logo",
+        "description": "Téléchargez le logo de votre entreprise. Taille recommandée : 200x200px. Taille max du fichier : 2MB."
+      },
+      "fields": {
+        "companyLogo": "Logo de l'entreprise",
+        "organizationName": "Nom de l'organisation",
+        "website": "Site web",
+        "industry": "Industrie",
+        "phone": "Téléphone",
+        "email": "E-mail",
+        "address": "Adresse",
+        "description": "Description"
+      },
+      "placeholders": {
+        "organizationName": "Entrez le nom de l'organisation",
+        "website": "https://exemple.com",
+        "industry": "ex. Technologie, Finance, Santé",
+        "phone": "+1 (555) 000-0000",
+        "email": "contact@entreprise.com",
+        "address": "123 Rue d'affaires, Ville, Pays",
+        "description": "Brève description de votre organisation..."
+      },
+      "saveChanges": "Enregistrer les modifications",
+      "savedSuccess": "Profil de l'organisation enregistré avec succès",
+      "savedError": "Échec de l'enregistrement du profil de l'organisation"
+    },
+    "localization": {
+      "title": "Localisation",
+      "description": "Configurez le fuseau horaire, la devise, le format de date et les préférences de langue pour votre organisation.",
+      "regionalSettings": "Paramètres régionaux",
+      "defaultLanguage": "Langue par défaut",
+      "languageDescription": "La langue utilisée pour l'interface système.",
+      "savedSuccess": "Paramètres de localisation enregistrés avec succès",
+      "savedError": "Échec de l'enregistrement des paramètres de localisation",
+      "saveChanges": "Enregistrer les modifications"
+    },
+    "locations": {
+      "title": "Lieux",
+      "description": "Gérez vos emplacements de bureau et adresses.",
+      "add": "Ajouter un lieu",
+      "edit": "Modifier le lieu",
+      "name": "Nom du lieu",
+      "address": "Adresse",
+      "city": "Ville",
+      "state": "État/Province",
+      "country": "Pays",
+      "timezone": "Fuseau horaire",
+      "cancel": "Annuler",
+      "saveChanges": "Enregistrer les modifications",
+      "addLocation": "Ajouter un lieu",
+      "createdSuccess": "Lieu créé avec succès",
+      "createdError": "Échec de la création du lieu",
+      "updatedSuccess": "Lieu mis à jour avec succès",
+      "updatedError": "Échec de la mise à jour du lieu",
+      "deletedSuccess": "Lieu supprimé avec succès",
+      "deletedError": "Échec de la suppression du lieu",
+      "deleteTitle": "Supprimer le lieu",
+      "deleteMessage": "Êtes-vous sûr de vouloir supprimer ce lieu ? Les emplois utilisant ce lieu peuvent être affectés.",
+      "deleteConfirm": "Supprimer",
+      "loading": "Chargement des lieux...",
+      "empty": "Aucun lieu ajouté pour le moment"
+    },
+    "departments": {
+      "title": "Départements",
+      "description": "Gérez les départements de votre entreprise et la structure organisationnelle.",
+      "add": "Ajouter un département",
+      "edit": "Modifier le département",
+      "name": "Nom du département",
+      "code": "Code du département",
+      "codeDescription": "Code court optionnel pour le département",
+      "cancel": "Annuler",
+      "saveChanges": "Enregistrer les modifications",
+      "addDepartment": "Ajouter un département",
+      "createdSuccess": "Département créé avec succès",
+      "createdError": "Échec de la création du département",
+      "updatedSuccess": "Département mis à jour avec succès",
+      "updatedError": "Échec de la mise à jour du département",
+      "deletedSuccess": "Département supprimé avec succès",
+      "deletedError": "Échec de la suppression du département",
+      "duplicateError": "Un département portant ce nom existe déjà",
+      "deleteTitle": "Supprimer le département",
+      "deleteMessage": "Êtes-vous sûr de vouloir supprimer ce département ? Les emplois utilisant ce département peuvent être affectés.",
+      "deleteConfirm": "Supprimer",
+      "loading": "Chargement des départements...",
+      "empty": "Aucun département ajouté pour le moment"
+    },
+    "upload": {
+      "imageError": "Veuillez télécharger un fichier image",
+      "sizeError": "La taille de l'image doit être inférieure à 2MB",
+      "success": "Logo téléchargé avec succès",
+      "error": "Échec du téléchargement du logo"
+    },
+    "integrations": {
+      "tabs": {
+        "smtp": "Configuration Email",
+        "calendar": "Calendrier",
+        "esignature": "Signature Électronique",
+        "jobBoards": "Tableaux d'Emploi",
+        "bgv": "Vérifications de Contexte",
+        "messaging": "Slack/Teams",
+        "videoMeetings": "Réunions Vidéo"
+      },
+      "smtp": {
+        "title": "Configuration SMTP",
+        "loading": "Chargement des paramètres..."
+      }
+    },
     "automations": "Automatisations de Pipeline",
     "automationsDesc": "Automatisez les actions lorsque les candidats passent par les étapes du pipeline.",
     "noPipelines": "Aucun pipeline trouvé. Créez d'abord une offre/pipeline.",
@@ -994,7 +1109,11 @@
           "department": "Département",
           "location": "Lieu",
           "bonus": "Bonus",
-          "equity": "Actions"
+          "equity": "Actions",
+          "unknownCandidate": "Candidat inconnu",
+          "noJobTitle": "Aucun titre de poste",
+          "overdue": "En retard",
+          "daysLeft": "{{days}}j restants"
         }
       }
     }

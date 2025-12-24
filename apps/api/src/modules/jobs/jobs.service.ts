@@ -1,14 +1,19 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
-import { CreateJobDto } from './dto/create-job.dto';
-import { UpdateJobDto } from './dto/update-job.dto';
-import { JobQueryDto } from './dto/job-query.dto';
-import * as crypto from 'crypto';
-import { Prisma } from '@prisma/client';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from "@nestjs/common";
+import { PrismaService } from "../../prisma/prisma.service";
+import { CreateJobDto } from "./dto/create-job.dto";
+import { UpdateJobDto } from "./dto/update-job.dto";
+import { JobQueryDto } from "./dto/job-query.dto";
+import * as crypto from "crypto";
+import { Prisma } from "@prisma/client";
 
-import { JobBoardsService } from '../integrations/job-boards.service';
-import { SettingsService } from '../settings/settings.service';
-import { NotificationsService } from '../notifications/notifications.service';
+import { JobBoardsService } from "../integrations/job-boards.service";
+import { SettingsService } from "../settings/settings.service";
+import { NotificationsService } from "../notifications/notifications.service";
+import { JobEditApprovalService } from "./job-edit-approval.service";
 
 @Injectable()
 export class JobsService {
@@ -17,13 +22,30 @@ export class JobsService {
     private readonly jobBoardsService: JobBoardsService,
     private readonly settingsService: SettingsService,
     private readonly notificationsService: NotificationsService,
-  ) { }
+    private readonly jobEditApprovalService: JobEditApprovalService,
+  ) {}
 
   private uniqueIds(ids: Array<string | null | undefined>) {
     return Array.from(new Set(ids.filter(Boolean) as string[]));
   }
 
   async create(dto: CreateJobDto, tenantId: string, recruiterId: string) {
+    // Validate that required ID settings are configured
+    const idValidation = await this.settingsService.validateIdSettingsConfigured(
+      tenantId,
+      ["job_id_settings", "application_id_settings"],
+    );
+    if (!idValidation.valid) {
+      const missingLabels = idValidation.missing.map((key) => {
+        if (key === "job_id_settings") return "Job ID";
+        if (key === "application_id_settings") return "Application ID";
+        return key;
+      });
+      throw new BadRequestException(
+        `The following settings must be configured before creating jobs: ${missingLabels.join(", ")}. Please configure in Settings > ID Configuration.`,
+      );
+    }
+
     const {
       departmentId: providedDepartmentId,
       department: departmentName,
@@ -64,24 +86,24 @@ export class JobsService {
     }
 
     try {
-      console.log('[JobsService] Creating job with data:', {
+      console.log("[JobsService] Creating job with data:", {
         ...jobData,
         tenantId,
         recruiterId: jobData.recruiterId || recruiterId,
-        status: status || 'DRAFT',
+        status: status || "DRAFT",
       });
 
-      let jobCode = await this.generateJobCode();
+      let jobCode = await this.generateJobCode(tenantId);
       let unique = false;
       while (!unique) {
         const existing = await this.prisma.job.findFirst({
           where: {
             jobCode,
-            tenantId
-          }
+            tenantId,
+          },
         });
         if (!existing) unique = true;
-        else jobCode = await this.generateJobCode();
+        else jobCode = await this.generateJobCode(tenantId);
       }
 
       return await this.prisma.job.create({
@@ -90,15 +112,16 @@ export class JobsService {
           jobCode,
           tenantId,
           recruiterId: jobData.recruiterId || recruiterId,
-          status: status || 'DRAFT',
+          status: status || "DRAFT",
           ...(employmentType && { employmentType }),
           ...(workLocation && { workLocation }),
           ...(departmentId && { departmentId }),
-          ...(locationIds && locationIds.length > 0 && {
-            locations: {
-              connect: locationIds.map(id => ({ id }))
-            }
-          }),
+          ...(locationIds &&
+            locationIds.length > 0 && {
+              locations: {
+                connect: locationIds.map((id) => ({ id })),
+              },
+            }),
           ...(hiringManagerId && { hiringManagerId }),
           ...(pipelineId && { pipelineId }),
           ...(scorecardTemplateId && { scorecardTemplateId }),
@@ -111,26 +134,38 @@ export class JobsService {
         },
       });
     } catch (error) {
-      console.error('[JobsService] Failed to create job:', error);
+      console.error("[JobsService] Failed to create job:", error);
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        if (error.code === 'P2003') {
+        if (error.code === "P2003") {
           const field = error.meta?.field_name as string;
-          if (field?.includes('hiringManagerId')) {
-            throw new BadRequestException('Invalid Hiring Manager selected. The user may not exist.');
+          if (field?.includes("hiringManagerId")) {
+            throw new BadRequestException(
+              "Invalid Hiring Manager selected. The user may not exist.",
+            );
           }
-          if (field?.includes('recruiterId')) {
-            throw new BadRequestException('Invalid Recruiter selected. The user may not exist.');
+          if (field?.includes("recruiterId")) {
+            throw new BadRequestException(
+              "Invalid Recruiter selected. The user may not exist.",
+            );
           }
-          if (field?.includes('pipelineId')) {
-            throw new BadRequestException('Invalid Pipeline selected. The pipeline may not exist.');
+          if (field?.includes("pipelineId")) {
+            throw new BadRequestException(
+              "Invalid Pipeline selected. The pipeline may not exist.",
+            );
           }
-          if (field?.includes('scorecardTemplateId')) {
-            throw new BadRequestException('Invalid Scorecard Template selected.');
+          if (field?.includes("scorecardTemplateId")) {
+            throw new BadRequestException(
+              "Invalid Scorecard Template selected.",
+            );
           }
-          throw new BadRequestException(`Foreign key constraint failed on field: ${field}`);
+          throw new BadRequestException(
+            `Foreign key constraint failed on field: ${field}`,
+          );
         }
-        if (error.code === 'P2002') {
-          throw new BadRequestException('A job with this unique code already exists. Please try again.');
+        if (error.code === "P2002") {
+          throw new BadRequestException(
+            "A job with this unique code already exists. Please try again.",
+          );
         }
       }
       throw error;
@@ -149,7 +184,7 @@ export class JobsService {
     }
     if (query.locationId) {
       where.locations = {
-        some: { id: query.locationId }
+        some: { id: query.locationId },
       };
     }
     if (query.employmentType) {
@@ -162,15 +197,15 @@ export class JobsService {
     // Apply search
     if (query.search) {
       where.OR = [
-        { title: { contains: query.search, mode: 'insensitive' } },
-        { description: { contains: query.search, mode: 'insensitive' } },
-        { requirements: { contains: query.search, mode: 'insensitive' } },
+        { title: { contains: query.search, mode: "insensitive" } },
+        { description: { contains: query.search, mode: "insensitive" } },
+        { requirements: { contains: query.search, mode: "insensitive" } },
       ];
     }
 
     // Build sort order
-    const sortField = query.sortBy || 'createdAt';
-    const sortOrder = query.sortOrder || 'desc';
+    const sortField = query.sortBy || "createdAt";
+    const sortOrder = query.sortOrder || "desc";
     const orderBy = { [sortField]: sortOrder };
 
     const [jobs, total] = await Promise.all([
@@ -182,8 +217,22 @@ export class JobsService {
         include: {
           department: true,
           locations: true,
-          recruiter: { select: { id: true, firstName: true, lastName: true, employeeId: true } },
-          hiringManager: { select: { id: true, firstName: true, lastName: true, employeeId: true } },
+          recruiter: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              employeeId: true,
+            },
+          },
+          hiringManager: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              employeeId: true,
+            },
+          },
           _count: { select: { applications: true } },
         },
       }),
@@ -197,10 +246,10 @@ export class JobsService {
     const jobs = await this.prisma.job.findMany({
       where: {
         tenantId,
-        status: 'OPEN',
+        status: "OPEN",
         internalOnly: false,
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
       include: {
         department: true,
         locations: true,
@@ -217,9 +266,9 @@ export class JobsService {
         locations: true,
         recruiter: true,
         hiringManager: true,
-        pipeline: { include: { stages: { orderBy: { order: 'asc' } } } },
+        pipeline: { include: { stages: { orderBy: { order: "asc" } } } },
         approvals: {
-          orderBy: { order: 'asc' },
+          orderBy: { createdAt: "desc" }, // Show newest first to see complete history
           include: {
             approver: {
               select: {
@@ -228,22 +277,98 @@ export class JobsService {
                 lastName: true,
                 employeeId: true,
                 email: true,
-                avatar: true
-              }
-            }
-          }
+                avatar: true,
+              },
+            },
+          },
         },
         _count: { select: { applications: true } },
       },
     });
     if (!job) {
-      throw new NotFoundException('Job not found');
+      throw new NotFoundException("Job not found");
     }
     return job;
   }
 
-  async update(id: string, dto: UpdateJobDto) {
+  async update(id: string, dto: UpdateJobDto, userId?: string) {
     const job = await this.findById(id);
+    const {
+      departmentId: providedDepartmentId,
+      department: departmentName,
+      locationIds,
+      hiringManagerId,
+      pipelineId,
+      employmentType,
+      workLocation,
+      ...jobData
+    } = dto;
+
+    // Check if edit approval is needed for approved jobs
+    if (userId && ['APPROVED', 'OPEN', 'PUBLISHED'].includes(job.status)) {
+      const changedFields = Object.keys(dto).filter(
+        (key) => dto[key as keyof UpdateJobDto] !== undefined
+      );
+
+      const approvalCheck = await this.jobEditApprovalService.requiresApproval(
+        job.tenantId,
+        id,
+        changedFields,
+      );
+
+      if (approvalCheck.required) {
+        // Create pending edits instead of directly updating
+        const changes = approvalCheck.fieldsNeedingApproval.map((fieldName) => ({
+          fieldName,
+          oldValue: (job as any)[fieldName],
+          newValue: dto[fieldName as keyof UpdateJobDto],
+        }));
+
+        await this.jobEditApprovalService.createPendingEdits(
+          id,
+          userId,
+          job.tenantId,
+          changes,
+        );
+
+        // Filter out fields that need approval from the direct update
+        const fieldsToUpdateDirectly = Object.keys(dto).filter(
+          (key) => !approvalCheck.fieldsNeedingApproval.includes(key)
+        );
+
+        if (fieldsToUpdateDirectly.length === 0) {
+          // All changes require approval, return job with pending edits info
+          return {
+            ...job,
+            _pendingEdits: true,
+            _pendingEditFields: approvalCheck.fieldsNeedingApproval,
+          };
+        }
+
+        // Only update fields that don't require approval
+        const filteredDto: any = {};
+        fieldsToUpdateDirectly.forEach((key) => {
+          filteredDto[key] = dto[key as keyof UpdateJobDto];
+        });
+
+        // Recursively call update with filtered dto (will not trigger approval again since fields are filtered)
+        const result = await this.directUpdate(id, filteredDto, job);
+        return {
+          ...result,
+          _pendingEdits: true,
+          _pendingEditFields: approvalCheck.fieldsNeedingApproval,
+        };
+      }
+    }
+
+    return this.directUpdate(id, dto, job);
+  }
+
+  private async directUpdate(id: string, dto: UpdateJobDto, job?: any) {
+    if (!job) {
+      job = await this.findById(id);
+    }
+
     const {
       departmentId: providedDepartmentId,
       department: departmentName,
@@ -289,8 +414,8 @@ export class JobsService {
         ...(departmentId !== undefined && { departmentId }),
         ...(locationIds !== undefined && {
           locations: {
-            set: locationIds.map(id => ({ id }))
-          }
+            set: locationIds.map((id) => ({ id })),
+          },
         }),
         ...(hiringManagerId !== undefined && { hiringManagerId }),
         ...(pipelineId !== undefined && { pipelineId }),
@@ -308,7 +433,7 @@ export class JobsService {
     await this.findById(id);
     const data: Record<string, unknown> = { status };
 
-    if (status === 'OPEN') {
+    if (status === "OPEN") {
       data.publishedAt = new Date();
     }
 
@@ -344,12 +469,12 @@ export class JobsService {
         experience: job.experience,
         education: job.education,
         internalOnly: job.internalOnly,
-        status: 'DRAFT',
+        status: "DRAFT",
         tenantId,
         recruiterId,
         departmentId: job.departmentId,
         locations: {
-          connect: job.locations.map(l => ({ id: l.id }))
+          connect: job.locations.map((l) => ({ id: l.id })),
         },
         hiringManagerId: job.hiringManagerId,
         pipelineId: job.pipelineId,
@@ -365,7 +490,7 @@ export class JobsService {
     if (query.departmentId) where.departmentId = query.departmentId;
     if (query.locationId) {
       where.locations = {
-        some: { id: query.locationId }
+        some: { id: query.locationId },
       };
     }
     if (query.employmentType) where.employmentType = query.employmentType;
@@ -376,14 +501,14 @@ export class JobsService {
 
     if (query.search) {
       where.OR = [
-        { title: { contains: query.search, mode: 'insensitive' } },
-        { description: { contains: query.search, mode: 'insensitive' } },
-        { requirements: { contains: query.search, mode: 'insensitive' } },
+        { title: { contains: query.search, mode: "insensitive" } },
+        { description: { contains: query.search, mode: "insensitive" } },
+        { requirements: { contains: query.search, mode: "insensitive" } },
       ];
     }
 
-    const sortField = query.sortBy || 'createdAt';
-    const sortOrder = query.sortOrder || 'desc';
+    const sortField = query.sortBy || "createdAt";
+    const sortOrder = query.sortOrder || "desc";
     const orderBy = { [sortField]: sortOrder };
 
     const jobs = await this.prisma.job.findMany({
@@ -400,58 +525,71 @@ export class JobsService {
 
     // Generate CSV
     const header = [
-      'Job ID',
-      'Title',
-      'Status',
-      'Department',
-      'Location',
-      'Employment Type',
-      'Work Location',
-      'Salary Min',
-      'Salary Max',
-      'Currency',
-      'Recruiter',
-      'Hiring Manager',
-      'Applicants',
-      'Created At',
-    ].join(',');
+      "Job ID",
+      "Title",
+      "Status",
+      "Department",
+      "Location",
+      "Employment Type",
+      "Work Location",
+      "Salary Min",
+      "Salary Max",
+      "Currency",
+      "Recruiter",
+      "Hiring Manager",
+      "Applicants",
+      "Created At",
+    ].join(",");
 
     const rows = jobs.map((job) => {
       const recruiterName = job.recruiter
         ? `${job.recruiter.firstName} ${job.recruiter.lastName}`
-        : '';
+        : "";
       const hmName = job.hiringManager
         ? `${job.hiringManager.firstName} ${job.hiringManager.lastName}`
-        : '';
+        : "";
 
       return [
         job.id,
         `"${job.title.replace(/"/g, '""')}"`,
         job.status,
-        `"${(job.department?.name || '').replace(/"/g, '""')}"`,
-        `"${(job.locations?.map(l => l.name).join(', ') || '').replace(/"/g, '""')}"`,
+        `"${(job.department?.name || "").replace(/"/g, '""')}"`,
+        `"${(job.locations?.map((l) => l.name).join(", ") || "").replace(/"/g, '""')}"`,
         job.employmentType,
         job.workLocation,
-        job.salaryMin || '',
-        job.salaryMax || '',
+        job.salaryMin || "",
+        job.salaryMax || "",
         job.salaryCurrency,
         `"${recruiterName}"`,
         `"${hmName}"`,
         job._count?.applications || 0,
         job.createdAt.toISOString(),
-      ].join(',');
+      ].join(",");
     });
 
-    return [header, ...rows].join('\n');
+    return [header, ...rows].join("\n");
   }
 
-  async submitForApproval(id: string, approverIds: string[], userId: string) {
-    console.log(`[JobsService] Submitting job ${id} for approval. User: ${userId}, Approvers: ${approverIds}`);
+  async submitForApproval(
+    id: string,
+    approverIds: string[],
+    userId: string,
+    comment?: string,
+  ) {
+    console.log(
+      `[JobsService] Submitting job ${id} for approval. User: ${userId}, Approvers: ${approverIds}`,
+    );
     const job = await this.findById(id);
 
-    if (job.status !== 'DRAFT' && job.status !== 'PENDING_APPROVAL') {
+    if (
+      job.status !== "DRAFT" &&
+      job.status !== "PENDING_APPROVAL" &&
+      job.status !== "REJECTED"
+    ) {
       console.warn(`[JobsService] Invalid status for approval: ${job.status}`);
-      throw new BadRequestException('Only draft jobs can be submitted for approval');
+      throw new BadRequestException(
+        "Only draft or rejected jobs can be submitted for approval",
+      );
     }
 
     let finalApproverIds = approverIds || [];
@@ -459,195 +597,271 @@ export class JobsService {
     if (finalApproverIds.length === 0) {
       try {
         // Try to fetch approval workflows from settings
-        const setting = await this.settingsService.getSettingByKey(job.tenantId, 'approval_workflows');
+        const setting = await this.settingsService.getSettingByKey(
+          job.tenantId,
+          "approval_workflows",
+        );
         const workflows = setting?.value as any[];
 
         if (workflows && workflows.length > 0) {
           // Prioritize 'Job Requisition Approval' or similar, otherwise take the first one
-          const jobWorkflow = workflows.find(w => w.name.includes('Job') || w.name.includes('Requisition')) || workflows[0];
+          const jobWorkflow =
+            workflows.find(
+              (w) => w.name.includes("Job") || w.name.includes("Requisition"),
+            ) || workflows[0];
 
           if (jobWorkflow && jobWorkflow.steps?.length > 0) {
-            console.log(`[JobsService] Using approval workflow: ${jobWorkflow.name}`);
+            console.log(
+              `[JobsService] Using approval workflow: ${jobWorkflow.name}`,
+            );
 
             // Extract user IDs from steps
-            finalApproverIds = jobWorkflow.steps.map((step: any) => {
-              // Handle new format (object with userId)
-              if (typeof step === 'object' && step.userId) {
-                return step.userId;
-              }
-              // Handle old format (string role name) - this is tricky without role resolution, 
-              // but we'll return null and filter it out, falling back to other methods if needed
-              return null;
-            }).filter(Boolean);
+            finalApproverIds = jobWorkflow.steps
+              .map((step: any) => {
+                // Handle new format (object with userId)
+                if (typeof step === "object" && step.userId) {
+                  return step.userId;
+                }
+                // Handle old format (string role name) - this is tricky without role resolution,
+                // but we'll return null and filter it out, falling back to other methods if needed
+                return null;
+              })
+              .filter(Boolean);
 
             if (finalApproverIds.length === 0) {
-              console.warn('[JobsService] Workflow found but no valid user IDs in steps');
+              console.warn(
+                "[JobsService] Workflow found but no valid user IDs in steps",
+              );
             }
           }
         }
       } catch (error) {
-        console.warn('[JobsService] Failed to fetch approval workflows setting:', error);
+        console.warn(
+          "[JobsService] Failed to fetch approval workflows setting:",
+          error,
+        );
       }
     }
 
     if (finalApproverIds.length === 0) {
       if (job.hiringManagerId) {
-        console.log(`[JobsService] Using hiring manager ${job.hiringManagerId} as approver`);
+        console.log(
+          `[JobsService] Using hiring manager ${job.hiringManagerId} as approver`,
+        );
         finalApproverIds = [job.hiringManagerId];
       } else if (job.recruiterId) {
-        console.log(`[JobsService] Using recruiter ${job.recruiterId} as fallback approver`);
+        console.log(
+          `[JobsService] Using recruiter ${job.recruiterId} as fallback approver`,
+        );
         finalApproverIds = [job.recruiterId];
       } else {
-        console.error('[JobsService] No approvers provided and no hiring manager found');
-        throw new BadRequestException('At least one approver is required');
+        console.error(
+          "[JobsService] No approvers provided and no hiring manager found",
+        );
+        throw new BadRequestException("At least one approver is required");
       }
     }
 
-    // Clear existing pending approvals
-    await this.prisma.jobApproval.deleteMany({
-      where: { jobId: id, status: 'PENDING' }
+    // Log existing approvals before deletion
+    const existingApprovals = await this.prisma.jobApproval.findMany({
+      where: { jobId: id },
+      select: {
+        id: true,
+        status: true,
+        rejectionReason: true,
+        approverId: true,
+      },
     });
+    console.log(
+      `[JobsService] Existing approvals before deletion:`,
+      JSON.stringify(existingApprovals, null, 2),
+    );
 
-    // Create new approvals
+    // Only clear existing PENDING approvals (keep REJECTED and APPROVED for history)
+    const deleteResult = await this.prisma.jobApproval.deleteMany({
+      where: { jobId: id, status: "PENDING" },
+    });
+    console.log(
+      `[JobsService] Deleted ${deleteResult.count} PENDING approvals`,
+    );
+
+    // Log remaining approvals after deletion
+    const remainingApprovals = await this.prisma.jobApproval.findMany({
+      where: { jobId: id },
+      select: {
+        id: true,
+        status: true,
+        rejectionReason: true,
+        approverId: true,
+      },
+    });
+    console.log(
+      `[JobsService] Remaining approvals after deletion:`,
+      JSON.stringify(remainingApprovals, null, 2),
+    );
+
+    // Create new approvals with resubmission comment if provided
     try {
       await this.prisma.jobApproval.createMany({
         data: finalApproverIds.map((approverId, index) => ({
           jobId: id,
           approverId,
           order: index + 1,
-          status: 'PENDING'
-        }))
+          status: "PENDING",
+          resubmissionComment: comment || null,
+        })),
       });
     } catch (error) {
-      console.error('[JobsService] Failed to create job approvals:', error);
+      console.error("[JobsService] Failed to create job approvals:", error);
       throw error;
     }
 
     try {
-      const finalApproverIds = (await this.prisma.jobApproval.findMany({
-        where: { jobId: id, status: 'PENDING' },
-        select: { approverId: true },
-      })).map(a => a.approverId);
+      const finalApproverIds = (
+        await this.prisma.jobApproval.findMany({
+          where: { jobId: id, status: "PENDING" },
+          select: { approverId: true },
+        })
+      ).map((a) => a.approverId);
 
       await Promise.all(
         finalApproverIds.map((approverId) =>
-          this.notificationsService.notifyApprovalRequest('job', job, approverId, job.tenantId)
-        )
+          this.notificationsService.notifyApprovalRequest(
+            "job",
+            job,
+            approverId,
+            job.tenantId,
+          ),
+        ),
       );
     } catch (error) {
-      console.error('[JobsService] Failed to notify job approvers:', error);
+      console.error("[JobsService] Failed to notify job approvers:", error);
     }
 
     return this.prisma.job.update({
       where: { id },
-      data: { status: 'PENDING_APPROVAL' },
-      include: { approvals: true }
+      data: { status: "PENDING_APPROVAL" },
+      include: { approvals: true },
     });
   }
 
-  async approve(id: string, userId: string, comment?: string) {
+  async approve(
+    id: string,
+    userId: string,
+    status: "APPROVED" | "REJECTED",
+    comment?: string,
+    rejectionReason?: string,
+  ) {
     const job = await this.findById(id);
     const approval = await this.prisma.jobApproval.findFirst({
-      where: { jobId: id, approverId: userId, status: 'PENDING' }
+      where: { jobId: id, approverId: userId, status: "PENDING" },
     });
 
     if (!approval) {
-      throw new BadRequestException('No pending approval found for this user');
+      throw new BadRequestException("No pending approval found for this user");
     }
 
+    // Validate rejection reason is provided when rejecting
+    if (status === "REJECTED" && !rejectionReason) {
+      throw new BadRequestException(
+        "Rejection reason is required when rejecting",
+      );
+    }
+
+    console.log(
+      `[JobsService] Approving/Rejecting approval ${approval.id} for job ${id}, status: ${status}, reason: ${rejectionReason}`,
+    );
+
+    const now = new Date();
     await this.prisma.jobApproval.update({
       where: { id: approval.id },
-      data: { status: 'APPROVED', approvedAt: new Date(), comment }
+      data: {
+        status,
+        approvedAt: status === "APPROVED" ? now : null,
+        rejectedAt: status === "REJECTED" ? now : null,
+        reviewedAt: now,
+        comment,
+        rejectionReason: status === "REJECTED" ? rejectionReason : null,
+      },
     });
 
-    const pendingCount = await this.prisma.jobApproval.count({
-      where: { jobId: id, status: 'PENDING' }
-    });
-
-    if (pendingCount === 0) {
+    if (status === "REJECTED") {
+      // If rejected, set job status to REJECTED
       await this.prisma.job.update({
         where: { id },
-        data: { status: 'APPROVED' }
+        data: { status: "REJECTED" },
       });
-    }
 
-    try {
-      const recipientIds = this.uniqueIds([
-        job.recruiterId,
-        job.hiringManagerId,
-      ]).filter((rid) => rid !== userId);
+      try {
+        const recipientIds = this.uniqueIds([
+          job.recruiterId,
+          job.hiringManagerId,
+        ]).filter((rid) => rid !== userId);
 
-      if (recipientIds.length > 0) {
-        await this.notificationsService.notifyJobStatusChange(
-          job,
-          pendingCount === 0 ? 'APPROVED' : 'PENDING_APPROVAL',
-          recipientIds,
-          job.tenantId,
+        if (recipientIds.length > 0) {
+          await this.notificationsService.notifyJobStatusChange(
+            job,
+            "REJECTED",
+            recipientIds,
+            job.tenantId,
+          );
+        }
+      } catch (error) {
+        console.error("[JobsService] Failed to notify job rejection:", error);
+      }
+    } else {
+      // Check if all approvals are done
+      const pendingCount = await this.prisma.jobApproval.count({
+        where: { jobId: id, status: "PENDING" },
+      });
+
+      if (pendingCount === 0) {
+        await this.prisma.job.update({
+          where: { id },
+          data: { status: "APPROVED" },
+        });
+      }
+
+      try {
+        const recipientIds = this.uniqueIds([
+          job.recruiterId,
+          job.hiringManagerId,
+        ]).filter((rid) => rid !== userId);
+
+        if (recipientIds.length > 0) {
+          await this.notificationsService.notifyJobStatusChange(
+            job,
+            pendingCount === 0 ? "APPROVED" : "PENDING_APPROVAL",
+            recipientIds,
+            job.tenantId,
+          );
+        }
+      } catch (error) {
+        console.error(
+          "[JobsService] Failed to notify job approval status:",
+          error,
         );
       }
-    } catch (error) {
-      console.error('[JobsService] Failed to notify job approval status:', error);
     }
 
     return this.findById(id);
   }
 
-  async reject(id: string, userId: string, reason: string) {
-    const job = await this.findById(id);
-    const approval = await this.prisma.jobApproval.findFirst({
-      where: { jobId: id, approverId: userId, status: 'PENDING' }
-    });
-
-    if (!approval) {
-      throw new BadRequestException('No pending approval found for this user');
-    }
-
-    await this.prisma.jobApproval.update({
-      where: { id: approval.id },
-      data: { status: 'REJECTED', approvedAt: new Date(), comment: reason }
-    });
-
-    const updatedJob = await this.prisma.job.update({
-      where: { id },
-      data: { status: 'DRAFT' }
-    });
-
-    try {
-      const recipientIds = this.uniqueIds([
-        job.recruiterId,
-        job.hiringManagerId,
-      ]).filter((rid) => rid !== userId);
-
-      if (recipientIds.length > 0) {
-        await this.notificationsService.notifyJobStatusChange(
-          job,
-          'REJECTED',
-          recipientIds,
-          job.tenantId,
-        );
-      }
-    } catch (error) {
-      console.error('[JobsService] Failed to notify job rejection:', error);
-    }
-
-    return updatedJob;
-  }
-
   async publish(id: string, channels: string[]) {
     const job = await this.findById(id);
-    if (job.status !== 'APPROVED' && job.status !== 'OPEN') {
-      throw new BadRequestException('Job must be approved before publishing');
+    if (job.status !== "APPROVED" && job.status !== "OPEN") {
+      throw new BadRequestException("Job must be approved before publishing");
     }
 
     const results: Record<string, string> = {};
 
-    if (channels.includes('LINKEDIN')) {
+    if (channels.includes("LINKEDIN")) {
       results.linkedin = await this.jobBoardsService.postToLinkedIn(job);
     }
-    if (channels.includes('INDEED')) {
+    if (channels.includes("INDEED")) {
       results.indeed = await this.jobBoardsService.postToIndeed(job);
     }
-    if (channels.includes('INTERNAL')) {
+    if (channels.includes("INTERNAL")) {
       results.internal = this.jobBoardsService.generatePublicUrl(job);
     }
 
@@ -655,9 +869,9 @@ export class JobsService {
     await this.prisma.job.update({
       where: { id },
       data: {
-        status: 'OPEN',
+        status: "OPEN",
         publishedAt: new Date(),
-      }
+      },
     });
 
     try {
@@ -667,10 +881,15 @@ export class JobsService {
       ]);
 
       if (recipientIds.length > 0) {
-        await this.notificationsService.notifyJobStatusChange(job, 'OPEN', recipientIds, job.tenantId);
+        await this.notificationsService.notifyJobStatusChange(
+          job,
+          "OPEN",
+          recipientIds,
+          job.tenantId,
+        );
       }
     } catch (error) {
-      console.error('[JobsService] Failed to notify job publish:', error);
+      console.error("[JobsService] Failed to notify job publish:", error);
     }
 
     return { job: await this.findById(id), results };
@@ -678,9 +897,17 @@ export class JobsService {
 
   private async enrichJobWithStatusColor(job: any, tenantId: string) {
     try {
-      const statusColors: any = await this.settingsService.getStatusColors(tenantId);
-      const jobStatusColors = (statusColors && typeof statusColors === 'object' && statusColors.job) || {};
-      const colorConfig = jobStatusColors[job.status] || { bg: '#F3F4F6', text: '#374151' };
+      const statusColors: any =
+        await this.settingsService.getStatusColors(tenantId);
+      const jobStatusColors =
+        (statusColors &&
+          typeof statusColors === "object" &&
+          statusColors.job) ||
+        {};
+      const colorConfig = jobStatusColors[job.status] || {
+        bg: "#F3F4F6",
+        text: "#374151",
+      };
 
       return {
         ...job,
@@ -699,16 +926,18 @@ export class JobsService {
         statusInfo: {
           name: job.status,
           code: job.status,
-          fontColor: '#374151',
-          bgColor: '#F3F4F6',
-          borderColor: '#374151',
+          fontColor: "#374151",
+          bgColor: "#F3F4F6",
+          borderColor: "#374151",
         },
       };
     }
   }
 
   async enrichJobsWithStatusColors(jobs: any[], tenantId: string) {
-    return Promise.all(jobs.map(job => this.enrichJobWithStatusColor(job, tenantId)));
+    return Promise.all(
+      jobs.map((job) => this.enrichJobWithStatusColor(job, tenantId)),
+    );
   }
   async generateXmlFeed(tenantId: string) {
     // Get tenant branding settings
@@ -718,13 +947,19 @@ export class JobsService {
     });
 
     // Get company info from settings
-    let companyName = tenant?.name || 'Company';
-    let companyUrl = tenant?.domain || 'https://careers.example.com';
+    let companyName = tenant?.name || "Company";
+    let companyUrl = tenant?.domain || "https://careers.example.com";
 
     try {
-      const companySetting = await this.settingsService.getSettingByKey(tenantId, 'company_info');
+      const companySetting = await this.settingsService.getSettingByKey(
+        tenantId,
+        "company_info",
+      );
       if (companySetting?.value) {
-        const companyInfo = companySetting.value as { name?: string; website?: string };
+        const companyInfo = companySetting.value as {
+          name?: string;
+          website?: string;
+        };
         if (companyInfo.name) companyName = companyInfo.name;
         if (companyInfo.website) companyUrl = companyInfo.website;
       }
@@ -735,7 +970,7 @@ export class JobsService {
     const jobs = await this.prisma.job.findMany({
       where: {
         tenantId,
-        status: 'OPEN',
+        status: "OPEN",
       },
       include: {
         department: true,
@@ -745,36 +980,86 @@ export class JobsService {
 
     // Simple XML generation for Indeed/ZipRecruiter
     let xml = '<?xml version="1.0" encoding="utf-8"?>\n';
-    xml += '<source>\n';
+    xml += "<source>\n";
     xml += `  <publisher>${companyName}</publisher>\n`;
     xml += `  <publisherurl>${companyUrl}</publisherurl>\n`;
     xml += `  <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>\n`;
 
     for (const job of jobs) {
       const jobUrl = `${companyUrl}/careers/${tenantId}/jobs/${job.id}`;
-      xml += '  <job>\n';
+      xml += "  <job>\n";
       xml += `    <title><![CDATA[${job.title}]]></title>\n`;
       xml += `    <date><![CDATA[${job.createdAt.toUTCString()}]]></date>\n`;
       xml += `    <referencenumber><![CDATA[${job.id}]]></referencenumber>\n`;
       xml += `    <url><![CDATA[${jobUrl}]]></url>\n`;
       xml += `    <company><![CDATA[${companyName}]]></company>\n`;
-      xml += `    <city><![CDATA[${job.locations?.[0]?.city || ''}]]></city>\n`;
-      xml += `    <state><![CDATA[${job.locations?.[0]?.state || ''}]]></state>\n`;
-      xml += `    <country><![CDATA[${job.locations?.[0]?.country || ''}]]></country>\n`;
+      xml += `    <city><![CDATA[${job.locations?.[0]?.city || ""}]]></city>\n`;
+      xml += `    <state><![CDATA[${job.locations?.[0]?.state || ""}]]></state>\n`;
+      xml += `    <country><![CDATA[${job.locations?.[0]?.country || ""}]]></country>\n`;
       xml += `    <description><![CDATA[${job.description}]]></description>\n`;
       if (job.showSalary && job.salaryMin && job.salaryMax) {
         xml += `    <salary><![CDATA[${job.salaryMin} - ${job.salaryMax} ${job.salaryCurrency}]]></salary>\n`;
       }
       xml += `    <jobtype><![CDATA[${job.employmentType}]]></jobtype>\n`;
-      xml += `    <category><![CDATA[${job.department?.name || ''}]]></category>\n`;
-      xml += '  </job>\n';
+      xml += `    <category><![CDATA[${job.department?.name || ""}]]></category>\n`;
+      xml += "  </job>\n";
     }
 
-    xml += '</source>';
+    xml += "</source>";
     return xml;
   }
 
-  private async generateJobCode() {
+  private async generateJobCode(tenantId: string): Promise<string> {
+    try {
+      const setting = await this.settingsService
+        .getSettingByKey(tenantId, "job_id_settings")
+        .catch(() => null);
+
+      if (setting && setting.value) {
+        const config = setting.value as any;
+        const prefix = config.prefix || "JOB";
+        const minDigits = config.minDigits || 6;
+
+        if (config.type === "sequential") {
+          return await this.prisma.$transaction(async (tx) => {
+            const currentSetting = await tx.setting.findUnique({
+              where: {
+                tenantId_key: { tenantId, key: "job_id_settings" },
+              },
+            });
+
+            const currentConfig = currentSetting?.value as any;
+            const nextNumber = currentConfig?.nextNumber || 1;
+
+            await tx.setting.update({
+              where: {
+                tenantId_key: { tenantId, key: "job_id_settings" },
+              },
+              data: {
+                value: {
+                  ...currentConfig,
+                  nextNumber: nextNumber + 1,
+                },
+              },
+            });
+
+            const numberStr = nextNumber.toString().padStart(minDigits, "0");
+            return `${prefix}-${numberStr}`;
+          });
+        } else {
+          // Custom prefix with random number
+          const randomNum = crypto.randomInt(
+            Math.pow(10, minDigits - 1),
+            Math.pow(10, minDigits) - 1,
+          );
+          return `${prefix}-${randomNum}`;
+        }
+      }
+    } catch (error) {
+      console.error("Error generating custom job code:", error);
+    }
+
+    // Default fallback
     const randomNum = crypto.randomInt(100000, 999999);
     return `JOB-${randomNum}`;
   }
@@ -790,7 +1075,7 @@ export class JobsService {
       departmentId?: string;
       locationId?: string;
       headcount: number;
-      priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+      priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
       targetStartDate?: Date;
       justification: string;
       budgetApproved?: boolean;
@@ -799,25 +1084,25 @@ export class JobsService {
       employmentType?: string;
     },
   ) {
-    const requisitionId = `REQ-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+    const requisitionId = `REQ-${Date.now()}-${crypto.randomBytes(4).toString("hex")}`;
 
     // Create requisition as activity log entry
     const requisition = await this.prisma.activityLog.create({
       data: {
-        action: 'REQUISITION_CREATED',
+        action: "REQUISITION_CREATED",
         description: `Job requisition created: ${data.title}`,
         userId,
         metadata: {
           requisitionId,
           tenantId,
           ...data,
-          status: 'PENDING_APPROVAL',
+          status: "PENDING_APPROVAL",
           createdBy: userId,
           createdAt: new Date().toISOString(),
           approvals: [],
           history: [
             {
-              action: 'CREATED',
+              action: "CREATED",
               userId,
               timestamp: new Date().toISOString(),
             },
@@ -831,7 +1116,7 @@ export class JobsService {
       title: data.title,
       headcount: data.headcount,
       priority: data.priority,
-      status: 'PENDING_APPROVAL',
+      status: "PENDING_APPROVAL",
       createdAt: requisition.createdAt,
     };
   }
@@ -849,9 +1134,9 @@ export class JobsService {
   ) {
     const requisitionLogs = await this.prisma.activityLog.findMany({
       where: {
-        action: 'REQUISITION_CREATED',
+        action: "REQUISITION_CREATED",
         metadata: {
-          path: ['tenantId'],
+          path: ["tenantId"],
           equals: tenantId,
         },
       },
@@ -860,7 +1145,7 @@ export class JobsService {
           select: { id: true, firstName: true, lastName: true },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
     // Get latest state of each requisition
@@ -880,32 +1165,44 @@ export class JobsService {
 
     // Apply filters
     if (filters?.status) {
-      requisitions = requisitions.filter(r => r.status === filters.status);
+      requisitions = requisitions.filter((r) => r.status === filters.status);
     }
     if (filters?.departmentId) {
-      requisitions = requisitions.filter(r => r.departmentId === filters.departmentId);
+      requisitions = requisitions.filter(
+        (r) => r.departmentId === filters.departmentId,
+      );
     }
     if (filters?.priority) {
-      requisitions = requisitions.filter(r => r.priority === filters.priority);
+      requisitions = requisitions.filter(
+        (r) => r.priority === filters.priority,
+      );
     }
 
     // Get department and location details
-    const departmentIds = requisitions.map(r => r.departmentId).filter(Boolean);
-    const locationIds = requisitions.map(r => r.locationId).filter(Boolean);
+    const departmentIds = requisitions
+      .map((r) => r.departmentId)
+      .filter(Boolean);
+    const locationIds = requisitions.map((r) => r.locationId).filter(Boolean);
 
     const [departments, locations] = await Promise.all([
       departmentIds.length > 0
-        ? this.prisma.department.findMany({ where: { id: { in: departmentIds } } })
+        ? this.prisma.department.findMany({
+            where: { id: { in: departmentIds } },
+          })
         : [],
       locationIds.length > 0
         ? this.prisma.location.findMany({ where: { id: { in: locationIds } } })
         : [],
     ]);
 
-    const deptMap = new Map<string, any>(departments.map(d => [d.id, d] as [string, any]));
-    const locMap = new Map<string, any>(locations.map(l => [l.id, l] as [string, any]));
+    const deptMap = new Map<string, any>(
+      departments.map((d) => [d.id, d] as [string, any]),
+    );
+    const locMap = new Map<string, any>(
+      locations.map((l) => [l.id, l] as [string, any]),
+    );
 
-    return requisitions.map(r => ({
+    return requisitions.map((r) => ({
       id: r.requisitionId,
       title: r.title,
       headcount: r.headcount,
@@ -930,29 +1227,33 @@ export class JobsService {
     requisitionId: string,
     tenantId: string,
     userId: string,
-    action: 'APPROVE' | 'REJECT' | 'CANCEL',
+    action: "APPROVE" | "REJECT" | "CANCEL",
     notes?: string,
   ) {
     // Find the requisition
     const requisitionLog = await this.prisma.activityLog.findFirst({
       where: {
-        action: 'REQUISITION_CREATED',
+        action: "REQUISITION_CREATED",
         metadata: {
-          path: ['requisitionId'],
+          path: ["requisitionId"],
           equals: requisitionId,
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
     if (!requisitionLog) {
-      throw new NotFoundException('Requisition not found');
+      throw new NotFoundException("Requisition not found");
     }
 
     const currentMetadata = requisitionLog.metadata as any;
 
-    const newStatus = action === 'APPROVE' ? 'APPROVED' :
-      action === 'REJECT' ? 'REJECTED' : 'CANCELLED';
+    const newStatus =
+      action === "APPROVE"
+        ? "APPROVED"
+        : action === "REJECT"
+          ? "REJECTED"
+          : "CANCELLED";
 
     const updatedMetadata = {
       ...currentMetadata,
@@ -971,7 +1272,7 @@ export class JobsService {
     // Create update log
     await this.prisma.activityLog.create({
       data: {
-        action: 'REQUISITION_CREATED',
+        action: "REQUISITION_CREATED",
         description: `Requisition ${action.toLowerCase()}ed: ${currentMetadata.title}`,
         userId,
         metadata: updatedMetadata,
@@ -997,38 +1298,41 @@ export class JobsService {
     // Find the requisition
     const requisitionLog = await this.prisma.activityLog.findFirst({
       where: {
-        action: 'REQUISITION_CREATED',
+        action: "REQUISITION_CREATED",
         metadata: {
-          path: ['requisitionId'],
+          path: ["requisitionId"],
           equals: requisitionId,
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
     if (!requisitionLog) {
-      throw new NotFoundException('Requisition not found');
+      throw new NotFoundException("Requisition not found");
     }
 
     const reqData = requisitionLog.metadata as any;
 
-    if (reqData.status !== 'APPROVED') {
-      throw new BadRequestException('Only approved requisitions can be converted to jobs');
+    if (reqData.status !== "APPROVED") {
+      throw new BadRequestException(
+        "Only approved requisitions can be converted to jobs",
+      );
     }
 
     // Create job from requisition
     const jobDto: CreateJobDto = {
       title: reqData.title,
-      description: additionalData?.description || `Position for ${reqData.title}`,
+      description:
+        additionalData?.description || `Position for ${reqData.title}`,
       departmentId: reqData.departmentId,
       locationIds: reqData.locationId ? [reqData.locationId] : [],
-      employmentType: reqData.employmentType || 'FULL_TIME',
+      employmentType: reqData.employmentType || "FULL_TIME",
       skills: reqData.skills || [],
       salaryMin: reqData.salaryRange?.min,
       salaryMax: reqData.salaryRange?.max,
-      salaryCurrency: reqData.salaryRange?.currency || 'USD',
+      salaryCurrency: reqData.salaryRange?.currency || "USD",
       openings: reqData.headcount,
-      status: 'DRAFT',
+      status: "DRAFT",
       ...additionalData,
     };
 
@@ -1038,11 +1342,11 @@ export class JobsService {
     const updatedMetadata = {
       ...reqData,
       linkedJobId: job.id,
-      status: 'CONVERTED',
+      status: "CONVERTED",
       history: [
         ...(reqData.history || []),
         {
-          action: 'CONVERTED_TO_JOB',
+          action: "CONVERTED_TO_JOB",
           userId,
           jobId: job.id,
           timestamp: new Date().toISOString(),
@@ -1052,7 +1356,7 @@ export class JobsService {
 
     await this.prisma.activityLog.create({
       data: {
-        action: 'REQUISITION_CREATED',
+        action: "REQUISITION_CREATED",
         description: `Requisition converted to job: ${reqData.title}`,
         userId,
         metadata: updatedMetadata,
@@ -1063,7 +1367,7 @@ export class JobsService {
       requisitionId,
       jobId: job.id,
       jobTitle: job.title,
-      message: 'Requisition successfully converted to job posting',
+      message: "Requisition successfully converted to job posting",
     };
   }
 
@@ -1076,21 +1380,27 @@ export class JobsService {
     const stats = {
       total: requisitions.length,
       byStatus: {
-        pending: requisitions.filter(r => r.status === 'PENDING_APPROVAL').length,
-        approved: requisitions.filter(r => r.status === 'APPROVED').length,
-        rejected: requisitions.filter(r => r.status === 'REJECTED').length,
-        converted: requisitions.filter(r => r.status === 'CONVERTED').length,
-        cancelled: requisitions.filter(r => r.status === 'CANCELLED').length,
+        pending: requisitions.filter((r) => r.status === "PENDING_APPROVAL")
+          .length,
+        approved: requisitions.filter((r) => r.status === "APPROVED").length,
+        rejected: requisitions.filter((r) => r.status === "REJECTED").length,
+        converted: requisitions.filter((r) => r.status === "CONVERTED").length,
+        cancelled: requisitions.filter((r) => r.status === "CANCELLED").length,
       },
       byPriority: {
-        urgent: requisitions.filter(r => r.priority === 'URGENT').length,
-        high: requisitions.filter(r => r.priority === 'HIGH').length,
-        medium: requisitions.filter(r => r.priority === 'MEDIUM').length,
-        low: requisitions.filter(r => r.priority === 'LOW').length,
+        urgent: requisitions.filter((r) => r.priority === "URGENT").length,
+        high: requisitions.filter((r) => r.priority === "HIGH").length,
+        medium: requisitions.filter((r) => r.priority === "MEDIUM").length,
+        low: requisitions.filter((r) => r.priority === "LOW").length,
       },
-      totalHeadcount: requisitions.reduce((sum, r) => sum + (r.headcount || 0), 0),
+      totalHeadcount: requisitions.reduce(
+        (sum, r) => sum + (r.headcount || 0),
+        0,
+      ),
       pendingHeadcount: requisitions
-        .filter(r => r.status === 'PENDING_APPROVAL' || r.status === 'APPROVED')
+        .filter(
+          (r) => r.status === "PENDING_APPROVAL" || r.status === "APPROVED",
+        )
         .reduce((sum, r) => sum + (r.headcount || 0), 0),
     };
 

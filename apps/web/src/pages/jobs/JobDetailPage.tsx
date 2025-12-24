@@ -10,18 +10,19 @@ import {
     Edit,
     CheckCircle,
     XCircle,
-    Clock,
     Globe,
     UserPlus,
+    RotateCcw,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../../stores/auth';
 import { jobsApi, applicationsApi, referenceApi } from '../../lib/api';
 import { useCreateApplication } from '../../hooks/queries';
-import { Button, Card, StatusBadge, RejectionModal } from '../../components/ui';
+import { Button, Card, StatusBadge } from '../../components/ui';
 import { PublishJobModal } from '../../components/jobs/PublishJobModal';
 import { AddApplicantModal } from '../../components/jobs/AddApplicantModal';
 import { CopyToJobModal } from '../../components/jobs/CopyToJobModal';
+import { RejectJobModal, ResubmitJobModal, ApprovalHistory } from '../../components/jobs';
 import type { Job, Application, ApiResponse } from '../../lib/types';
 
 export function JobDetailPage() {
@@ -44,6 +45,7 @@ export function JobDetailPage() {
     const [selectedApplicantIds, setSelectedApplicantIds] = useState<string[]>([]);
     const [isCopyModalOpen, setIsCopyModalOpen] = useState(false);
     const [isCopying, setIsCopying] = useState(false);
+    const [isResubmitModalOpen, setIsResubmitModalOpen] = useState(false);
 
     // ... (existing useEffects)
 
@@ -87,7 +89,9 @@ export function JobDetailPage() {
         if (!job || !tenantId) return;
         setIsApproving(true);
         try {
-            await jobsApi.approve(tenantId, job.id);
+            await jobsApi.approve(tenantId, job.id, {
+                status: 'APPROVED'
+            });
             toast.success(t('jobs.detail.messages.approved'));
             const res = await jobsApi.getById(tenantId, job.id);
             setJob((res.data as ApiResponse<Job>).data);
@@ -102,11 +106,15 @@ export function JobDetailPage() {
         setIsRejectModalOpen(true);
     };
 
-    const handleRejectConfirm = async (reason: string) => {
+    const handleRejectConfirm = async (rejectionReason: string, comment?: string) => {
         if (!job || !tenantId) return;
         setIsRejecting(true);
         try {
-            await jobsApi.reject(tenantId, job.id, reason);
+            await jobsApi.approve(tenantId, job.id, {
+                status: 'REJECTED',
+                rejectionReason,
+                comment
+            });
             toast.success(t('jobs.detail.messages.rejected'));
             const res = await jobsApi.getById(tenantId, job.id);
             setJob((res.data as ApiResponse<Job>).data);
@@ -116,6 +124,23 @@ export function JobDetailPage() {
         } finally {
             setIsRejecting(false);
         }
+    };
+
+    const handleResubmit = async (comment: string) => {
+        if (!job || !tenantId) return;
+        try {
+            await jobsApi.submitApproval(tenantId, job.id, { comment });
+            toast.success('Job resubmitted for approval');
+            const res = await jobsApi.getById(tenantId, job.id);
+            setJob((res.data as ApiResponse<Job>).data);
+            setIsResubmitModalOpen(false);
+        } catch (err) {
+            toast.error('Failed to resubmit job for approval');
+        }
+    };
+
+    const getRejectedApproval = () => {
+        return job?.approvals?.find(a => a.status === 'REJECTED');
     };
 
     useEffect(() => {
@@ -281,6 +306,17 @@ export function JobDetailPage() {
                                 </Button>
                             </>
                         )}
+                        {job.status === 'REJECTED' && (
+                            <Button
+                                variant="primary"
+                                onClick={() => setIsResubmitModalOpen(true)}
+                                className="gap-2"
+                            >
+                                <RotateCcw size={16} />
+                                <span className="hidden sm:inline">Resubmit for Approval</span>
+                                <span className="sm:hidden">Resubmit</span>
+                            </Button>
+                        )}
                         {job.status === 'APPROVED' && (
                             <Button variant="primary" onClick={handlePublishClick} className="gap-1 sm:gap-2 text-xs sm:text-sm">
                                 <Globe size={14} />
@@ -445,45 +481,7 @@ export function JobDetailPage() {
 
                             {job.approvals && job.approvals.length > 0 && (
                                 <Card className="p-6">
-                                    <h3 className="text-sm font-semibold text-neutral-900 dark:text-white uppercase tracking-wider mb-4">
-                                        {t('jobs.detail.approvalHistory')}
-                                    </h3>
-                                    <div className="space-y-4">
-                                        {job.approvals.map((approval) => (
-                                            <div key={approval.id} className="flex items-start gap-3">
-                                                <div className={`w-2 h-2 mt-2 rounded-full ${approval.status === 'APPROVED' ? 'bg-green-500' :
-                                                    approval.status === 'REJECTED' ? 'bg-red-500' : 'bg-yellow-500'
-                                                    }`} />
-                                                <div>
-                                                    <div className="text-sm font-medium text-neutral-900 dark:text-white flex items-center gap-2">
-                                                        <span>{t('jobs.detail.approver')} {approval.order}</span>
-                                                        {approval.approver?.firstName && (
-                                                            <span className="text-neutral-500 font-normal">
-                                                                - {approval.approver.firstName} {approval.approver.lastName}
-                                                            </span>
-                                                        )}
-                                                        {approval.approver?.employeeId && (
-                                                            <span className="text-xs font-normal text-neutral-500 bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 rounded border border-neutral-200 dark:border-neutral-700">
-                                                                {approval.approver.employeeId}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                    <div className="text-xs text-neutral-500 dark:text-neutral-400 flex items-center gap-1">
-                                                        {approval.status === 'PENDING' && <Clock size={12} />}
-                                                        {approval.status === 'APPROVED' && <CheckCircle size={12} />}
-                                                        {approval.status === 'REJECTED' && <XCircle size={12} />}
-                                                        {approval.status}
-                                                        {approval.approvedAt && ` • ${new Date(approval.approvedAt).toLocaleDateString()}`}
-                                                    </div>
-                                                    {approval.comment && (
-                                                        <div className="text-xs text-neutral-600 dark:text-neutral-300 mt-1 italic">
-                                                            "{approval.comment}"
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
+                                    <ApprovalHistory approvals={job.approvals} />
                                 </Card>
                             )}
                         </div>
@@ -607,9 +605,9 @@ export function JobDetailPage() {
                                                         <div>
                                                             <div className="font-medium text-neutral-900 dark:text-white flex items-center gap-2">
                                                                 {app.candidate?.firstName} {app.candidate?.lastName}
-                                                                {app.candidate?.candidateId && (
+                                                                {(app.applicationId || app.candidate?.candidateId) && (
                                                                     <span className="text-[10px] font-normal text-neutral-500 bg-neutral-100 dark:bg-neutral-800 px-1.5 py-0.5 rounded border border-neutral-200 dark:border-neutral-700">
-                                                                        {app.candidate.candidateId}
+                                                                        {app.applicationId || app.candidate?.candidateId}
                                                                     </span>
                                                                 )}
                                                             </div>
@@ -678,13 +676,19 @@ export function JobDetailPage() {
                 onPublish={handlePublish}
                 isPublishing={isPublishing}
             />
-            <RejectionModal
+            <RejectJobModal
                 isOpen={isRejectModalOpen}
                 onClose={() => setIsRejectModalOpen(false)}
-                onConfirm={handleRejectConfirm}
-                title={t('jobs.detail.reject')}
-                description={t('jobs.detail.messages.rejectionReason')}
-                isRejecting={isRejecting}
+                onReject={handleRejectConfirm}
+                jobTitle={job?.title || ''}
+            />
+
+            <ResubmitJobModal
+                isOpen={isResubmitModalOpen}
+                onClose={() => setIsResubmitModalOpen(false)}
+                onResubmit={handleResubmit}
+                jobTitle={job?.title || ''}
+                rejectionReason={getRejectedApproval()?.rejectionReason}
             />
 
             <AddApplicantModal

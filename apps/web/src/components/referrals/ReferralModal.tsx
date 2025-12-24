@@ -23,7 +23,7 @@ import {
 } from '../ui';
 import { SkillSelector } from '../ui/SkillSelector';
 import { PhoneInput } from '../ui/PhoneInput';
-import { candidatesApi, storageApi } from '../../lib/api';
+import { candidatesApi, storageApi, referralsApi } from '../../lib/api';
 import toast from 'react-hot-toast';
 import { Upload, CheckCircle } from 'lucide-react';
 
@@ -149,10 +149,22 @@ export function ReferralModal({ isOpen, onClose, onSuccess }: ReferralModalProps
 
         try {
             const { notes, ...candidateData } = data;
-            await candidatesApi.createReferral({
+            
+            // Step 1: Create the candidate
+            const candidateResponse = await candidatesApi.createReferral({
                 ...candidateData,
                 summary: notes
             });
+            
+            // Step 2: Create the referral tracking record
+            const candidateId = candidateResponse.data?.data?.id || candidateResponse.data?.id;
+            if (candidateId) {
+                await referralsApi.create({
+                    candidateId,
+                    notes: notes || undefined,
+                });
+            }
+            
             toast.success('Referral submitted successfully');
             onSuccess?.();
             reset(DEFAULT_VALUES);

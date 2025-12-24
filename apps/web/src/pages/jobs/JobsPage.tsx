@@ -4,14 +4,14 @@ import { useNavigate, useSearchParams, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Plus, Search, Filter, Download, MoreVertical, Copy, XCircle, Briefcase, Sparkles } from 'lucide-react';
 import { StatusBadge, Button, PageHeader } from '../../components/ui';
-import { SavedViews, ColumnSelector, ExportColumn } from '../../components/common';
+import { SavedViews, ColumnSelector, ExportColumn, ImportExportDropdown } from '../../components/common';
 import { useJobs, useUpdateJobStatus, useCloneJob, useSubmitJobApproval, useBulkUpdateJobStatus } from '../../hooks/queries';
 import { logger } from '../../lib/logger';
 import { convertToCSV, downloadCSV, CSV_TRANSFORMERS, CsvColumn } from '../../lib/csv-utils';
 
 const log = logger.component('JobsPage');
 
-const JOB_STATUSES = ['OPEN', 'DRAFT', 'CLOSED', 'PENDING_APPROVAL', 'APPROVED', 'ON_HOLD', 'CANCELLED'];
+const JOB_STATUSES = ['OPEN', 'DRAFT', 'CLOSED', 'PENDING_APPROVAL', 'APPROVED', 'REJECTED', 'ON_HOLD', 'CANCELLED'];
 
 export function JobsPage() {
   const { t } = useTranslation();
@@ -274,29 +274,14 @@ export function JobsPage() {
         badge={{ text: 'AI-Powered', icon: Sparkles }}
         actions={
           <>
-            <SavedViews
-              entity="JOB"
-              currentFilters={{
-                search: searchQuery,
-                status: statusFilter,
-                department: departmentFilter,
-                location: locationFilter,
-                employmentType: employmentTypeFilter,
-                sortBy,
-                sortOrder,
+
+            <ImportExportDropdown
+              entityType="jobs"
+              onImportComplete={() => {
+                setPage(1);
               }}
-              onApplyView={handleApplyView}
-              onReset={handleResetView}
+              onExport={() => setShowColumnSelector(true)}
             />
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-2 bg-white dark:bg-neutral-800 shadow-sm"
-              onClick={() => setShowColumnSelector(true)}
-            >
-              <Download size={16} />
-              <span className="hidden sm:inline">{t('common.export', 'Export')}</span>
-            </Button>
             <Button
               size="sm"
               className="gap-2 shadow-lg shadow-blue-500/25"
@@ -321,6 +306,20 @@ export function JobsPage() {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
+        <SavedViews
+          entity="JOB"
+          currentFilters={{
+            search: searchQuery,
+            status: statusFilter,
+            department: departmentFilter,
+            location: locationFilter,
+            employmentType: employmentTypeFilter,
+            sortBy,
+            sortOrder,
+          }}
+          onApplyView={handleApplyView}
+          onReset={handleResetView}
+        />
         <Button
           variant="outline"
           className="gap-2 shrink-0"

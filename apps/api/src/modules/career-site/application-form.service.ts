@@ -1,21 +1,26 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  BadRequestException,
+} from "@nestjs/common";
+import { PrismaService } from "../../prisma/prisma.service";
 
-export type FieldType = 
-  | 'text'
-  | 'textarea'
-  | 'email'
-  | 'phone'
-  | 'url'
-  | 'number'
-  | 'date'
-  | 'select'
-  | 'multiselect'
-  | 'radio'
-  | 'checkbox'
-  | 'file'
-  | 'rating'
-  | 'yesno';
+export type FieldType =
+  | "text"
+  | "textarea"
+  | "email"
+  | "phone"
+  | "url"
+  | "number"
+  | "date"
+  | "select"
+  | "multiselect"
+  | "radio"
+  | "checkbox"
+  | "file"
+  | "rating"
+  | "yesno";
 
 export interface FormField {
   id: string;
@@ -37,7 +42,11 @@ export interface FormField {
   };
   options?: { value: string; label: string }[];
   conditionalLogic?: {
-    showIf?: { fieldId: string; operator: 'equals' | 'notEquals' | 'contains'; value: any };
+    showIf?: {
+      fieldId: string;
+      operator: "equals" | "notEquals" | "contains";
+      value: any;
+    };
   };
   section?: string;
 }
@@ -68,13 +77,13 @@ export interface ApplicationFormConfig {
     workAuthorization: { enabled: boolean; required: boolean };
     referralSource: { enabled: boolean; required: boolean };
   };
-  
+
   // Custom fields
   customFields: FormField[];
-  
+
   // Sections
   sections: FormSection[];
-  
+
   // Settings
   settings: {
     allowSaveProgress: boolean;
@@ -86,7 +95,7 @@ export interface ApplicationFormConfig {
     sendConfirmationEmail: boolean;
     confirmationEmailTemplateId?: string;
   };
-  
+
   // Screening questions (per job)
   screeningQuestionsEnabled: boolean;
 }
@@ -98,8 +107,8 @@ export interface JobApplicationForm {
   screeningQuestions?: FormField[];
 }
 
-const APPLICATION_FORM_CONFIG_KEY = 'application_form_config';
-const JOB_APPLICATION_FORM_KEY = 'job_application_form';
+const APPLICATION_FORM_CONFIG_KEY = "application_form_config";
+const JOB_APPLICATION_FORM_KEY = "job_application_form";
 
 @Injectable()
 export class ApplicationFormService {
@@ -121,7 +130,11 @@ export class ApplicationFormService {
         lastName: { enabled: true, required: true },
         email: { enabled: true, required: true },
         phone: { enabled: true, required: false },
-        resume: { enabled: true, required: true, allowedTypes: ['pdf', 'doc', 'docx'] },
+        resume: {
+          enabled: true,
+          required: true,
+          allowedTypes: ["pdf", "doc", "docx"],
+        },
         coverLetter: { enabled: true, required: false },
         linkedinUrl: { enabled: true, required: false },
         portfolioUrl: { enabled: true, required: false },
@@ -134,16 +147,18 @@ export class ApplicationFormService {
       },
       customFields: [],
       sections: [
-        { id: 'personal', title: 'Personal Information', order: 0 },
-        { id: 'professional', title: 'Professional Background', order: 1 },
-        { id: 'additional', title: 'Additional Information', order: 2 },
+        { id: "personal", title: "Personal Information", order: 0 },
+        { id: "professional", title: "Professional Background", order: 1 },
+        { id: "additional", title: "Additional Information", order: 2 },
       ],
       settings: {
         allowSaveProgress: false,
         showProgressBar: true,
         requireGdprConsent: true,
-        gdprConsentText: 'I consent to the processing of my personal data for recruitment purposes.',
-        confirmationMessage: 'Thank you for your application! We will review it and get back to you soon.',
+        gdprConsentText:
+          "I consent to the processing of my personal data for recruitment purposes.",
+        confirmationMessage:
+          "Thank you for your application! We will review it and get back to you soon.",
         sendConfirmationEmail: true,
       },
       screeningQuestionsEnabled: true,
@@ -162,7 +177,10 @@ export class ApplicationFormService {
   /**
    * Update global application form configuration
    */
-  async updateGlobalFormConfig(tenantId: string, config: Partial<ApplicationFormConfig>): Promise<ApplicationFormConfig> {
+  async updateGlobalFormConfig(
+    tenantId: string,
+    config: Partial<ApplicationFormConfig>,
+  ): Promise<ApplicationFormConfig> {
     const currentConfig = await this.getGlobalFormConfig(tenantId);
     const newConfig = { ...currentConfig, ...config };
 
@@ -173,7 +191,7 @@ export class ApplicationFormService {
         tenantId,
         key: APPLICATION_FORM_CONFIG_KEY,
         value: newConfig as any,
-        category: 'APPLICATION_FORM',
+        category: "APPLICATION_FORM",
         isPublic: false,
       },
     });
@@ -184,7 +202,10 @@ export class ApplicationFormService {
   /**
    * Add a custom field to the global form
    */
-  async addCustomField(tenantId: string, field: Omit<FormField, 'id' | 'order'>): Promise<FormField> {
+  async addCustomField(
+    tenantId: string,
+    field: Omit<FormField, "id" | "order">,
+  ): Promise<FormField> {
     const config = await this.getGlobalFormConfig(tenantId);
 
     const newField: FormField = {
@@ -194,7 +215,9 @@ export class ApplicationFormService {
     };
 
     config.customFields.push(newField);
-    await this.updateGlobalFormConfig(tenantId, { customFields: config.customFields });
+    await this.updateGlobalFormConfig(tenantId, {
+      customFields: config.customFields,
+    });
 
     return newField;
   }
@@ -202,16 +225,25 @@ export class ApplicationFormService {
   /**
    * Update a custom field
    */
-  async updateCustomField(tenantId: string, fieldId: string, updates: Partial<FormField>): Promise<FormField> {
+  async updateCustomField(
+    tenantId: string,
+    fieldId: string,
+    updates: Partial<FormField>,
+  ): Promise<FormField> {
     const config = await this.getGlobalFormConfig(tenantId);
-    const fieldIndex = config.customFields.findIndex(f => f.id === fieldId);
+    const fieldIndex = config.customFields.findIndex((f) => f.id === fieldId);
 
     if (fieldIndex === -1) {
-      throw new NotFoundException('Field not found');
+      throw new NotFoundException("Field not found");
     }
 
-    config.customFields[fieldIndex] = { ...config.customFields[fieldIndex], ...updates };
-    await this.updateGlobalFormConfig(tenantId, { customFields: config.customFields });
+    config.customFields[fieldIndex] = {
+      ...config.customFields[fieldIndex],
+      ...updates,
+    };
+    await this.updateGlobalFormConfig(tenantId, {
+      customFields: config.customFields,
+    });
 
     return config.customFields[fieldIndex];
   }
@@ -219,31 +251,44 @@ export class ApplicationFormService {
   /**
    * Delete a custom field
    */
-  async deleteCustomField(tenantId: string, fieldId: string): Promise<{ success: boolean }> {
+  async deleteCustomField(
+    tenantId: string,
+    fieldId: string,
+  ): Promise<{ success: boolean }> {
     const config = await this.getGlobalFormConfig(tenantId);
-    config.customFields = config.customFields.filter(f => f.id !== fieldId);
-    
+    config.customFields = config.customFields.filter((f) => f.id !== fieldId);
+
     // Reorder remaining fields
-    config.customFields = config.customFields.map((f, i) => ({ ...f, order: i }));
-    
-    await this.updateGlobalFormConfig(tenantId, { customFields: config.customFields });
+    config.customFields = config.customFields.map((f, i) => ({
+      ...f,
+      order: i,
+    }));
+
+    await this.updateGlobalFormConfig(tenantId, {
+      customFields: config.customFields,
+    });
     return { success: true };
   }
 
   /**
    * Reorder custom fields
    */
-  async reorderCustomFields(tenantId: string, fieldIds: string[]): Promise<FormField[]> {
+  async reorderCustomFields(
+    tenantId: string,
+    fieldIds: string[],
+  ): Promise<FormField[]> {
     const config = await this.getGlobalFormConfig(tenantId);
-    
+
     const reordered = fieldIds.map((id, index) => {
-      const field = config.customFields.find(f => f.id === id);
+      const field = config.customFields.find((f) => f.id === id);
       if (!field) throw new NotFoundException(`Field ${id} not found`);
       return { ...field, order: index };
     });
 
     config.customFields = reordered;
-    await this.updateGlobalFormConfig(tenantId, { customFields: config.customFields });
+    await this.updateGlobalFormConfig(tenantId, {
+      customFields: config.customFields,
+    });
 
     return reordered;
   }
@@ -251,7 +296,10 @@ export class ApplicationFormService {
   /**
    * Get job-specific application form
    */
-  async getJobForm(tenantId: string, jobId: string): Promise<{
+  async getJobForm(
+    tenantId: string,
+    jobId: string,
+  ): Promise<{
     globalConfig: ApplicationFormConfig;
     jobConfig: JobApplicationForm | null;
     effectiveForm: ApplicationFormConfig;
@@ -259,7 +307,9 @@ export class ApplicationFormService {
     const globalConfig = await this.getGlobalFormConfig(tenantId);
 
     const setting = await this.prisma.setting.findUnique({
-      where: { tenantId_key: { tenantId, key: `${JOB_APPLICATION_FORM_KEY}_${jobId}` } },
+      where: {
+        tenantId_key: { tenantId, key: `${JOB_APPLICATION_FORM_KEY}_${jobId}` },
+      },
     });
 
     const jobConfig = setting?.value as unknown as JobApplicationForm | null;
@@ -285,32 +335,39 @@ export class ApplicationFormService {
   /**
    * Set job-specific form configuration
    */
-  async setJobForm(tenantId: string, jobId: string, config: Partial<JobApplicationForm>): Promise<JobApplicationForm> {
+  async setJobForm(
+    tenantId: string,
+    jobId: string,
+    config: Partial<JobApplicationForm>,
+  ): Promise<JobApplicationForm> {
     // Verify job exists and belongs to tenant
     const job = await this.prisma.job.findFirst({
       where: { id: jobId, tenantId },
     });
 
     if (!job) {
-      throw new NotFoundException('Job not found');
+      throw new NotFoundException("Job not found");
     }
 
     const currentConfig = await this.getJobForm(tenantId, jobId);
     const newConfig: JobApplicationForm = {
       jobId,
-      useGlobalForm: config.useGlobalForm ?? currentConfig.jobConfig?.useGlobalForm ?? true,
+      useGlobalForm:
+        config.useGlobalForm ?? currentConfig.jobConfig?.useGlobalForm ?? true,
       customFields: config.customFields,
       screeningQuestions: config.screeningQuestions,
     };
 
     await this.prisma.setting.upsert({
-      where: { tenantId_key: { tenantId, key: `${JOB_APPLICATION_FORM_KEY}_${jobId}` } },
+      where: {
+        tenantId_key: { tenantId, key: `${JOB_APPLICATION_FORM_KEY}_${jobId}` },
+      },
       update: { value: newConfig as any },
       create: {
         tenantId,
         key: `${JOB_APPLICATION_FORM_KEY}_${jobId}`,
         value: newConfig as any,
-        category: 'APPLICATION_FORM',
+        category: "APPLICATION_FORM",
         isPublic: false,
       },
     });
@@ -321,13 +378,17 @@ export class ApplicationFormService {
   /**
    * Add screening question to a job
    */
-  async addScreeningQuestion(tenantId: string, jobId: string, question: Omit<FormField, 'id' | 'order'>): Promise<FormField> {
+  async addScreeningQuestion(
+    tenantId: string,
+    jobId: string,
+    question: Omit<FormField, "id" | "order">,
+  ): Promise<FormField> {
     const { jobConfig } = await this.getJobForm(tenantId, jobId);
 
     const newQuestion: FormField = {
       ...question,
       id: `sq_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
-      order: (jobConfig?.screeningQuestions?.length || 0),
+      order: jobConfig?.screeningQuestions?.length || 0,
     };
 
     const questions = [...(jobConfig?.screeningQuestions || []), newQuestion];
@@ -350,11 +411,14 @@ export class ApplicationFormService {
         type: this.getFieldType(key),
         label: this.getFieldLabel(key),
         required: config.required,
-        ...(key === 'resume' && { allowedTypes: (config as any).allowedTypes }),
+        ...(key === "resume" && { allowedTypes: (config as any).allowedTypes }),
       }));
 
-    const enabledCustomFields = effectiveForm.customFields.filter(f => f.enabled);
-    const screeningQuestions = jobConfig?.screeningQuestions?.filter(q => q.enabled) || [];
+    const enabledCustomFields = effectiveForm.customFields.filter(
+      (f) => f.enabled,
+    );
+    const screeningQuestions =
+      jobConfig?.screeningQuestions?.filter((q) => q.enabled) || [];
 
     return {
       standardFields: enabledStandardFields,
@@ -372,7 +436,11 @@ export class ApplicationFormService {
   /**
    * Validate application submission
    */
-  async validateSubmission(tenantId: string, jobId: string, data: Record<string, any>): Promise<{
+  async validateSubmission(
+    tenantId: string,
+    jobId: string,
+    data: Record<string, any>,
+  ): Promise<{
     valid: boolean;
     errors: { field: string; message: string }[];
   }> {
@@ -389,21 +457,39 @@ export class ApplicationFormService {
     // Validate custom fields
     for (const field of form.customFields) {
       const value = data[field.id];
-      
+
       if (field.required && !value) {
         errors.push({ field: field.id, message: `${field.label} is required` });
         continue;
       }
 
       if (value && field.validation) {
-        if (field.validation.minLength && value.length < field.validation.minLength) {
-          errors.push({ field: field.id, message: `${field.label} must be at least ${field.validation.minLength} characters` });
+        if (
+          field.validation.minLength &&
+          value.length < field.validation.minLength
+        ) {
+          errors.push({
+            field: field.id,
+            message: `${field.label} must be at least ${field.validation.minLength} characters`,
+          });
         }
-        if (field.validation.maxLength && value.length > field.validation.maxLength) {
-          errors.push({ field: field.id, message: `${field.label} must be at most ${field.validation.maxLength} characters` });
+        if (
+          field.validation.maxLength &&
+          value.length > field.validation.maxLength
+        ) {
+          errors.push({
+            field: field.id,
+            message: `${field.label} must be at most ${field.validation.maxLength} characters`,
+          });
         }
-        if (field.validation.pattern && !new RegExp(field.validation.pattern).test(value)) {
-          errors.push({ field: field.id, message: `${field.label} has an invalid format` });
+        if (
+          field.validation.pattern &&
+          !new RegExp(field.validation.pattern).test(value)
+        ) {
+          errors.push({
+            field: field.id,
+            message: `${field.label} has an invalid format`,
+          });
         }
       }
     }
@@ -411,7 +497,10 @@ export class ApplicationFormService {
     // Validate screening questions
     for (const question of form.screeningQuestions) {
       if (question.required && !data[question.id]) {
-        errors.push({ field: question.id, message: `${question.label} is required` });
+        errors.push({
+          field: question.id,
+          message: `${question.label} is required`,
+        });
       }
     }
 
@@ -423,55 +512,55 @@ export class ApplicationFormService {
    */
   getAvailableFieldTypes() {
     return [
-      { type: 'text', label: 'Text Input', icon: 'type' },
-      { type: 'textarea', label: 'Long Text', icon: 'align-left' },
-      { type: 'email', label: 'Email', icon: 'mail' },
-      { type: 'phone', label: 'Phone Number', icon: 'phone' },
-      { type: 'url', label: 'URL', icon: 'link' },
-      { type: 'number', label: 'Number', icon: 'hash' },
-      { type: 'date', label: 'Date', icon: 'calendar' },
-      { type: 'select', label: 'Dropdown', icon: 'chevron-down' },
-      { type: 'multiselect', label: 'Multi-Select', icon: 'check-square' },
-      { type: 'radio', label: 'Radio Buttons', icon: 'circle' },
-      { type: 'checkbox', label: 'Checkbox', icon: 'check' },
-      { type: 'file', label: 'File Upload', icon: 'paperclip' },
-      { type: 'rating', label: 'Rating Scale', icon: 'star' },
-      { type: 'yesno', label: 'Yes/No', icon: 'toggle-left' },
+      { type: "text", label: "Text Input", icon: "type" },
+      { type: "textarea", label: "Long Text", icon: "align-left" },
+      { type: "email", label: "Email", icon: "mail" },
+      { type: "phone", label: "Phone Number", icon: "phone" },
+      { type: "url", label: "URL", icon: "link" },
+      { type: "number", label: "Number", icon: "hash" },
+      { type: "date", label: "Date", icon: "calendar" },
+      { type: "select", label: "Dropdown", icon: "chevron-down" },
+      { type: "multiselect", label: "Multi-Select", icon: "check-square" },
+      { type: "radio", label: "Radio Buttons", icon: "circle" },
+      { type: "checkbox", label: "Checkbox", icon: "check" },
+      { type: "file", label: "File Upload", icon: "paperclip" },
+      { type: "rating", label: "Rating Scale", icon: "star" },
+      { type: "yesno", label: "Yes/No", icon: "toggle-left" },
     ];
   }
 
   private getFieldType(key: string): FieldType {
     const typeMap: Record<string, FieldType> = {
-      email: 'email',
-      phone: 'phone',
-      linkedinUrl: 'url',
-      portfolioUrl: 'url',
-      resume: 'file',
-      coverLetter: 'textarea',
-      expectedSalary: 'number',
-      noticePeriod: 'select',
-      workAuthorization: 'select',
-      referralSource: 'select',
+      email: "email",
+      phone: "phone",
+      linkedinUrl: "url",
+      portfolioUrl: "url",
+      resume: "file",
+      coverLetter: "textarea",
+      expectedSalary: "number",
+      noticePeriod: "select",
+      workAuthorization: "select",
+      referralSource: "select",
     };
-    return typeMap[key] || 'text';
+    return typeMap[key] || "text";
   }
 
   private getFieldLabel(key: string): string {
     const labelMap: Record<string, string> = {
-      firstName: 'First Name',
-      lastName: 'Last Name',
-      email: 'Email Address',
-      phone: 'Phone Number',
-      resume: 'Resume/CV',
-      coverLetter: 'Cover Letter',
-      linkedinUrl: 'LinkedIn Profile',
-      portfolioUrl: 'Portfolio URL',
-      currentCompany: 'Current Company',
-      currentTitle: 'Current Job Title',
-      expectedSalary: 'Expected Salary',
-      noticePeriod: 'Notice Period',
-      workAuthorization: 'Work Authorization',
-      referralSource: 'How did you hear about us?',
+      firstName: "First Name",
+      lastName: "Last Name",
+      email: "Email Address",
+      phone: "Phone Number",
+      resume: "Resume/CV",
+      coverLetter: "Cover Letter",
+      linkedinUrl: "LinkedIn Profile",
+      portfolioUrl: "Portfolio URL",
+      currentCompany: "Current Company",
+      currentTitle: "Current Job Title",
+      expectedSalary: "Expected Salary",
+      noticePeriod: "Notice Period",
+      workAuthorization: "Work Authorization",
+      referralSource: "How did you hear about us?",
     };
     return labelMap[key] || key;
   }

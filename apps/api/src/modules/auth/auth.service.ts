@@ -2,27 +2,27 @@ import {
   Injectable,
   UnauthorizedException,
   ConflictException,
-} from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
-import * as bcrypt from 'bcrypt';
-import { v4 as uuidv4 } from 'uuid';
-import { PrismaService } from '../../prisma/prisma.service';
-import { UsersService } from '../users/users.service';
-import { RegisterDto } from './dto/register.dto';
-import { LoginDto } from './dto/login.dto';
-import { OtpService } from './services/otp.service';
-import { OtpType } from './dto/otp.dto';
-import { PipelinesService } from '../pipelines/pipelines.service';
+} from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
+import { ConfigService } from "@nestjs/config";
+import * as bcrypt from "bcrypt";
+import { v4 as uuidv4 } from "uuid";
+import { PrismaService } from "../../prisma/prisma.service";
+import { UsersService } from "../users/users.service";
+import { RegisterDto } from "./dto/register.dto";
+import { LoginDto } from "./dto/login.dto";
+import { OtpService } from "./services/otp.service";
+import { OtpType } from "./dto/otp.dto";
+import { PipelinesService } from "../pipelines/pipelines.service";
 
-import { ROLE_PERMISSIONS } from '../../common/constants/permissions';
+import { ROLE_PERMISSIONS } from "../../common/constants/permissions";
 
 function toSlug(value: string) {
   return value
     .toLowerCase()
     .trim()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '')
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "")
     .slice(0, 48);
 }
 
@@ -50,7 +50,7 @@ export class AuthService {
     private readonly configService: ConfigService,
     private readonly otpService: OtpService,
     private readonly pipelinesService: PipelinesService,
-  ) { }
+  ) {}
 
   async validateUser(email: string, password: string, tenantId?: string) {
     console.log(`[Auth] Validating user: ${email}, tenantId: ${tenantId}`);
@@ -70,12 +70,12 @@ export class AuthService {
     }
 
     if (!user) {
-      console.log('[Auth] User not found');
+      console.log("[Auth] User not found");
       return null;
     }
 
     if (!user.passwordHash) {
-      console.log('[Auth] User has no password hash');
+      console.log("[Auth] User has no password hash");
       return null;
     }
 
@@ -87,8 +87,10 @@ export class AuthService {
     }
 
     if (user.tempPasswordExpiresAt && user.tempPasswordExpiresAt < new Date()) {
-      console.log('[Auth] Temporary password expired');
-      throw new UnauthorizedException('Temporary password has expired. Please ask administrator to resend invite.');
+      console.log("[Auth] Temporary password expired");
+      throw new UnauthorizedException(
+        "Temporary password has expired. Please ask administrator to resend invite.",
+      );
     }
 
     return user;
@@ -100,23 +102,33 @@ export class AuthService {
 
     // Force new tenant creation/lookup if 'demo-tenant' is passed
     // This prevents accidental assignment to the demo tenant
-    if (tenantId === 'demo-tenant') {
+    if (tenantId === "demo-tenant") {
       tenantId = undefined;
     }
 
     // Check globally if user with this email already exists
     const globalExistingUser = await this.prisma.user.findFirst({
-      where: { email: { equals: dto.email, mode: 'insensitive' } }
+      where: { email: { equals: dto.email, mode: "insensitive" } },
     });
 
     if (globalExistingUser) {
-      throw new ConflictException('User with this email already exists in the system');
+      throw new ConflictException(
+        "User with this email already exists in the system",
+      );
     }
 
     // If no tenantId provided, create a new tenant (SaaS mode)
     if (!tenantId) {
-      let domain = dto.email.split('@')[1].toLowerCase();
-      const publicDomains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'icloud.com', 'aol.com', 'protonmail.com'];
+      let domain = dto.email.split("@")[1].toLowerCase();
+      const publicDomains = [
+        "gmail.com",
+        "yahoo.com",
+        "hotmail.com",
+        "outlook.com",
+        "icloud.com",
+        "aol.com",
+        "protonmail.com",
+      ];
 
       // If it's a public domain, treat it as a unique tenant for this user
       // by appending a unique identifier to the domain key
@@ -134,14 +146,14 @@ export class AuthService {
         tenantId = existingTenant.id;
       } else {
         // Create new tenant
-        const slugBase = dto.email.split('@')[1].toLowerCase();
+        const slugBase = dto.email.split("@")[1].toLowerCase();
         const slug = `${toSlug(slugBase)}-${uuidv4().slice(0, 8)}`;
         const newTenant = await this.prisma.tenant.create({
           data: {
             name: `${dto.firstName}'s Organization`,
             slug,
             domain,
-            status: 'ACTIVE',
+            status: "ACTIVE",
           } as any,
         });
         tenantId = newTenant.id;
@@ -150,10 +162,15 @@ export class AuthService {
         // Create default pipeline for the new tenant
         try {
           await this.pipelinesService.createDefaultPipeline(tenantId);
-          console.log(`[Auth] Created default pipeline for new tenant: ${tenantId}`);
+          console.log(
+            `[Auth] Created default pipeline for new tenant: ${tenantId}`,
+          );
         } catch (e) {
-          console.error(`[Auth] Failed to create default pipeline for tenant ${tenantId}:`, e);
-          // Don't fail registration if pipeline creation fails, 
+          console.error(
+            `[Auth] Failed to create default pipeline for tenant ${tenantId}:`,
+            e,
+          );
+          // Don't fail registration if pipeline creation fails,
           // PipelinesService.findAll will handle it later if needed.
         }
       }
@@ -163,8 +180,9 @@ export class AuthService {
 
     // Use lower salt rounds in development for faster responses (10 is still secure)
     // Production should use 12+ rounds
-    const defaultRounds = process.env.NODE_ENV === 'production' ? 12 : 10;
-    const saltRounds = Number(this.configService.get('BCRYPT_ROUNDS')) || defaultRounds;
+    const defaultRounds = process.env.NODE_ENV === "production" ? 12 : 10;
+    const saltRounds =
+      Number(this.configService.get("BCRYPT_ROUNDS")) || defaultRounds;
     const passwordHash = await bcrypt.hash(dto.password, saltRounds);
 
     const user = await this.prisma.user.create({
@@ -173,8 +191,8 @@ export class AuthService {
         passwordHash,
         firstName: dto.firstName,
         lastName: dto.lastName,
-        role: isNewTenant ? 'ADMIN' : ((dto.role || 'RECRUITER') as any),
-        status: 'PENDING',
+        role: isNewTenant ? "ADMIN" : ((dto.role || "RECRUITER") as any),
+        status: "PENDING",
         tenantId: tenantId,
       },
     });
@@ -190,29 +208,35 @@ export class AuthService {
       // In a real app, we might want to send an invite email instead of OTP
       await this.prisma.user.update({
         where: { id: user.id },
-        data: { status: 'ACTIVE' },
+        data: { status: "ACTIVE" },
       });
     }
 
-    return { message: 'Verification code sent to your email' };
+    return { message: "Verification code sent to your email" };
   }
 
-  async login(dto: LoginDto): Promise<AuthTokens & { requirePasswordChange?: boolean; user: any }> {
+  async login(
+    dto: LoginDto,
+  ): Promise<AuthTokens & { requirePasswordChange?: boolean; user: any }> {
     const user = await this.validateUser(dto.email, dto.password, dto.tenantId);
     if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException("Invalid credentials");
     }
 
-    if (user.status === 'INACTIVE') {
-      throw new UnauthorizedException('Your account has been deactivated. Please contact your administrator.');
+    if (user.status === "INACTIVE") {
+      throw new UnauthorizedException(
+        "Your account has been deactivated. Please contact your administrator.",
+      );
     }
 
-    if (user.status === 'SUSPENDED') {
-      throw new UnauthorizedException('Your account has been suspended. Please contact your administrator.');
+    if (user.status === "SUSPENDED") {
+      throw new UnauthorizedException(
+        "Your account has been suspended. Please contact your administrator.",
+      );
     }
 
-    if (user.status !== 'ACTIVE') {
-      throw new UnauthorizedException('Email not verified');
+    if (user.status !== "ACTIVE") {
+      throw new UnauthorizedException("Email not verified");
     }
 
     // We no longer throw here. The controller will check MFA requirements
@@ -241,7 +265,7 @@ export class AuthService {
     });
 
     if (!storedToken || storedToken.expiresAt < new Date()) {
-      throw new UnauthorizedException('Invalid or expired refresh token');
+      throw new UnauthorizedException("Invalid or expired refresh token");
     }
 
     // Delete old refresh token
@@ -313,7 +337,7 @@ export class AuthService {
     const token = uuidv4();
     // Store token with expiration (implementation depends on your needs)
     // For now, return the token - in production, send via email
-    return `${this.configService.get('WEB_URL')}/auth/magic?token=${token}`;
+    return `${this.configService.get("WEB_URL")}/auth/magic?token=${token}`;
   }
 
   async getUserById(userId: string) {
@@ -324,7 +348,11 @@ export class AuthService {
   async resolvePermissions(user: any): Promise<string[]> {
     // If user has explicit custom permissions set (not empty), they override EVERYTHING.
     // This allows disabling default role permissions or creating fully custom sets per user.
-    if (user.customPermissions && Array.isArray(user.customPermissions) && user.customPermissions.length > 0) {
+    if (
+      user.customPermissions &&
+      Array.isArray(user.customPermissions) &&
+      user.customPermissions.length > 0
+    ) {
       return [...user.customPermissions];
     }
 

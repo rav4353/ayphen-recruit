@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 export class PaginationMeta {
   @ApiProperty()
@@ -44,7 +44,7 @@ export class ApiResponse<T> {
     this.timestamp = new Date().toISOString();
   }
 
-  static success<T>(data: T, message = 'Success'): ApiResponse<T> {
+  static success<T>(data: T, message = "Success"): ApiResponse<T> {
     return new ApiResponse({
       success: true,
       message,
@@ -57,7 +57,7 @@ export class ApiResponse<T> {
     total: number,
     page: number,
     limit: number,
-    message = 'Success',
+    message = "Success",
   ): ApiResponse<T[]> {
     const totalPages = Math.ceil(total / limit);
     return new ApiResponse({
@@ -84,7 +84,7 @@ export class ApiResponse<T> {
     });
   }
 
-  static created<T>(data: T, message = 'Created successfully'): ApiResponse<T> {
+  static created<T>(data: T, message = "Created successfully"): ApiResponse<T> {
     return new ApiResponse({
       success: true,
       message,
@@ -92,7 +92,7 @@ export class ApiResponse<T> {
     });
   }
 
-  static updated<T>(data: T, message = 'Updated successfully'): ApiResponse<T> {
+  static updated<T>(data: T, message = "Updated successfully"): ApiResponse<T> {
     return new ApiResponse({
       success: true,
       message,
@@ -100,7 +100,7 @@ export class ApiResponse<T> {
     });
   }
 
-  static deleted(message = 'Deleted successfully'): ApiResponse<null> {
+  static deleted(message = "Deleted successfully"): ApiResponse<null> {
     return new ApiResponse({
       success: true,
       message,

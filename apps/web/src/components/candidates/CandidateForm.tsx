@@ -7,6 +7,7 @@ import { Plus, Trash2, Briefcase, GraduationCap } from 'lucide-react';
 import { Button, Input, Card, CardHeader, Alert } from '../ui';
 import { PhoneInput } from '../ui/PhoneInput';
 import { ResumeUpload } from './ResumeUpload';
+import { AvatarUpload } from './AvatarUpload';
 import { useUnsavedChanges } from '../../hooks/useUnsavedChanges';
 import { settingsApi, candidatesApi } from '../../lib/api';
 
@@ -30,6 +31,7 @@ export interface CandidateFormData {
     lastName: string;
     email: string;
     phone?: string;
+    avatarUrl?: string; // Added avatarUrl
     currentTitle?: string;
     currentCompany?: string;
     location?: string;
@@ -76,6 +78,20 @@ export function CandidateForm({
         formState: { errors, isDirty },
     } = useForm<CandidateFormData>({
         defaultValues: {
+            firstName: '',
+            lastName: '',
+            email: '',
+            phone: '',
+            currentTitle: '',
+            currentCompany: '',
+            location: '',
+            linkedinUrl: '',
+            portfolioUrl: '',
+            summary: '',
+            skills: '',
+            avatarUrl: '',
+            resumeUrl: '',
+            gdprConsent: false,
             experience: [],
             education: [],
             ...initialData
@@ -144,8 +160,6 @@ export function CandidateForm({
         when: enableUnsavedWarning && isDirty && !isSubmitting,
         message: 'You have unsaved changes to this candidate. Are you sure you want to leave?',
     });
-
-
 
     return (
         <div className="space-y-6">
@@ -229,7 +243,7 @@ export function CandidateForm({
                 setIsSubmitting(true);
                 await onSubmit(data);
                 setIsSubmitting(false);
-            })} className="space-y-6">
+            })} className="space-y-6" autoComplete="off">
                 <Card>
                     <CardHeader
                         title={t('candidates.basicInfo', 'Basic Information')}
@@ -249,17 +263,38 @@ export function CandidateForm({
                             </div>
                         )}
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <Input
-                                label={t('candidates.fields.firstName', 'First Name')}
-                                error={errors.firstName?.message}
-                                {...register('firstName', { required: 'First name is required' })}
-                            />
-                            <Input
-                                label={t('candidates.fields.lastName', 'Last Name')}
-                                error={errors.lastName?.message}
-                                {...register('lastName', { required: 'Last name is required' })}
-                            />
+                        <div className="flex flex-col md:flex-row gap-6">
+                            <div className="flex-shrink-0">
+                                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-200 mb-2">
+                                    {t('candidates.photo', 'Photo')}
+                                </label>
+                                <Controller
+                                    name="avatarUrl"
+                                    control={control}
+                                    render={({ field }) => (
+                                        <AvatarUpload
+                                            currentAvatarUrl={field.value}
+                                            onUploadSuccess={(url) => field.onChange(url)}
+                                            disabled={isSubmitting}
+                                        />
+                                    )}
+                                />
+                            </div>
+
+                            <div className="flex-1 space-y-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <Input
+                                        label={t('candidates.fields.firstName', 'First Name')}
+                                        error={errors.firstName?.message}
+                                        {...register('firstName', { required: 'First name is required' })}
+                                    />
+                                    <Input
+                                        label={t('candidates.fields.lastName', 'Last Name')}
+                                        error={errors.lastName?.message}
+                                        {...register('lastName', { required: 'Last name is required' })}
+                                    />
+                                </div>
+                            </div>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

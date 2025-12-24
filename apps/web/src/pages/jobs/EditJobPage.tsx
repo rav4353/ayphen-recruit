@@ -49,6 +49,10 @@ export function EditJobPage() {
                     hiringManagerId: job.hiringManagerId || '',
                     recruiterId: job.recruiterId || '',
                     pipelineId: job.pipelineId || '',
+                    duration: job.duration ? String(job.duration) : '',
+                    durationUnit: job.durationUnit || 'MONTH',
+                    scorecardTemplateId: job.scorecardTemplateId || '',
+                    customFields: job.customFields || {},
                 });
 
                 setIsFetching(false);

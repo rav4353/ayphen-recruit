@@ -1,36 +1,44 @@
-import { IsString, IsEnum, IsDateString, IsInt, IsOptional, Min, IsBoolean } from 'class-validator';
-import { InterviewType } from '@prisma/client';
+import {
+  IsString,
+  IsEnum,
+  IsDateString,
+  IsInt,
+  IsOptional,
+  Min,
+  IsBoolean,
+} from "class-validator";
+import { InterviewType } from "@prisma/client";
 
 export class CreateInterviewDto {
-    @IsString()
-    applicationId: string;
+  @IsString()
+  applicationId: string;
 
-    @IsString()
-    interviewerId: string;
+  @IsString()
+  interviewerId: string;
 
-    @IsEnum(InterviewType)
-    type: InterviewType;
+  @IsEnum(InterviewType)
+  type: InterviewType;
 
-    @IsDateString()
-    scheduledAt: string;
+  @IsDateString()
+  scheduledAt: string;
 
-    @IsInt()
-    @Min(15)
-    duration: number;
+  @IsInt()
+  @Min(15)
+  duration: number;
 
-    @IsOptional()
-    @IsString()
-    location?: string;
+  @IsOptional()
+  @IsString()
+  location?: string;
 
-    @IsOptional()
-    @IsString()
-    meetingLink?: string;
+  @IsOptional()
+  @IsString()
+  meetingLink?: string;
 
-    @IsOptional()
-    @IsString()
-    notes?: string;
+  @IsOptional()
+  @IsString()
+  notes?: string;
 
-    @IsOptional()
-    @IsBoolean()
-    syncToCalendar?: boolean;
+  @IsOptional()
+  @IsBoolean()
+  syncToCalendar?: boolean;
 }

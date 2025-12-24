@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../../stores/auth';
-import { Settings, Users, GitBranch, FileText, Plug, Shield, CreditCard, Palette, Zap, Layout, Bell, Search, X, ChevronRight, Keyboard, Upload, History, Globe, ArrowLeft } from 'lucide-react';
+import { Settings, Users, GitBranch, FileText, Plug, Shield, CreditCard, Palette, Zap, Layout, Bell, Search, X, ChevronRight, Keyboard, History, Globe, ArrowLeft } from 'lucide-react';
 import { GeneralSettings } from './GeneralSettings';
 import { UserManagementSettings } from './UserManagementSettings';
 import { HiringProcessSettings } from './HiringProcessSettings';
@@ -17,10 +17,12 @@ import { SkillsSettings } from './SkillsSettings';
 import { SecuritySettings } from './SecuritySettings';
 import { AutomationSettings } from './AutomationSettings';
 import { KeyboardShortcutsSettings } from './KeyboardShortcutsSettings';
-import { BulkImportManager } from './BulkImportManager';
+import { IdConfigurationSettings } from './IdConfigurationSettings';
+
 import { AuditLogViewer } from './AuditLogViewer';
 import { CareerSiteBuilder } from './CareerSiteBuilder';
-import { BackgroundCheckManager } from './BackgroundCheckManager';
+import { JobEditApprovalSettings } from './JobEditApprovalSettings';
+
 import { FormsSettings } from './FormsSettings';
 
 // Define all searchable settings items - comprehensive list
@@ -40,10 +42,10 @@ const settingsItems = [
     { id: 'tab-compliance', label: 'Compliance', description: 'GDPR, EEOC, and data retention', tabId: 'compliance', keywords: ['compliance', 'gdpr', 'privacy', 'legal'] },
     { id: 'tab-billing', label: 'Billing', description: 'Subscription and payment settings', tabId: 'billing', keywords: ['billing', 'payment', 'subscription'] },
     { id: 'tab-shortcuts', label: 'Keyboard Shortcuts', description: 'View and customize keyboard shortcuts', tabId: 'shortcuts', keywords: ['keyboard', 'shortcuts', 'hotkeys', 'keys'] },
-    { id: 'tab-import', label: 'Bulk Import', description: 'Import candidates and jobs from CSV', tabId: 'import', keywords: ['import', 'csv', 'bulk', 'upload'] },
+
     { id: 'tab-audit', label: 'Audit Logs', description: 'View activity and change history', tabId: 'audit', keywords: ['audit', 'logs', 'history', 'activity'] },
     { id: 'tab-career-site', label: 'Career Site', description: 'Customize your public career page', tabId: 'careerSite', keywords: ['career', 'site', 'page', 'jobs', 'public'] },
-    { id: 'tab-bgv', label: 'Background Checks', description: 'Manage candidate background verification', tabId: 'bgv', keywords: ['background', 'check', 'verification', 'checkr', 'screening'] },
+
 
     // === GENERAL SETTINGS ===
     { id: 'org-profile', label: 'Organization Profile', description: 'Company name, website, and logo', tabId: 'general', keywords: ['organization', 'profile', 'company', 'about'] },
@@ -96,7 +98,7 @@ const settingsItems = [
     { id: 'sla-overdue', label: 'SLA Overdue Alerts', description: 'When SLA deadlines are breached', tabId: 'notifications', keywords: ['sla', 'overdue', 'breach', 'late'] },
     { id: 'approval-requests', label: 'Approval Requests', description: 'When items require your approval', tabId: 'notifications', keywords: ['approval', 'request', 'pending'] },
     { id: 'onboarding-updates', label: 'Onboarding Updates', description: 'New hire onboarding progress', tabId: 'notifications', keywords: ['onboarding', 'update', 'new hire'] },
-    { id: 'bgv-updates', label: 'Background Check Updates', description: 'Background verification status', tabId: 'notifications', keywords: ['bgv', 'background', 'verification', 'check'] },
+
     { id: 'system-alerts', label: 'System Alerts', description: 'Important system notifications', tabId: 'notifications', keywords: ['system', 'alert', 'important'] },
 
     // === APPEARANCE/STATUS SETTINGS ===
@@ -173,7 +175,7 @@ const settingsItems = [
     { id: 'job-boards-integration', label: 'Job Boards', description: 'Post jobs to external sites', tabId: 'integrations', keywords: ['job board', 'linkedin', 'indeed', 'glassdoor', 'posting'] },
     { id: 'linkedin-integration', label: 'LinkedIn', description: 'LinkedIn job posting', tabId: 'integrations', keywords: ['linkedin', 'job', 'posting', 'social'] },
     { id: 'indeed-integration', label: 'Indeed', description: 'Indeed job posting', tabId: 'integrations', keywords: ['indeed', 'job', 'posting'] },
-    { id: 'bgv-integration', label: 'Background Verification', description: 'Background check providers', tabId: 'integrations', keywords: ['bgv', 'background', 'verification', 'check', 'checkr', 'springverify', 'authbridge'] },
+
     { id: 'messaging-integration', label: 'Messaging', description: 'Slack and Microsoft Teams notifications', tabId: 'integrations', keywords: ['messaging', 'slack', 'teams', 'notifications', 'chat'] },
     { id: 'slack-integration', label: 'Slack', description: 'Slack workspace integration', tabId: 'integrations', keywords: ['slack', 'chat', 'notifications', 'channel'] },
     { id: 'api-settings', label: 'API Settings', description: 'API keys and access', tabId: 'integrations', keywords: ['api', 'key', 'token', 'access', 'developer'] },
@@ -241,6 +243,8 @@ export function SettingsPage() {
         { id: 'appearance', label: t('settings.tabs.appearance'), icon: <Palette size={18} /> },
         // Hiring & Recruitment
         { id: 'hiring', label: t('settings.tabs.hiring'), icon: <GitBranch size={18} /> },
+        { id: 'jobEditApproval', label: 'Job Edit Approval', icon: <Shield size={18} /> },
+        { id: 'idConfig', label: 'ID Configuration', icon: <FileText size={18} /> },
         { id: 'forms', label: t('settings.tabs.forms', 'Form Customization'), icon: <Layout size={18} /> },
         { id: 'templates', label: t('settings.tabs.templates', 'Templates'), icon: <FileText size={18} /> },
         { id: 'skills', label: t('settings.tabs.skills'), icon: <FileText size={18} /> },
@@ -248,12 +252,12 @@ export function SettingsPage() {
         // External connections
         { id: 'integrations', label: t('settings.tabs.integrations'), icon: <Plug size={18} /> },
         { id: 'careerSite', label: t('settings.tabs.careerSite', 'Career Site'), icon: <Globe size={18} /> },
-        { id: 'bgv', label: t('settings.tabs.bgv', 'Background Checks'), icon: <Shield size={18} /> },
+
         // Admin & Compliance
         { id: 'compliance', label: t('settings.tabs.compliance'), icon: <Shield size={18} /> },
         { id: 'billing', label: t('settings.tabs.billing'), icon: <CreditCard size={18} />, restricted: true },
         // Utilities
-        { id: 'import', label: t('settings.tabs.import', 'Bulk Import'), icon: <Upload size={18} /> },
+
         { id: 'shortcuts', label: t('settings.tabs.shortcuts', 'Shortcuts'), icon: <Keyboard size={18} /> },
         { id: 'audit', label: t('settings.tabs.audit', 'Audit Logs'), icon: <History size={18} /> },
     ];
@@ -433,6 +437,8 @@ export function SettingsPage() {
                             {activeTab === 'appearance' && <StatusSettings />}
                             {activeTab === 'users' && <UserManagementSettings />}
                             {activeTab === 'hiring' && <HiringProcessSettings />}
+                            {activeTab === 'jobEditApproval' && <JobEditApprovalSettings />}
+                            {activeTab === 'idConfig' && <IdConfigurationSettings />}
                             {activeTab === 'forms' && <FormsSettings />}
                             {activeTab === 'automations' && <AutomationSettings />}
                             {activeTab === 'skills' && <SkillsSettings />}
@@ -442,10 +448,10 @@ export function SettingsPage() {
                             {activeTab === 'billing' && <BillingSettings />}
                             {activeTab === 'vendors' && <VendorSettings />}
                             {activeTab === 'careerSite' && <CareerSiteBuilder />}
-                            {activeTab === 'import' && <BulkImportManager />}
+
                             {activeTab === 'shortcuts' && <KeyboardShortcutsSettings />}
                             {activeTab === 'audit' && <AuditLogViewer />}
-                            {activeTab === 'bgv' && <BackgroundCheckManager />}
+
                         </>
                     )}
                 </div>

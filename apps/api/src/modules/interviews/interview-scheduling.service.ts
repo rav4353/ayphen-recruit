@@ -1,6 +1,11 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
-import { CalendarService } from '../calendar/calendar.service';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  BadRequestException,
+} from "@nestjs/common";
+import { PrismaService } from "../../prisma/prisma.service";
+import { CalendarService } from "../calendar/calendar.service";
 
 export interface AvailabilitySlot {
   start: Date;
@@ -33,14 +38,18 @@ export class InterviewSchedulingService {
   ) {}
 
   private generateToken(): string {
-    const crypto = require('crypto');
-    return `sched-${Date.now()}-${crypto.randomBytes(12).toString('hex')}`;
+    const crypto = require("crypto");
+    return `sched-${Date.now()}-${crypto.randomBytes(12).toString("hex")}`;
   }
 
   /**
    * Create a self-scheduling link for a candidate
    */
-  async createSchedulingLink(dto: SchedulingLinkDto, userId: string, tenantId: string) {
+  async createSchedulingLink(
+    dto: SchedulingLinkDto,
+    userId: string,
+    tenantId: string,
+  ) {
     // Verify application
     const application = await this.prisma.application.findFirst({
       where: { id: dto.applicationId },
@@ -51,7 +60,7 @@ export class InterviewSchedulingService {
     });
 
     if (!application || application.job.tenantId !== tenantId) {
-      throw new NotFoundException('Application not found');
+      throw new NotFoundException("Application not found");
     }
 
     // Verify interviewers
@@ -61,7 +70,7 @@ export class InterviewSchedulingService {
     });
 
     if (interviewers.length !== dto.interviewerIds.length) {
-      throw new BadRequestException('One or more interviewers not found');
+      throw new BadRequestException("One or more interviewers not found");
     }
 
     const token = this.generateToken();
@@ -70,7 +79,7 @@ export class InterviewSchedulingService {
 
     await this.prisma.activityLog.create({
       data: {
-        action: 'SCHEDULING_LINK_CREATED',
+        action: "SCHEDULING_LINK_CREATED",
         description: `Scheduling link created for ${application.candidate.firstName} ${application.candidate.lastName}`,
         userId,
         applicationId: dto.applicationId,
@@ -84,12 +93,15 @@ export class InterviewSchedulingService {
           candidateEmail: application.candidate.email,
           jobTitle: application.job.title,
           interviewerIds: dto.interviewerIds,
-          interviewers: interviewers.map(i => ({ id: i.id, name: `${i.firstName} ${i.lastName}` })),
+          interviewers: interviewers.map((i) => ({
+            id: i.id,
+            name: `${i.firstName} ${i.lastName}`,
+          })),
           duration: dto.duration,
           interviewType: dto.interviewType,
           instructions: dto.instructions,
           expiresAt: expiresAt.toISOString(),
-          status: 'ACTIVE',
+          status: "ACTIVE",
           createdAt: new Date().toISOString(),
           createdBy: userId,
         },
@@ -111,24 +123,24 @@ export class InterviewSchedulingService {
   async getSchedulingLink(token: string) {
     const log = await this.prisma.activityLog.findFirst({
       where: {
-        action: 'SCHEDULING_LINK_CREATED',
-        metadata: { path: ['token'], equals: token },
+        action: "SCHEDULING_LINK_CREATED",
+        metadata: { path: ["token"], equals: token },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
     if (!log) {
-      throw new NotFoundException('Scheduling link not found');
+      throw new NotFoundException("Scheduling link not found");
     }
 
     const meta = log.metadata as any;
 
-    if (meta.status !== 'ACTIVE') {
-      throw new BadRequestException('This scheduling link is no longer active');
+    if (meta.status !== "ACTIVE") {
+      throw new BadRequestException("This scheduling link is no longer active");
     }
 
     if (new Date(meta.expiresAt) < new Date()) {
-      throw new BadRequestException('This scheduling link has expired');
+      throw new BadRequestException("This scheduling link has expired");
     }
 
     return {
@@ -144,23 +156,27 @@ export class InterviewSchedulingService {
   /**
    * Get available slots for a scheduling link
    */
-  async getAvailableSlots(token: string, startDate: Date, endDate: Date): Promise<AvailabilitySlot[]> {
+  async getAvailableSlots(
+    token: string,
+    startDate: Date,
+    endDate: Date,
+  ): Promise<AvailabilitySlot[]> {
     const log = await this.prisma.activityLog.findFirst({
       where: {
-        action: 'SCHEDULING_LINK_CREATED',
-        metadata: { path: ['token'], equals: token },
+        action: "SCHEDULING_LINK_CREATED",
+        metadata: { path: ["token"], equals: token },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
     if (!log) {
-      throw new NotFoundException('Scheduling link not found');
+      throw new NotFoundException("Scheduling link not found");
     }
 
     const meta = log.metadata as any;
 
-    if (meta.status !== 'ACTIVE' || new Date(meta.expiresAt) < new Date()) {
-      throw new BadRequestException('This scheduling link is no longer active');
+    if (meta.status !== "ACTIVE" || new Date(meta.expiresAt) < new Date()) {
+      throw new BadRequestException("This scheduling link is no longer active");
     }
 
     // Generate available slots based on business hours
@@ -172,7 +188,7 @@ export class InterviewSchedulingService {
       where: {
         interviewerId: { in: meta.interviewerIds },
         scheduledAt: { gte: startDate, lte: endDate },
-        status: { not: 'CANCELLED' },
+        status: { not: "CANCELLED" },
       },
       select: { scheduledAt: true, duration: true, interviewerId: true },
     });
@@ -187,13 +203,17 @@ export class InterviewSchedulingService {
           for (let hour = 9; hour < 17; hour++) {
             const slotStart = new Date(current);
             slotStart.setHours(hour, 0, 0, 0);
-            const slotEnd = new Date(slotStart.getTime() + duration * 60 * 1000);
+            const slotEnd = new Date(
+              slotStart.getTime() + duration * 60 * 1000,
+            );
 
             // Check if slot conflicts with existing interviews
-            const hasConflict = existingInterviews.some(interview => {
+            const hasConflict = existingInterviews.some((interview) => {
               if (interview.interviewerId !== interviewer.id) return false;
               const intStart = new Date(interview.scheduledAt);
-              const intEnd = new Date(intStart.getTime() + (interview.duration || 60) * 60 * 1000);
+              const intEnd = new Date(
+                intStart.getTime() + (interview.duration || 60) * 60 * 1000,
+              );
               return slotStart < intEnd && slotEnd > intStart;
             });
 
@@ -220,20 +240,20 @@ export class InterviewSchedulingService {
   async bookSlot(token: string, slot: { start: Date; interviewerId: string }) {
     const log = await this.prisma.activityLog.findFirst({
       where: {
-        action: 'SCHEDULING_LINK_CREATED',
-        metadata: { path: ['token'], equals: token },
+        action: "SCHEDULING_LINK_CREATED",
+        metadata: { path: ["token"], equals: token },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
     if (!log) {
-      throw new NotFoundException('Scheduling link not found');
+      throw new NotFoundException("Scheduling link not found");
     }
 
     const meta = log.metadata as any;
 
-    if (meta.status !== 'ACTIVE' || new Date(meta.expiresAt) < new Date()) {
-      throw new BadRequestException('This scheduling link is no longer active');
+    if (meta.status !== "ACTIVE" || new Date(meta.expiresAt) < new Date()) {
+      throw new BadRequestException("This scheduling link is no longer active");
     }
 
     // Create the interview
@@ -244,21 +264,21 @@ export class InterviewSchedulingService {
         scheduledAt: slot.start,
         duration: meta.duration,
         type: meta.interviewType,
-        status: 'SCHEDULED',
-        location: 'To be confirmed',
+        status: "SCHEDULED",
+        location: "To be confirmed",
       },
     });
 
     // Mark link as used
     await this.prisma.activityLog.create({
       data: {
-        action: 'SCHEDULING_LINK_CREATED',
-        description: 'Interview booked via self-scheduling',
+        action: "SCHEDULING_LINK_CREATED",
+        description: "Interview booked via self-scheduling",
         candidateId: meta.candidateId,
         applicationId: meta.applicationId,
         metadata: {
           ...meta,
-          status: 'BOOKED',
+          status: "BOOKED",
           bookedAt: new Date().toISOString(),
           interviewId: interview.id,
           bookedSlot: slot,
@@ -269,7 +289,7 @@ export class InterviewSchedulingService {
     // Log activity
     await this.prisma.activityLog.create({
       data: {
-        action: 'INTERVIEW_SCHEDULED',
+        action: "INTERVIEW_SCHEDULED",
         description: `Interview self-scheduled by candidate`,
         candidateId: meta.candidateId,
         applicationId: meta.applicationId,
@@ -285,7 +305,7 @@ export class InterviewSchedulingService {
       success: true,
       interviewId: interview.id,
       scheduledAt: slot.start,
-      message: 'Interview successfully scheduled',
+      message: "Interview successfully scheduled",
     };
   }
 
@@ -295,32 +315,32 @@ export class InterviewSchedulingService {
   async cancelLink(token: string, userId: string, tenantId: string) {
     const log = await this.prisma.activityLog.findFirst({
       where: {
-        action: 'SCHEDULING_LINK_CREATED',
-        metadata: { path: ['token'], equals: token },
+        action: "SCHEDULING_LINK_CREATED",
+        metadata: { path: ["token"], equals: token },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
     if (!log) {
-      throw new NotFoundException('Scheduling link not found');
+      throw new NotFoundException("Scheduling link not found");
     }
 
     const meta = log.metadata as any;
 
     if (meta.tenantId !== tenantId) {
-      throw new NotFoundException('Scheduling link not found');
+      throw new NotFoundException("Scheduling link not found");
     }
 
     await this.prisma.activityLog.create({
       data: {
-        action: 'SCHEDULING_LINK_CREATED',
-        description: 'Scheduling link cancelled',
+        action: "SCHEDULING_LINK_CREATED",
+        description: "Scheduling link cancelled",
         userId,
         candidateId: meta.candidateId,
         applicationId: meta.applicationId,
         metadata: {
           ...meta,
-          status: 'CANCELLED',
+          status: "CANCELLED",
           cancelledAt: new Date().toISOString(),
           cancelledBy: userId,
         },
@@ -336,10 +356,10 @@ export class InterviewSchedulingService {
   async getSchedulingLinks(tenantId: string, status?: string) {
     const logs = await this.prisma.activityLog.findMany({
       where: {
-        action: 'SCHEDULING_LINK_CREATED',
-        metadata: { path: ['tenantId'], equals: tenantId },
+        action: "SCHEDULING_LINK_CREATED",
+        metadata: { path: ["tenantId"], equals: tenantId },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
     const linkMap = new Map<string, any>();
@@ -397,7 +417,7 @@ export class InterviewSchedulingService {
       where: {
         interviewerId: { in: interviewerIds },
         scheduledAt: { gte: startDate, lte: endDate },
-        status: { not: 'CANCELLED' },
+        status: { not: "CANCELLED" },
       },
       select: { scheduledAt: true, duration: true, interviewerId: true },
     });
@@ -406,7 +426,7 @@ export class InterviewSchedulingService {
     const historicalInterviews = await this.prisma.interview.findMany({
       where: {
         interviewerId: { in: interviewerIds },
-        status: 'COMPLETED',
+        status: "COMPLETED",
         scheduledAt: { gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) }, // Last 90 days
       },
       include: {
@@ -421,7 +441,7 @@ export class InterviewSchedulingService {
 
     for (const interviewer of interviewers) {
       const current = new Date(startDate);
-      
+
       while (current <= endDate) {
         // Skip weekends
         if (current.getDay() !== 0 && current.getDay() !== 6) {
@@ -429,16 +449,20 @@ export class InterviewSchedulingService {
           for (let hour = 9; hour < 17; hour++) {
             const slotStart = new Date(current);
             slotStart.setHours(hour, 0, 0, 0);
-            const slotEnd = new Date(slotStart.getTime() + duration * 60 * 1000);
+            const slotEnd = new Date(
+              slotStart.getTime() + duration * 60 * 1000,
+            );
 
             // Skip if slot ends after business hours
             if (slotEnd.getHours() > 17) continue;
 
             // Check for conflicts
-            const hasConflict = existingInterviews.some(interview => {
+            const hasConflict = existingInterviews.some((interview) => {
               if (interview.interviewerId !== interviewer.id) return false;
               const intStart = new Date(interview.scheduledAt);
-              const intEnd = new Date(intStart.getTime() + (interview.duration || 60) * 60 * 1000);
+              const intEnd = new Date(
+                intStart.getTime() + (interview.duration || 60) * 60 * 1000,
+              );
               return slotStart < intEnd && slotEnd > intStart;
             });
 
@@ -523,7 +547,7 @@ export class InterviewSchedulingService {
     if (historicalScore) {
       score += (historicalScore - 50) * 0.3; // Up to ±15 points
       if (historicalScore > 70) {
-        reasons.push('High success rate at this time');
+        reasons.push("High success rate at this time");
       }
     }
 
@@ -537,38 +561,43 @@ export class InterviewSchedulingService {
     // Factor 3: Avoid early morning and late afternoon
     if (hour >= 10 && hour <= 15) {
       score += 10;
-      reasons.push('Mid-day slot (higher engagement)');
+      reasons.push("Mid-day slot (higher engagement)");
     } else if (hour === 9 || hour === 16) {
       score -= 5;
     }
 
     // Factor 4: Day of week preferences
     const dayOfWeek = slotStart.getDay();
-    if (dayOfWeek === 2 || dayOfWeek === 3) { // Tuesday, Wednesday
+    if (dayOfWeek === 2 || dayOfWeek === 3) {
+      // Tuesday, Wednesday
       score += 10;
-      reasons.push('Mid-week (optimal interview day)');
-    } else if (dayOfWeek === 1) { // Monday
+      reasons.push("Mid-week (optimal interview day)");
+    } else if (dayOfWeek === 1) {
+      // Monday
       score -= 5; // Mondays tend to be busier
-    } else if (dayOfWeek === 5) { // Friday
+    } else if (dayOfWeek === 5) {
+      // Friday
       score -= 10; // Fridays less ideal
     }
 
     // Factor 5: Preferred dates
     if (preferredDates?.length) {
-      const isPreferred = preferredDates.some(pd => 
-        pd.toDateString() === slotStart.toDateString()
+      const isPreferred = preferredDates.some(
+        (pd) => pd.toDateString() === slotStart.toDateString(),
       );
       if (isPreferred) {
         score += 20;
-        reasons.push('Matches preferred date');
+        reasons.push("Matches preferred date");
       }
     }
 
     // Factor 6: Not too far in the future (sooner is often better)
-    const daysAway = Math.floor((slotStart.getTime() - Date.now()) / (24 * 60 * 60 * 1000));
+    const daysAway = Math.floor(
+      (slotStart.getTime() - Date.now()) / (24 * 60 * 60 * 1000),
+    );
     if (daysAway <= 3) {
       score += 10;
-      reasons.push('Available soon');
+      reasons.push("Available soon");
     } else if (daysAway > 10) {
       score -= 5;
     }
@@ -584,17 +613,17 @@ export class InterviewSchedulingService {
    */
   private getOptimalHoursForType(interviewType: string): number[] {
     switch (interviewType.toUpperCase()) {
-      case 'TECHNICAL':
-      case 'CODING':
+      case "TECHNICAL":
+      case "CODING":
         return [10, 11, 14, 15]; // Mid-morning and early afternoon
-      case 'BEHAVIORAL':
-      case 'CULTURE_FIT':
+      case "BEHAVIORAL":
+      case "CULTURE_FIT":
         return [10, 11, 13, 14]; // Late morning preferred
-      case 'PHONE_SCREEN':
-      case 'SCREENING':
+      case "PHONE_SCREEN":
+      case "SCREENING":
         return [9, 10, 11, 14, 15, 16]; // More flexible
-      case 'FINAL':
-      case 'ONSITE':
+      case "FINAL":
+      case "ONSITE":
         return [10, 11, 13, 14]; // Prime focus hours
       default:
         return [10, 11, 14, 15];
@@ -608,7 +637,11 @@ export class InterviewSchedulingService {
     tenantId: string,
     jobId: string,
   ): Promise<{
-    recommendedInterviewers: { id: string; name: string; availability: string }[];
+    recommendedInterviewers: {
+      id: string;
+      name: string;
+      availability: string;
+    }[];
     suggestedDuration: number;
     bestDays: string[];
     bestTimes: string[];
@@ -621,39 +654,39 @@ export class InterviewSchedulingService {
     });
 
     if (!job) {
-      throw new NotFoundException('Job not found');
+      throw new NotFoundException("Job not found");
     }
 
     // Get interviewers who have conducted interviews for similar roles
     const recentInterviewers = await this.prisma.interview.findMany({
       where: {
         application: { job: { tenantId, departmentId: job.departmentId } },
-        status: 'COMPLETED',
+        status: "COMPLETED",
         scheduledAt: { gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) },
       },
       select: {
         interviewer: { select: { id: true, firstName: true, lastName: true } },
       },
-      distinct: ['interviewerId'],
+      distinct: ["interviewerId"],
       take: 5,
     });
 
-    const recommendedInterviewers = recentInterviewers.map(i => ({
+    const recommendedInterviewers = recentInterviewers.map((i) => ({
       id: i.interviewer.id,
       name: `${i.interviewer.firstName} ${i.interviewer.lastName}`,
-      availability: 'Good', // Would be enhanced with calendar integration
+      availability: "Good", // Would be enhanced with calendar integration
     }));
 
     return {
       recommendedInterviewers,
       suggestedDuration: 60, // Could be based on interview type
-      bestDays: ['Tuesday', 'Wednesday', 'Thursday'],
-      bestTimes: ['10:00 AM', '11:00 AM', '2:00 PM', '3:00 PM'],
+      bestDays: ["Tuesday", "Wednesday", "Thursday"],
+      bestTimes: ["10:00 AM", "11:00 AM", "2:00 PM", "3:00 PM"],
       tips: [
-        'Schedule technical interviews in the morning when candidates are most alert',
-        'Allow 15-minute buffer between back-to-back interviews',
-        'Send calendar invites immediately after scheduling',
-        'Include meeting links and preparation materials in advance',
+        "Schedule technical interviews in the morning when candidates are most alert",
+        "Allow 15-minute buffer between back-to-back interviews",
+        "Send calendar invites immediately after scheduling",
+        "Include meeting links and preparation materials in advance",
       ],
     };
   }

@@ -129,7 +129,7 @@ export function useSubmitJobApproval(tenantId: string) {
   return useMutation({
     mutationFn: async ({ jobId, approverIds }: { jobId: string; approverIds?: string[] }) => {
       log.info('Submitting job for approval', { tenantId, jobId });
-      const response = await jobsApi.submitApproval(tenantId, jobId, approverIds);
+      const response = await jobsApi.submitApproval(tenantId, jobId, { approverIds });
       return response.data;
     },
     onSuccess: (_, { jobId }) => {

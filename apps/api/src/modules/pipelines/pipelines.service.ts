@@ -1,10 +1,14 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
-import { CreatePipelineDto } from './dto/create-pipeline.dto';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from "@nestjs/common";
+import { PrismaService } from "../../prisma/prisma.service";
+import { CreatePipelineDto } from "./dto/create-pipeline.dto";
 
 @Injectable()
 export class PipelinesService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   async create(dto: CreatePipelineDto, tenantId: string) {
     if (dto.isDefault) {
@@ -32,7 +36,7 @@ export class PipelinesService {
         },
       },
       include: {
-        stages: { orderBy: { order: 'asc' } },
+        stages: { orderBy: { order: "asc" } },
       },
     });
   }
@@ -41,10 +45,10 @@ export class PipelinesService {
     const pipelines = await this.prisma.pipeline.findMany({
       where: { tenantId },
       include: {
-        stages: { orderBy: { order: 'asc' } },
+        stages: { orderBy: { order: "asc" } },
         _count: { select: { jobs: true } },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
     if (pipelines.length === 0) {
@@ -60,7 +64,7 @@ export class PipelinesService {
       where: { id },
       include: {
         stages: {
-          orderBy: { order: 'asc' },
+          orderBy: { order: "asc" },
           include: {
             automations: true,
           },
@@ -68,26 +72,26 @@ export class PipelinesService {
       },
     });
     if (!pipeline) {
-      throw new NotFoundException('Pipeline not found');
+      throw new NotFoundException("Pipeline not found");
     }
     return pipeline;
   }
 
   async createDefaultPipeline(tenantId: string) {
     const defaultStages = [
-      { name: 'Applied', color: '#6B7280', slaDays: 2 },
-      { name: 'Screening', color: '#3B82F6', slaDays: 3 },
-      { name: 'Phone Screen', color: '#8B5CF6', slaDays: 5 },
-      { name: 'Interview', color: '#F59E0B', slaDays: 7 },
-      { name: 'Offer', color: '#10B981', slaDays: 5 },
-      { name: 'Hired', color: '#059669', isTerminal: true },
-      { name: 'Rejected', color: '#EF4444', isTerminal: true },
+      { name: "Applied", color: "#6B7280", slaDays: 2 },
+      { name: "Screening", color: "#3B82F6", slaDays: 3 },
+      { name: "Phone Screen", color: "#8B5CF6", slaDays: 5 },
+      { name: "Interview", color: "#F59E0B", slaDays: 7 },
+      { name: "Offer", color: "#10B981", slaDays: 5 },
+      { name: "Hired", color: "#059669", isTerminal: true },
+      { name: "Rejected", color: "#EF4444", isTerminal: true },
     ];
 
     return this.prisma.pipeline.create({
       data: {
-        name: 'Default Pipeline',
-        description: 'Standard hiring pipeline',
+        name: "Default Pipeline",
+        description: "Standard hiring pipeline",
         isDefault: true,
         tenantId,
         stages: {
@@ -101,12 +105,15 @@ export class PipelinesService {
         },
       },
       include: {
-        stages: { orderBy: { order: 'asc' } },
+        stages: { orderBy: { order: "asc" } },
       },
     });
   }
 
-  async addStage(pipelineId: string, stage: { name: string; color?: string; slaDays?: number }) {
+  async addStage(
+    pipelineId: string,
+    stage: { name: string; color?: string; slaDays?: number },
+  ) {
     const pipeline = await this.findById(pipelineId);
     const maxOrder = Math.max(...pipeline.stages.map((s) => s.order), -1);
 
@@ -125,16 +132,15 @@ export class PipelinesService {
     // 1. Verify all stages belong to this pipeline
     const stages = await this.prisma.pipelineStage.findMany({
       where: {
-        AND: [
-          { pipelineId },
-          { id: { in: stageIds } }
-        ]
+        AND: [{ pipelineId }, { id: { in: stageIds } }],
       },
       select: { id: true },
     });
 
     if (stages.length !== stageIds.length) {
-      throw new BadRequestException('Invalid stage IDs provided. Some stages do not belong to this pipeline or do not exist.');
+      throw new BadRequestException(
+        "Invalid stage IDs provided. Some stages do not belong to this pipeline or do not exist.",
+      );
     }
 
     // 2. Perform updates in transaction
@@ -150,7 +156,10 @@ export class PipelinesService {
     return this.findById(pipelineId);
   }
 
-  async update(id: string, data: { name?: string; description?: string; isDefault?: boolean }) {
+  async update(
+    id: string,
+    data: { name?: string; description?: string; isDefault?: boolean },
+  ) {
     await this.findById(id);
 
     // If setting as default, unset other defaults
@@ -168,12 +177,20 @@ export class PipelinesService {
       where: { id },
       data,
       include: {
-        stages: { orderBy: { order: 'asc' } },
+        stages: { orderBy: { order: "asc" } },
       },
     });
   }
 
-  async updateStage(stageId: string, data: { name?: string; color?: string; slaDays?: number; isTerminal?: boolean }) {
+  async updateStage(
+    stageId: string,
+    data: {
+      name?: string;
+      color?: string;
+      slaDays?: number;
+      isTerminal?: boolean;
+    },
+  ) {
     return this.prisma.pipelineStage.update({
       where: { id: stageId },
       data,
@@ -188,7 +205,7 @@ export class PipelinesService {
     });
 
     if (stage && stage._count.applications > 0) {
-      throw new Error('Cannot delete stage with active applications');
+      throw new Error("Cannot delete stage with active applications");
     }
 
     return this.prisma.pipelineStage.delete({

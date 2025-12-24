@@ -43,14 +43,6 @@ export function ColumnSelector({
         );
     };
 
-    const selectAll = () => {
-        setSelectedColumns(columns.map((col) => col.key));
-    };
-
-    const deselectAll = () => {
-        setSelectedColumns([]);
-    };
-
     const handleExport = async () => {
         if (selectedColumns.length === 0) {
             return;
@@ -80,30 +72,6 @@ export function ColumnSelector({
                 <p className="text-sm text-neutral-600 dark:text-neutral-400">
                     {description}
                 </p>
-
-                {/* Quick actions */}
-                <div className="flex items-center justify-between pb-2 border-b border-neutral-200 dark:border-neutral-700">
-                    <div className="text-sm text-neutral-500 dark:text-neutral-400">
-                        {selectedColumns.length} of {columns.length} selected
-                    </div>
-                    <div className="flex gap-2">
-                        <button
-                            type="button"
-                            onClick={selectAll}
-                            className="text-xs text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 font-medium"
-                        >
-                            Select All
-                        </button>
-                        <span className="text-neutral-300 dark:text-neutral-600">|</span>
-                        <button
-                            type="button"
-                            onClick={deselectAll}
-                            className="text-xs text-neutral-600 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300 font-medium"
-                        >
-                            Deselect All
-                        </button>
-                    </div>
-                </div>
 
                 {/* Column list */}
                 <div className="max-h-96 overflow-y-auto space-y-1">

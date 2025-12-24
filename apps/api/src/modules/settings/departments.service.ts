@@ -1,5 +1,10 @@
-import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+} from "@nestjs/common";
+import { PrismaService } from "../../prisma/prisma.service";
 
 interface CreateDepartmentDto {
   name: string;
@@ -20,13 +25,13 @@ export class DepartmentsService {
     // Check for duplicate name
     const existing = await this.prisma.department.findFirst({
       where: {
-        name: { equals: dto.name, mode: 'insensitive' },
+        name: { equals: dto.name, mode: "insensitive" },
         tenantId,
       },
     });
 
     if (existing) {
-      throw new ConflictException('A department with this name already exists');
+      throw new ConflictException("A department with this name already exists");
     }
 
     // Validate parent if provided
@@ -35,7 +40,7 @@ export class DepartmentsService {
         where: { id: dto.parentId, tenantId },
       });
       if (!parent) {
-        throw new NotFoundException('Parent department not found');
+        throw new NotFoundException("Parent department not found");
       }
     }
 
@@ -65,7 +70,7 @@ export class DepartmentsService {
         children: includeHierarchy,
         _count: { select: { users: true, jobs: true } },
       },
-      orderBy: { name: 'asc' },
+      orderBy: { name: "asc" },
     });
 
     if (includeHierarchy) {
@@ -123,7 +128,7 @@ export class DepartmentsService {
     });
 
     if (!department) {
-      throw new NotFoundException('Department not found');
+      throw new NotFoundException("Department not found");
     }
 
     return department;
@@ -139,34 +144,42 @@ export class DepartmentsService {
     if (dto.name) {
       const existing = await this.prisma.department.findFirst({
         where: {
-          name: { equals: dto.name, mode: 'insensitive' },
+          name: { equals: dto.name, mode: "insensitive" },
           tenantId,
           id: { not: id },
         },
       });
 
       if (existing) {
-        throw new ConflictException('A department with this name already exists');
+        throw new ConflictException(
+          "A department with this name already exists",
+        );
       }
     }
 
     // Validate parent if provided
     if (dto.parentId) {
       if (dto.parentId === id) {
-        throw new BadRequestException('A department cannot be its own parent');
+        throw new BadRequestException("A department cannot be its own parent");
       }
 
       const parent = await this.prisma.department.findFirst({
         where: { id: dto.parentId, tenantId },
       });
       if (!parent) {
-        throw new NotFoundException('Parent department not found');
+        throw new NotFoundException("Parent department not found");
       }
 
       // Check for circular reference
-      const isCircular = await this.checkCircularReference(id, dto.parentId, tenantId);
+      const isCircular = await this.checkCircularReference(
+        id,
+        dto.parentId,
+        tenantId,
+      );
       if (isCircular) {
-        throw new BadRequestException('Circular reference detected in department hierarchy');
+        throw new BadRequestException(
+          "Circular reference detected in department hierarchy",
+        );
       }
     }
 
@@ -188,7 +201,11 @@ export class DepartmentsService {
   /**
    * Check for circular reference in hierarchy
    */
-  private async checkCircularReference(departmentId: string, newParentId: string, tenantId: string): Promise<boolean> {
+  private async checkCircularReference(
+    departmentId: string,
+    newParentId: string,
+    tenantId: string,
+  ): Promise<boolean> {
     let currentId: string | null = newParentId;
     const visited = new Set<string>();
 
@@ -220,16 +237,22 @@ export class DepartmentsService {
 
     // Check if department has users or jobs
     if ((department as any)._count.users > 0) {
-      throw new BadRequestException('Cannot delete department with assigned users. Reassign users first.');
+      throw new BadRequestException(
+        "Cannot delete department with assigned users. Reassign users first.",
+      );
     }
 
     if ((department as any)._count.jobs > 0) {
-      throw new BadRequestException('Cannot delete department with associated jobs. Reassign jobs first.');
+      throw new BadRequestException(
+        "Cannot delete department with associated jobs. Reassign jobs first.",
+      );
     }
 
     // Check if department has children
     if ((department as any).children?.length > 0) {
-      throw new BadRequestException('Cannot delete department with sub-departments. Delete or reassign children first.');
+      throw new BadRequestException(
+        "Cannot delete department with sub-departments. Delete or reassign children first.",
+      );
     }
 
     return this.prisma.department.delete({
@@ -248,9 +271,15 @@ export class DepartmentsService {
       },
     });
 
-    const totalUsers = departments.reduce((sum, d) => sum + (d as any)._count.users, 0);
-    const totalJobs = departments.reduce((sum, d) => sum + (d as any)._count.jobs, 0);
-    const rootDepartments = departments.filter(d => !d.parentId).length;
+    const totalUsers = departments.reduce(
+      (sum, d) => sum + (d as any)._count.users,
+      0,
+    );
+    const totalJobs = departments.reduce(
+      (sum, d) => sum + (d as any)._count.jobs,
+      0,
+    );
+    const rootDepartments = departments.filter((d) => !d.parentId).length;
 
     return {
       totalDepartments: departments.length,
@@ -258,7 +287,7 @@ export class DepartmentsService {
       totalUsers,
       totalJobs,
       departmentsBySize: departments
-        .map(d => ({
+        .map((d) => ({
           id: d.id,
           name: d.name,
           userCount: (d as any)._count.users,
@@ -272,7 +301,12 @@ export class DepartmentsService {
   /**
    * Move users between departments
    */
-  async moveUsers(fromDepartmentId: string, toDepartmentId: string, userIds: string[], tenantId: string) {
+  async moveUsers(
+    fromDepartmentId: string,
+    toDepartmentId: string,
+    userIds: string[],
+    tenantId: string,
+  ) {
     // Verify both departments exist
     await this.findById(fromDepartmentId, tenantId);
     await this.findById(toDepartmentId, tenantId);

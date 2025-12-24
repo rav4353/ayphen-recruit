@@ -2,20 +2,20 @@ import {
   Injectable,
   BadRequestException,
   UnauthorizedException,
-} from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { JwtService } from '@nestjs/jwt';
-import { v4 as uuidv4 } from 'uuid';
-import { PrismaService } from '../../../prisma/prisma.service';
-import { EmailService } from '../../../common/services/email.service';
-import { RequestOtpDto, VerifyOtpDto, OtpType } from '../dto/otp.dto';
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { JwtService } from "@nestjs/jwt";
+import { v4 as uuidv4 } from "uuid";
+import { PrismaService } from "../../../prisma/prisma.service";
+import { EmailService } from "../../../common/services/email.service";
+import { RequestOtpDto, VerifyOtpDto, OtpType } from "../dto/otp.dto";
 
 function toSlug(value: string) {
   return value
     .toLowerCase()
     .trim()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '')
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "")
     .slice(0, 48);
 }
 
@@ -35,9 +35,11 @@ export class OtpService {
     private readonly configService: ConfigService,
     private readonly jwtService: JwtService,
     private readonly emailService: EmailService,
-  ) { }
+  ) {}
 
-  async requestOtp(dto: RequestOtpDto): Promise<{ message: string; code?: string }> {
+  async requestOtp(
+    dto: RequestOtpDto,
+  ): Promise<{ message: string; code?: string }> {
     const type = dto.type || OtpType.LOGIN;
     let tenantId = dto.tenantId;
 
@@ -52,7 +54,7 @@ export class OtpService {
         // If user not found and no tenantId provided, we can't generate OTP
         // unless we want to support "public" OTPs, but schema requires tenantId.
         // For now, throw error if user doesn't exist.
-        throw new BadRequestException('User not found');
+        throw new BadRequestException("User not found");
       }
     }
 
@@ -84,17 +86,15 @@ export class OtpService {
     });
 
     // Send OTP via email without blocking the response
-    this.emailService
-      .sendOtpEmail(dto.email, code)
-      .catch((err) => {
-        console.error('Failed to send OTP email', err);
-      });
+    this.emailService.sendOtpEmail(dto.email, code).catch((err) => {
+      console.error("Failed to send OTP email", err);
+    });
 
     // In development, also return the code for testing
-    const isDev = this.configService.get('NODE_ENV') !== 'production';
+    const isDev = this.configService.get("NODE_ENV") !== "production";
 
     return {
-      message: 'OTP sent to your email',
+      message: "OTP sent to your email",
       ...(isDev && { code }),
     };
   }
@@ -113,7 +113,7 @@ export class OtpService {
           type,
           usedAt: null,
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
       });
     } else {
       // Find by email and code only
@@ -124,7 +124,7 @@ export class OtpService {
           type,
           usedAt: null,
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
       });
       if (otpRecord) {
         tenantId = otpRecord.tenantId;
@@ -132,11 +132,15 @@ export class OtpService {
     }
 
     if (!otpRecord) {
-      throw new BadRequestException('No valid OTP found. Please request a new one.');
+      throw new BadRequestException(
+        "No valid OTP found. Please request a new one.",
+      );
     }
 
     if (otpRecord.expiresAt < new Date()) {
-      throw new BadRequestException('OTP has expired. Please request a new one.');
+      throw new BadRequestException(
+        "OTP has expired. Please request a new one.",
+      );
     }
 
     if (otpRecord.attempts >= this.MAX_OTP_ATTEMPTS) {
@@ -145,7 +149,9 @@ export class OtpService {
         where: { id: otpRecord.id },
         data: { usedAt: new Date() },
       });
-      throw new UnauthorizedException('Too many failed attempts. Please request a new OTP.');
+      throw new UnauthorizedException(
+        "Too many failed attempts. Please request a new OTP.",
+      );
     }
 
     if (otpRecord.code !== dto.code) {
@@ -154,7 +160,7 @@ export class OtpService {
         where: { id: otpRecord.id },
         data: { attempts: otpRecord.attempts + 1 },
       });
-      throw new UnauthorizedException('Invalid OTP');
+      throw new UnauthorizedException("Invalid OTP");
     }
 
     // Mark OTP as used
@@ -172,7 +178,7 @@ export class OtpService {
       if (!user) {
         // Create new candidate user
         // Note: This path might fail if tenantId is still undefined (shouldn't happen if otpRecord found)
-        if (!tenantId) throw new BadRequestException('Tenant ID missing');
+        if (!tenantId) throw new BadRequestException("Tenant ID missing");
 
         // Check if tenant exists
         const tenantExists = await this.prisma.tenant.findUnique({
@@ -182,8 +188,16 @@ export class OtpService {
         if (!tenantExists) {
           // If tenant doesn't exist (e.g. was deleted or is invalid), create a new one
           // This handles the case where old OTPs might point to deleted 'demo-tenant'
-          let domain = dto.email.split('@')[1].toLowerCase();
-          const publicDomains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'icloud.com', 'aol.com', 'protonmail.com'];
+          let domain = dto.email.split("@")[1].toLowerCase();
+          const publicDomains = [
+            "gmail.com",
+            "yahoo.com",
+            "hotmail.com",
+            "outlook.com",
+            "icloud.com",
+            "aol.com",
+            "protonmail.com",
+          ];
 
           if (publicDomains.includes(domain)) {
             domain = `${domain}-${uuidv4()}`;
@@ -193,10 +207,10 @@ export class OtpService {
 
           const newTenant = await this.prisma.tenant.create({
             data: {
-              name: 'New Organization',
+              name: "New Organization",
               slug,
               domain: domain,
-              status: 'ACTIVE',
+              status: "ACTIVE",
             } as any,
           });
           tenantId = newTenant.id;
@@ -205,10 +219,10 @@ export class OtpService {
         user = await this.prisma.user.create({
           data: {
             email: dto.email,
-            firstName: dto.email.split('@')[0],
-            lastName: '',
-            role: 'CANDIDATE',
-            status: 'ACTIVE',
+            firstName: dto.email.split("@")[0],
+            lastName: "",
+            role: "CANDIDATE",
+            status: "ACTIVE",
             tenantId,
           },
         });
@@ -228,10 +242,10 @@ export class OtpService {
         where: { email: dto.email, tenantId },
       });
 
-      if (user && user.status !== 'ACTIVE') {
+      if (user && user.status !== "ACTIVE") {
         await this.prisma.user.update({
           where: { id: user.id },
-          data: { status: 'ACTIVE' },
+          data: { status: "ACTIVE" },
         });
       }
     }
@@ -240,8 +254,8 @@ export class OtpService {
   }
 
   private generateOtp(): string {
-    const crypto = require('crypto');
-    let otp = '';
+    const crypto = require("crypto");
+    let otp = "";
     for (let i = 0; i < this.OTP_LENGTH; i++) {
       otp += crypto.randomInt(0, 10).toString();
     }

@@ -1,21 +1,21 @@
-import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
-import { AppModule } from './app.module';
-import { GlobalExceptionFilter } from './common/filters/http-exception.filter';
-import { ResponseInterceptor } from './common/interceptors/response.interceptor';
+import { NestFactory } from "@nestjs/core";
+import { ValidationPipe } from "@nestjs/common";
+import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
+import { AppModule } from "./app.module";
+import { GlobalExceptionFilter } from "./common/filters/http-exception.filter";
+import { ResponseInterceptor } from "./common/interceptors/response.interceptor";
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   // Global prefix
-  app.setGlobalPrefix('api/v1');
+  app.setGlobalPrefix("api/v1");
 
   // CORS
   const allowedOrigins = [
     process.env.WEB_URL,
-    'http://localhost:3000',
-    'http://localhost:5173',
+    "http://localhost:3000",
+    "http://localhost:5173",
   ].filter(Boolean) as string[];
 
   app.enableCors({
@@ -42,19 +42,22 @@ async function bootstrap() {
   );
 
   // Raw body support for Stripe Webhooks
-  const bodyParser = require('body-parser');
-  app.use(bodyParser.json({
-    verify: (req: any, res: any, buf: Buffer) => {
-      if (req.originalUrl && req.originalUrl.includes('/webhook')) {
-        req.rawBody = buf;
-      }
-    },
-  }));
+  const bodyParser = require("body-parser");
+  app.use(
+    bodyParser.json({
+      verify: (req: any, res: any, buf: Buffer) => {
+        if (req.originalUrl && req.originalUrl.includes("/webhook")) {
+          req.rawBody = buf;
+        }
+      },
+    }),
+  );
 
   // Swagger API Documentation
   const config = new DocumentBuilder()
-    .setTitle('Ayphen TalentX API')
-    .setDescription(`
+    .setTitle("Ayphen TalentX API")
+    .setDescription(
+      `
 # Ayphen TalentX - AI-first Applicant Tracking System
 
 ## Overview
@@ -91,75 +94,101 @@ Errors return appropriate HTTP status codes with details:
   "error": { "code": "ERROR_CODE", "message": "Human readable message" }
 }
 \`\`\`
-    `)
-    .setVersion('1.0.0')
-    .setContact('Ayphen Engineering', 'https://ayphen.com', 'engineering@ayphen.com')
-    .setLicense('Proprietary', 'https://ayphen.com/license')
-    .addServer('http://localhost:3001', 'Local Development')
-    .addServer('https://api.staging.ayphen.com', 'Staging')
-    .addServer('https://api.ayphen.com', 'Production')
-    .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }, 'JWT')
+    `,
+    )
+    .setVersion("1.0.0")
+    .setContact(
+      "Ayphen Engineering",
+      "https://ayphen.com",
+      "engineering@ayphen.com",
+    )
+    .setLicense("Proprietary", "https://ayphen.com/license")
+    .addServer("http://localhost:3001", "Local Development")
+    .addServer("https://api.staging.ayphen.com", "Staging")
+    .addServer("https://api.ayphen.com", "Production")
+    .addBearerAuth(
+      { type: "http", scheme: "bearer", bearerFormat: "JWT" },
+      "JWT",
+    )
     // Core Modules
-    .addTag('auth', 'Authentication & Identity - Login, SSO, MFA, Sessions')
-    .addTag('users', 'User Management - CRUD, Roles, Permissions')
-    .addTag('roles', 'Role Management - Custom roles and permissions')
+    .addTag("auth", "Authentication & Identity - Login, SSO, MFA, Sessions")
+    .addTag("users", "User Management - CRUD, Roles, Permissions")
+    .addTag("roles", "Role Management - Custom roles and permissions")
     // Job Management
-    .addTag('jobs', 'Job Management - Create, publish, manage job requisitions')
-    .addTag('job-templates', 'Job Templates - Reusable job configurations')
+    .addTag("jobs", "Job Management - Create, publish, manage job requisitions")
+    .addTag("job-templates", "Job Templates - Reusable job configurations")
     // Candidate Management
-    .addTag('candidates', 'Candidate Management - Profiles, search, notes')
-    .addTag('candidate-notes', 'Candidate Notes - Comments and activity')
-    .addTag('candidate-comparison', 'Candidate Comparison - Side-by-side analysis')
+    .addTag("candidates", "Candidate Management - Profiles, search, notes")
+    .addTag("candidate-notes", "Candidate Notes - Comments and activity")
+    .addTag(
+      "candidate-comparison",
+      "Candidate Comparison - Side-by-side analysis",
+    )
     // Applications
-    .addTag('applications', 'Application Management - Track candidate applications')
-    .addTag('bulk-actions', 'Bulk Actions - Mass operations on applications')
+    .addTag(
+      "applications",
+      "Application Management - Track candidate applications",
+    )
+    .addTag("bulk-actions", "Bulk Actions - Mass operations on applications")
     // Pipeline & Workflow
-    .addTag('pipelines', 'Pipeline Management - Hiring stages and workflows')
-    .addTag('workflows', 'Workflow Automations - Triggers and actions')
-    .addTag('sla', 'SLA Management - Service level agreements')
-    .addTag('disposition', 'Disposition - Rejection and withdrawal reasons')
+    .addTag("pipelines", "Pipeline Management - Hiring stages and workflows")
+    .addTag("workflows", "Workflow Automations - Triggers and actions")
+    .addTag("sla", "SLA Management - Service level agreements")
+    .addTag("disposition", "Disposition - Rejection and withdrawal reasons")
     // Interviews
-    .addTag('interviews', 'Interview Management - Schedule, feedback, kits')
-    .addTag('interview-scheduling', 'Interview Scheduling - Calendar integration')
-    .addTag('scorecards', 'Scorecards - Interview evaluation templates')
+    .addTag("interviews", "Interview Management - Schedule, feedback, kits")
+    .addTag(
+      "interview-scheduling",
+      "Interview Scheduling - Calendar integration",
+    )
+    .addTag("scorecards", "Scorecards - Interview evaluation templates")
     // Offers
-    .addTag('offers', 'Offer Management - Create, approve, send offers')
-    .addTag('offer-templates', 'Offer Templates - Letter templates')
-    .addTag('esignature', 'E-Signature - DocuSign integration')
+    .addTag("offers", "Offer Management - Create, approve, send offers")
+    .addTag("offer-templates", "Offer Templates - Letter templates")
+    .addTag("esignature", "E-Signature - DocuSign integration")
     // Communication
-    .addTag('communication', 'Communication - Email, SMS, templates')
-    .addTag('notifications', 'Notifications - In-app alerts')
+    .addTag("communication", "Communication - Email, SMS, templates")
+    .addTag("notifications", "Notifications - In-app alerts")
     // Onboarding
-    .addTag('onboarding', 'Onboarding - New hire workflows')
+    .addTag("onboarding", "Onboarding - New hire workflows")
     // AI & Intelligence
-    .addTag('ai', 'AI Services - JD generation, resume parsing, matching')
+    .addTag("ai", "AI Services - JD generation, resume parsing, matching")
     // Integrations
-    .addTag('integrations-job-boards', 'Job Board Integrations - LinkedIn, Indeed, etc.')
-    .addTag('integrations-linkedin', 'LinkedIn Apply - OAuth integration')
-    .addTag('integrations-indeed', 'Indeed Feed - XML job feed')
-    .addTag('integrations-ziprecruiter', 'ZipRecruiter - Job posting API')
-    .addTag('integrations-hris', 'HRIS Sync - Workday, BambooHR, ADP')
-    .addTag('integrations-messaging', 'Slack/Teams - Notification integrations')
-    .addTag('integrations-webhooks', 'Webhooks - Event notifications')
+    .addTag(
+      "integrations-job-boards",
+      "Job Board Integrations - LinkedIn, Indeed, etc.",
+    )
+    .addTag("integrations-linkedin", "LinkedIn Apply - OAuth integration")
+    .addTag("integrations-indeed", "Indeed Feed - XML job feed")
+    .addTag("integrations-ziprecruiter", "ZipRecruiter - Job posting API")
+    .addTag("integrations-hris", "HRIS Sync - Workday, BambooHR, ADP")
+    .addTag("integrations-messaging", "Slack/Teams - Notification integrations")
+    .addTag("integrations-webhooks", "Webhooks - Event notifications")
     // Career Site
-    .addTag('career-site-admin', 'Career Site Builder - Branding, layout, pages')
-    .addTag('career-site-domain', 'Custom Domains - Subdomain and custom domain')
-    .addTag('application-form-admin', 'Application Form - Field customization')
-    .addTag('public-career-site', 'Public Career Site - Job listings (no auth)')
+    .addTag(
+      "career-site-admin",
+      "Career Site Builder - Branding, layout, pages",
+    )
+    .addTag(
+      "career-site-domain",
+      "Custom Domains - Subdomain and custom domain",
+    )
+    .addTag("application-form-admin", "Application Form - Field customization")
+    .addTag("public-career-site", "Public Career Site - Job listings (no auth)")
     // Analytics & Reports
-    .addTag('analytics', 'Analytics - Dashboard metrics')
-    .addTag('reports', 'Reports - Custom reports and exports')
+    .addTag("analytics", "Analytics - Dashboard metrics")
+    .addTag("reports", "Reports - Custom reports and exports")
     // Reference Data
-    .addTag('reference', 'Reference Data - Skills, locations, currencies')
-    .addTag('saved-views', 'Saved Views - Filter presets')
+    .addTag("reference", "Reference Data - Skills, locations, currencies")
+    .addTag("saved-views", "Saved Views - Filter presets")
     // Admin
-    .addTag('settings', 'System Settings - Tenant configuration')
-    .addTag('storage', 'File Storage - Upload and download files')
-    .addTag('health', 'Health Check - System status')
+    .addTag("settings", "System Settings - Tenant configuration")
+    .addTag("storage", "File Storage - Upload and download files")
+    .addTag("health", "Health Check - System status")
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/v1/docs', app, document);
+  SwaggerModule.setup("api/v1/docs", app, document);
 
   const port = process.env.API_PORT || 3001;
   await app.listen(port);

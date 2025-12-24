@@ -1,6 +1,7 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { User, Calendar, Clock } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface KanbanCardProps {
     id: string;
@@ -9,6 +10,7 @@ interface KanbanCardProps {
 }
 
 export function KanbanCard({ id, application, onClick }: KanbanCardProps) {
+    const { t, i18n } = useTranslation();
     const {
         attributes,
         listeners,
@@ -24,7 +26,7 @@ export function KanbanCard({ id, application, onClick }: KanbanCardProps) {
     };
 
     const fullName = `${application.candidate?.firstName || ''} ${application.candidate?.lastName || ''}`.trim();
-    const appliedDate = new Date(application.appliedAt).toLocaleDateString('en-US', {
+    const appliedDate = new Date(application.appliedAt).toLocaleDateString(i18n.language, {
         month: 'short',
         day: 'numeric'
     });
@@ -39,14 +41,14 @@ export function KanbanCard({ id, application, onClick }: KanbanCardProps) {
             return (
                 <div className="flex items-center gap-1 text-xs text-red-600 dark:text-red-400">
                     <Clock size={12} />
-                    <span className="font-medium">Overdue</span>
+                    <span className="font-medium">{t('common.overdue')}</span>
                 </div>
             );
         } else if (status === 'AT_RISK') {
             return (
                 <div className="flex items-center gap-1 text-xs text-yellow-600 dark:text-yellow-400">
                     <Clock size={12} />
-                    <span className="font-medium">{daysRemaining}d left</span>
+                    <span className="font-medium">{t('common.daysLeft', { days: daysRemaining })}</span>
                 </div>
             );
         }
@@ -82,7 +84,7 @@ export function KanbanCard({ id, application, onClick }: KanbanCardProps) {
             <div className="flex items-start justify-between gap-2 mb-2">
                 <div className="flex flex-col gap-1">
                     <h4 className="font-medium text-sm text-neutral-900 dark:text-neutral-100 line-clamp-1">
-                        {fullName || 'Unknown Candidate'}
+                        {fullName || t('common.unknownCandidate')}
                     </h4>
                     {application.candidate?.candidateId && (
                         <span className="w-fit text-[10px] font-normal text-neutral-500 bg-neutral-100 dark:bg-neutral-800 px-1.5 py-0.5 rounded border border-neutral-200 dark:border-neutral-700">
@@ -95,7 +97,7 @@ export function KanbanCard({ id, application, onClick }: KanbanCardProps) {
 
             {/* Job Title */}
             <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-3 line-clamp-1">
-                {application.job?.title || 'No job title'}
+                {application.job?.title || t('common.noJobTitle')}
             </p>
 
             {/* Footer */}

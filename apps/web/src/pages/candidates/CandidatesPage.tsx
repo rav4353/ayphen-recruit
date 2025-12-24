@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Plus, Search, Filter, Mail, Phone, Trash2, X, ChevronDown, Download, Users, Sparkles } from 'lucide-react';
+import { Plus, Search, Filter, Mail, Phone, Trash2, X, ChevronDown, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { CandidateFilterModal } from '../../components/candidates/CandidateFilterModal';
 import { BulkEmailModal } from '../../components/candidates/BulkEmailModal';
 import { Button, ConfirmationModal, PageHeader } from '../../components/ui';
-import { SavedViews, ColumnSelector, ExportColumn } from '../../components/common';
+import { SavedViews, ColumnSelector, ExportColumn, ImportExportDropdown } from '../../components/common';
 import { useCandidates, useBulkDeleteCandidates, useSendBulkEmail } from '../../hooks/queries';
 import { logger } from '../../lib/logger';
 import { convertToCSV, downloadCSV, CSV_TRANSFORMERS, CsvColumn } from '../../lib/csv-utils';
@@ -241,18 +241,16 @@ export function CandidatesPage() {
         subtitle={t('candidates.manageTalentPool')}
         icon={Users}
         iconColor="green"
-        badge={{ text: 'Talent Pool', icon: Sparkles }}
+
         actions={
           <>
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-2 bg-white dark:bg-neutral-800 shadow-sm"
-              onClick={() => setShowColumnSelector(true)}
-            >
-              <Download size={16} />
-              <span className="hidden sm:inline">{t('common.export')}</span>
-            </Button>
+            <ImportExportDropdown
+              entityType="candidates"
+              onImportComplete={() => {
+                setPage(1);
+              }}
+              onExport={() => setShowColumnSelector(true)}
+            />
             <Button
               size="sm"
               className="gap-2 shadow-lg shadow-emerald-500/25"

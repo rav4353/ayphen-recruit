@@ -5,11 +5,12 @@ import { useTranslation } from 'react-i18next';
 import { Check, ChevronRight, ChevronLeft, Wand2, AlertTriangle, Sparkles, MessageSquare, ChevronDown, MapPin, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { cn } from '../../lib/utils';
-import { Button, Input, Card, SkillSelector, Modal } from '../ui';
+import { Button, Input, Card, SkillSelector } from '../ui';
 import { aiApi, usersApi, referenceApi, pipelinesApi, settingsApi, scorecardTemplatesApi, departmentsApi } from '../../lib/api';
 import { useUnsavedChanges } from '../../hooks/useUnsavedChanges';
 import { ScorecardModal } from '../settings/ScorecardModal';
 import { DepartmentModal } from './DepartmentModal';
+import { PipelineEditorModal } from '../settings/PipelineEditorModal';
 
 export type JobFormData = {
     title: string;
@@ -78,6 +79,7 @@ export function JobForm({ initialData, mode, onSubmit, onCancel, isSubmitting = 
     const [aiPrompt, setAiPrompt] = useState('');
     const [isGeneratingFromPrompt, setIsGeneratingFromPrompt] = useState(false);
     const [isLocationDropdownOpen, setIsLocationDropdownOpen] = useState(false);
+    const [isMetadataLoading, setIsMetadataLoading] = useState(true);
     const locationDropdownRef = useRef<HTMLDivElement>(null);
 
     const STEPS = [
@@ -99,12 +101,25 @@ export function JobForm({ initialData, mode, onSubmit, onCancel, isSubmitting = 
         reset
     } = useForm<JobFormData>({
         defaultValues: {
+            title: '',
+            department: '',
             employmentType: 'FULL_TIME',
             workLocation: 'ONSITE',
+            description: '',
+            requirements: '',
+            responsibilities: '',
+            experience: '',
+            education: '',
+            benefits: '',
+            salaryMin: 0,
+            salaryMax: 0,
             salaryCurrency: 'USD',
             showSalary: false,
             skills: [],
+            hiringManagerId: '',
+            recruiterId: '',
             locationIds: [],
+            customFields: {},
             ...initialData,
         },
     });
@@ -139,61 +154,9 @@ export function JobForm({ initialData, mode, onSubmit, onCancel, isSubmitting = 
         }
     };
 
-    // Fetch users
-    useEffect(() => {
-        const fetchUsers = async () => {
-            try {
-                const res = await usersApi.getAll({ limit: 100 });
-                setUsers(res.data.data);
-            } catch (err) {
-                console.error('Failed to fetch users', err);
-            }
-        };
-        fetchUsers();
-    }, []);
-
-    // Handle click outside for location dropdown
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (locationDropdownRef.current && !locationDropdownRef.current.contains(event.target as Node)) {
-                setIsLocationDropdownOpen(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
-
-    // Fetch locations
-    useEffect(() => {
-        const fetchLocations = async () => {
-            try {
-                const res = await referenceApi.getLocations();
-                setLocations(res.data.data);
-            } catch (err) {
-                console.error('Failed to fetch locations', err);
-            }
-        };
-        fetchLocations();
-    }, []);
-
-    // Fetch currencies
-    useEffect(() => {
-        const fetchCurrencies = async () => {
-            try {
-                const res = await referenceApi.getCurrencies();
-                setCurrencies(res.data.data);
-            } catch (err) {
-                console.error('Failed to fetch currencies', err);
-            }
-        };
-        fetchCurrencies();
-    }, []);
-
-    // Fetch scorecard templates
     const fetchScorecards = async () => {
         try {
             const res = await scorecardTemplatesApi.getAll();
-            // Handle different response structures for robustness
             if (res.data && Array.isArray(res.data.data)) {
                 setScorecardTemplates(res.data.data);
             } else {
@@ -205,11 +168,15 @@ export function JobForm({ initialData, mode, onSubmit, onCancel, isSubmitting = 
         }
     };
 
-    useEffect(() => {
-        fetchScorecards();
-    }, []);
-
-    // ... (existing code)
+    const fetchDepartments = async () => {
+        try {
+            const res = await departmentsApi.getAll();
+            const data = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+            setDepartments(data);
+        } catch (err) {
+            console.error('Failed to fetch departments', err);
+        }
+    };
 
     const handleCreateScorecard = async (e: React.FormEvent, formData: any) => {
         e.preventDefault();
@@ -218,12 +185,7 @@ export function JobForm({ initialData, mode, onSubmit, onCancel, isSubmitting = 
             const res = await scorecardTemplatesApi.create(formData);
             toast.success('Scorecard template created successfully');
             setIsCreateScorecardModalOpen(false);
-
-            // Refresh list
             await fetchScorecards();
-
-            // Auto-select the new template
-            // Attempt to find the new ID from response, fallback to re-fetching
             const newId = res.data?.data?.id || res.data?.id;
             if (newId) {
                 setValue('scorecardTemplateId', newId);
@@ -236,40 +198,70 @@ export function JobForm({ initialData, mode, onSubmit, onCancel, isSubmitting = 
         }
     };
 
-    // Fetch pipelines on mount
     useEffect(() => {
-        fetchPipelines();
-    }, [mode, setValue, getValues]);
-
-    // Fetch custom fields config
-    useEffect(() => {
-        const fetchCustomFields = async () => {
+        const fetchAllMetadata = async () => {
+            setIsMetadataLoading(true);
             try {
-                const res = await settingsApi.getByKey('jobFormConfig');
-                if (res.data?.data?.value?.customFields) {
-                    setCustomFieldsConfig(res.data.data.value.customFields);
+                const [
+                    usersRes,
+                    deptsRes,
+                    locsRes,
+                    currenciesRes,
+                    scorecardsRes,
+                    pipelinesRes,
+                    customFieldsRes
+                ] = await Promise.all([
+                    usersApi.getAll({ limit: 100 }),
+                    departmentsApi.getAll(),
+                    referenceApi.getLocations(),
+                    referenceApi.getCurrencies(),
+                    scorecardTemplatesApi.getAll(),
+                    pipelinesApi.getAll(),
+                    settingsApi.getByKey('jobFormConfig').catch(() => ({ data: { data: { value: { customFields: [] } } } }))
+                ]);
+
+                // Set all states
+                setUsers(usersRes.data?.data || []);
+                
+                const deptsData = Array.isArray(deptsRes.data) ? deptsRes.data : (deptsRes.data?.data || []);
+                setDepartments(deptsData);
+                
+                setLocations(locsRes.data?.data || []);
+                setCurrencies(currenciesRes.data?.data || []);
+                
+                // Scorecards
+                if (scorecardsRes.data && Array.isArray(scorecardsRes.data.data)) {
+                    setScorecardTemplates(scorecardsRes.data.data);
+                } else {
+                    setScorecardTemplates(Array.isArray(scorecardsRes.data) ? scorecardsRes.data : []);
                 }
+                
+                // Pipelines
+                const pipelinesData = pipelinesRes.data?.data || [];
+                setPipelines(pipelinesData);
+                
+                if (mode === 'create' && !getValues('pipelineId')) {
+                    const defaultPipeline = pipelinesData.find((p: any) => p.isDefault);
+                    if (defaultPipeline) {
+                        setValue('pipelineId', defaultPipeline.id);
+                    }
+                }
+                
+                // Custom Fields
+                if (customFieldsRes.data?.data?.value?.customFields) {
+                    setCustomFieldsConfig(customFieldsRes.data.data.value.customFields);
+                }
+
             } catch (err) {
-                console.error('Failed to fetch custom fields settings', err);
+                console.error('Failed to fetch metadata', err);
+                toast.error('Failed to load some form data. Please try refreshing.');
+            } finally {
+                setIsMetadataLoading(false);
             }
         };
-        fetchCustomFields();
-    }, []);
 
-    // Fetch departments
-    const fetchDepartments = async () => {
-        try {
-            const res = await departmentsApi.getAll();
-            const data = Array.isArray(res.data) ? res.data : (res.data?.data || []);
-            setDepartments(data);
-        } catch (err) {
-            console.error('Failed to fetch departments', err);
-        }
-    };
-
-    useEffect(() => {
-        fetchDepartments();
-    }, []);
+        fetchAllMetadata();
+    }, [mode, setValue, getValues]);
 
     const handleCreateDepartment = async (data: any) => {
         setIsCreatingDepartment(true);
@@ -295,28 +287,14 @@ export function JobForm({ initialData, mode, onSubmit, onCancel, isSubmitting = 
         }
     };
 
-    const handleCreatePipeline = async (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault();
-        const formData = new FormData(e.currentTarget);
-        const name = formData.get('name') as string;
-        const description = formData.get('description') as string;
-
-        if (!name) return;
-
+    const handleCreatePipeline = async (data: { name: string; description: string; isDefault: boolean; stages: any[] }) => {
         setIsCreatingPipeline(true);
         try {
             const newPipelineRes = await pipelinesApi.create({
-                name,
-                description,
-                isDefault: false,
-                stages: [
-                    { name: 'Applied', color: '#6B7280', slaDays: 2 },
-                    { name: 'Screening', color: '#3B82F6', slaDays: 3 },
-                    { name: 'Interview', color: '#F59E0B', slaDays: 7 },
-                    { name: 'Offer', color: '#10B981', slaDays: 5 },
-                    { name: 'Hired', color: '#059669', isTerminal: true },
-                    { name: 'Rejected', color: '#EF4444', isTerminal: true },
-                ]
+                name: data.name,
+                description: data.description,
+                isDefault: data.isDefault,
+                stages: data.stages
             });
 
             toast.success(t('pipelines.createSuccess'));
@@ -465,8 +443,7 @@ export function JobForm({ initialData, mode, onSubmit, onCancel, isSubmitting = 
     const nextStep = async () => {
         let isValid = false;
         if (currentStep === 0) {
-            const fields = ['title', 'department', 'employmentType', 'workLocation', 'hiringManagerId', 'recruiterId'];
-            if (mode === 'create') fields.push('pipelineId');
+            const fields = ['title', 'department', 'employmentType', 'workLocation', 'hiringManagerId', 'recruiterId', 'pipelineId'];
             if (formData.employmentType !== 'FULL_TIME') {
                 fields.push('duration');
                 fields.push('durationUnit');
@@ -651,6 +628,15 @@ export function JobForm({ initialData, mode, onSubmit, onCancel, isSubmitting = 
         );
     };
 
+    if (isMetadataLoading) {
+        return (
+            <div className="flex items-center justify-center min-h-[400px]">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <span className="ml-3 text-neutral-600 dark:text-neutral-400">Loading form data...</span>
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-8">
             {/* Steps Indicator - Styled like EditJobPage */}
@@ -735,34 +721,32 @@ export function JobForm({ initialData, mode, onSubmit, onCancel, isSubmitting = 
                                     )}
                                 </div>
 
-                                {mode === 'create' && (
-                                    <div>
-                                        <label className="label">{t('jobs.create.form.hiringPipeline')}</label>
-                                        <select
-                                            className="input"
-                                            {...register('pipelineId', {
-                                                required: mode === 'create' ? t('jobs.create.validation.pipelineRequired') : false,
-                                                onChange: (e) => {
-                                                    if (e.target.value === 'new') {
-                                                        setIsCreatePipelineModalOpen(true);
-                                                        setValue('pipelineId', ''); // Reset to empty or previous valid value
-                                                    }
+                                <div>
+                                    <label className="label">{t('jobs.create.form.hiringPipeline')}</label>
+                                    <select
+                                        className="input"
+                                        {...register('pipelineId', {
+                                            required: t('jobs.create.validation.pipelineRequired'),
+                                            onChange: (e) => {
+                                                if (e.target.value === 'new') {
+                                                    setIsCreatePipelineModalOpen(true);
+                                                    setValue('pipelineId', ''); // Reset to empty or previous valid value
                                                 }
-                                            })}
-                                        >
-                                            <option value="">{t('jobs.create.form.selectPipeline')}</option>
-                                            <option value="new" className="font-medium text-blue-600">+ {t('pipelines.createPipeline')}</option>
-                                            {pipelines.map((pipeline) => (
-                                                <option key={pipeline.id} value={pipeline.id}>
-                                                    {pipeline.name} {pipeline.isDefault ? `(${t('pipelines.default')})` : ''}
-                                                </option>
-                                            ))}
-                                        </select>
-                                        {errors.pipelineId && (
-                                            <p className="text-error text-sm mt-1">{errors.pipelineId.message}</p>
-                                        )}
-                                    </div>
-                                )}
+                                            }
+                                        })}
+                                    >
+                                        <option value="">{t('jobs.create.form.selectPipeline')}</option>
+                                        <option value="new" className="font-medium text-blue-600">+ {t('pipelines.createPipeline')}</option>
+                                        {pipelines.map((pipeline) => (
+                                            <option key={pipeline.id} value={pipeline.id}>
+                                                {pipeline.name} {pipeline.isDefault ? `(${t('pipelines.default')})` : ''}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    {errors.pipelineId && (
+                                        <p className="text-error text-sm mt-1">{errors.pipelineId.message}</p>
+                                    )}
+                                </div>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1275,7 +1259,7 @@ export function JobForm({ initialData, mode, onSubmit, onCancel, isSubmitting = 
                                         <p className="text-sm text-neutral-600 dark:text-neutral-400 space-y-1">
                                             <span className="block"><strong>{t('jobs.create.form.jobTitle')}:</strong> {formData.title}</span>
                                             <span className="block"><strong>{t('jobs.create.form.department')}:</strong> {formData.department}</span>
-                                            <span className="block"><strong>{t('jobs.create.form.employmentType')}:</strong> {formData.employmentType}</span>
+                                            <span className="block"><strong>{t('jobs.create.form.employmentType')}:</strong> {formData.employmentType} {formData.employmentType !== 'FULL_TIME' && formData.duration && `(${formData.duration} per ${formData.durationUnit?.toLowerCase()})`}</span>
                                             <span className="block"><strong>{t('jobs.create.form.workLocation')}:</strong> {formData.workLocation}</span>
                                         </p>
                                     </div>
@@ -1285,6 +1269,7 @@ export function JobForm({ initialData, mode, onSubmit, onCancel, isSubmitting = 
                                             <span className="block"><strong>{t('jobs.create.form.hiringManager')}:</strong> {users.find(u => u.id === formData.hiringManagerId)?.firstName} {users.find(u => u.id === formData.hiringManagerId)?.lastName}</span>
                                             <span className="block"><strong>{t('jobs.create.form.recruiter')}:</strong> {users.find(u => u.id === formData.recruiterId)?.firstName} {users.find(u => u.id === formData.recruiterId)?.lastName}</span>
                                             <span className="block"><strong>{t('jobs.create.form.hiringPipeline')}:</strong> {pipelines.find(p => p.id === formData.pipelineId)?.name}</span>
+                                            <span className="block"><strong>{t('jobs.create.form.scorecardTemplate', 'Scorecard Template')}:</strong> {scorecardTemplates.find(s => s.id === formData.scorecardTemplateId)?.name || 'Standard'}</span>
                                         </p>
                                     </div>
                                 </div>
@@ -1426,27 +1411,12 @@ export function JobForm({ initialData, mode, onSubmit, onCancel, isSubmitting = 
                 </Card>
             </form>
 
-            <Modal
+            <PipelineEditorModal
                 isOpen={isCreatePipelineModalOpen}
                 onClose={() => setIsCreatePipelineModalOpen(false)}
-                title={t('pipelines.createPipeline')}
-            >
-                <form onSubmit={handleCreatePipeline} className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium mb-1">{t('pipelines.pipelineName')}</label>
-                        <Input name="name" required placeholder="e.g. Engineering Hiring" />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium mb-1">{t('pipelines.description')}</label>
-                        <Input name="description" placeholder="Brief description of this pipeline" />
-                    </div>
-
-                    <div className="flex justify-end gap-2 mt-6">
-                        <Button type="button" variant="ghost" onClick={() => setIsCreatePipelineModalOpen(false)}>{t('common.cancel')}</Button>
-                        <Button type="submit" isLoading={isCreatingPipeline}>{t('pipelines.createPipeline')}</Button>
-                    </div>
-                </form>
-            </Modal>
+                onSave={handleCreatePipeline}
+                isSubmitting={isCreatingPipeline}
+            />
 
             <ScorecardModal
                 isOpen={isCreateScorecardModalOpen}

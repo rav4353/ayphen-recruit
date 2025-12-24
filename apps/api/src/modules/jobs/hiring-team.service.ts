@@ -1,8 +1,19 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
-import { NotificationsService } from '../notifications/notifications.service';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+} from "@nestjs/common";
+import { PrismaService } from "../../prisma/prisma.service";
+import { NotificationsService } from "../notifications/notifications.service";
 
-export type HiringTeamRole = 'HIRING_MANAGER' | 'RECRUITER' | 'INTERVIEWER' | 'COORDINATOR' | 'APPROVER' | 'OBSERVER';
+export type HiringTeamRole =
+  | "HIRING_MANAGER"
+  | "RECRUITER"
+  | "INTERVIEWER"
+  | "COORDINATOR"
+  | "APPROVER"
+  | "OBSERVER";
 
 interface AddTeamMemberDto {
   userId: string;
@@ -22,25 +33,35 @@ export class HiringTeamService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
-  ) { }
+  ) {}
 
   private generateTeamMemberId(): string {
-    const crypto = require('crypto');
-    return `tm-${Date.now()}-${crypto.randomBytes(6).toString('hex')}`;
+    const crypto = require("crypto");
+    return `tm-${Date.now()}-${crypto.randomBytes(6).toString("hex")}`;
   }
 
   /**
    * Add a team member to a job
    */
-  async addTeamMember(jobId: string, dto: AddTeamMemberDto, tenantId: string, addedByUserId: string) {
+  async addTeamMember(
+    jobId: string,
+    dto: AddTeamMemberDto,
+    tenantId: string,
+    addedByUserId: string,
+  ) {
     // Verify job exists and belongs to tenant
     const job = await this.prisma.job.findFirst({
       where: { id: jobId, tenantId },
-      select: { id: true, title: true, recruiterId: true, hiringManagerId: true },
+      select: {
+        id: true,
+        title: true,
+        recruiterId: true,
+        hiringManagerId: true,
+      },
     });
 
     if (!job) {
-      throw new NotFoundException('Job not found');
+      throw new NotFoundException("Job not found");
     }
 
     // Verify user exists and belongs to tenant
@@ -50,26 +71,32 @@ export class HiringTeamService {
     });
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException("User not found");
     }
 
     // Check if user is already on the team
     const existingMember = await this.prisma.activityLog.findFirst({
       where: {
-        action: 'HIRING_TEAM_MEMBER_ADDED',
+        action: "HIRING_TEAM_MEMBER_ADDED",
         metadata: {
-          path: ['jobId'],
+          path: ["jobId"],
           equals: jobId,
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
     if (existingMember) {
       const meta = existingMember.metadata as any;
       const members = meta.teamMembers || [];
-      if (members.some((m: any) => m.userId === dto.userId && m.status === 'ACTIVE')) {
-        throw new ConflictException('User is already a team member for this job');
+      if (
+        members.some(
+          (m: any) => m.userId === dto.userId && m.status === "ACTIVE",
+        )
+      ) {
+        throw new ConflictException(
+          "User is already a team member for this job",
+        );
       }
     }
 
@@ -87,7 +114,7 @@ export class HiringTeamService {
       userEmail: user.email,
       role: dto.role,
       permissions,
-      status: 'ACTIVE',
+      status: "ACTIVE",
       addedAt: new Date().toISOString(),
       addedBy: addedByUserId,
     };
@@ -96,7 +123,7 @@ export class HiringTeamService {
 
     await this.prisma.activityLog.create({
       data: {
-        action: 'HIRING_TEAM_MEMBER_ADDED',
+        action: "HIRING_TEAM_MEMBER_ADDED",
         description: `${user.firstName} ${user.lastName} added to hiring team as ${dto.role}`,
         userId: addedByUserId,
         metadata: {
@@ -105,7 +132,7 @@ export class HiringTeamService {
           tenantId,
           teamMembers: updatedTeam,
           latestChange: {
-            type: 'ADDED',
+            type: "ADDED",
             member: newMember,
             timestamp: new Date().toISOString(),
           },
@@ -115,9 +142,9 @@ export class HiringTeamService {
 
     // Notify the added user
     await this.notificationsService.create({
-      type: 'JOB',
-      title: 'Added to Hiring Team',
-      message: `You have been added to the hiring team for "${job.title}" as ${dto.role.replace('_', ' ').toLowerCase()}.`,
+      type: "JOB",
+      title: "Added to Hiring Team",
+      message: `You have been added to the hiring team for "${job.title}" as ${dto.role.replace("_", " ").toLowerCase()}.`,
       userId: dto.userId,
       tenantId,
       metadata: { jobId, role: dto.role },
@@ -136,19 +163,19 @@ export class HiringTeamService {
     });
 
     if (!job) {
-      throw new NotFoundException('Job not found');
+      throw new NotFoundException("Job not found");
     }
 
     // Get latest team state from activity logs
     const teamLog = await this.prisma.activityLog.findFirst({
       where: {
-        action: 'HIRING_TEAM_MEMBER_ADDED',
+        action: "HIRING_TEAM_MEMBER_ADDED",
         metadata: {
-          path: ['jobId'],
+          path: ["jobId"],
           equals: jobId,
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
     if (!teamLog) {
@@ -166,9 +193,9 @@ export class HiringTeamService {
             userId: recruiter.id,
             userName: `${recruiter.firstName} ${recruiter.lastName}`,
             userEmail: recruiter.email,
-            role: 'RECRUITER',
-            permissions: this.getDefaultPermissions('RECRUITER'),
-            status: 'ACTIVE',
+            role: "RECRUITER",
+            permissions: this.getDefaultPermissions("RECRUITER"),
+            status: "ACTIVE",
             isDefault: true,
           });
         }
@@ -185,9 +212,9 @@ export class HiringTeamService {
             userId: manager.id,
             userName: `${manager.firstName} ${manager.lastName}`,
             userEmail: manager.email,
-            role: 'HIRING_MANAGER',
-            permissions: this.getDefaultPermissions('HIRING_MANAGER'),
-            status: 'ACTIVE',
+            role: "HIRING_MANAGER",
+            permissions: this.getDefaultPermissions("HIRING_MANAGER"),
+            status: "ACTIVE",
             isDefault: true,
           });
         }
@@ -197,7 +224,7 @@ export class HiringTeamService {
     }
 
     const meta = teamLog.metadata as any;
-    return (meta.teamMembers || []).filter((m: any) => m.status === 'ACTIVE');
+    return (meta.teamMembers || []).filter((m: any) => m.status === "ACTIVE");
   }
 
   /**
@@ -214,13 +241,15 @@ export class HiringTeamService {
     const memberIndex = currentTeam.findIndex((m: any) => m.id === memberId);
 
     if (memberIndex === -1) {
-      throw new NotFoundException('Team member not found');
+      throw new NotFoundException("Team member not found");
     }
 
     const member = currentTeam[memberIndex];
 
     if (member.isDefault) {
-      throw new BadRequestException('Cannot modify default team members. Update the job recruiter or hiring manager instead.');
+      throw new BadRequestException(
+        "Cannot modify default team members. Update the job recruiter or hiring manager instead.",
+      );
     }
 
     const updatedMember = {
@@ -240,7 +269,7 @@ export class HiringTeamService {
 
     await this.prisma.activityLog.create({
       data: {
-        action: 'HIRING_TEAM_MEMBER_ADDED',
+        action: "HIRING_TEAM_MEMBER_ADDED",
         description: `Team member ${member.userName} updated`,
         userId: updatedByUserId,
         metadata: {
@@ -249,7 +278,7 @@ export class HiringTeamService {
           tenantId,
           teamMembers: currentTeam,
           latestChange: {
-            type: 'UPDATED',
+            type: "UPDATED",
             member: updatedMember,
             timestamp: new Date().toISOString(),
           },
@@ -263,24 +292,31 @@ export class HiringTeamService {
   /**
    * Remove team member from job
    */
-  async removeTeamMember(jobId: string, memberId: string, tenantId: string, removedByUserId: string) {
+  async removeTeamMember(
+    jobId: string,
+    memberId: string,
+    tenantId: string,
+    removedByUserId: string,
+  ) {
     const currentTeam = await this.getTeamMembers(jobId, tenantId);
     const memberIndex = currentTeam.findIndex((m: any) => m.id === memberId);
 
     if (memberIndex === -1) {
-      throw new NotFoundException('Team member not found');
+      throw new NotFoundException("Team member not found");
     }
 
     const member = currentTeam[memberIndex];
 
     if (member.isDefault) {
-      throw new BadRequestException('Cannot remove default team members. Update the job recruiter or hiring manager instead.');
+      throw new BadRequestException(
+        "Cannot remove default team members. Update the job recruiter or hiring manager instead.",
+      );
     }
 
     // Mark as removed instead of deleting
     currentTeam[memberIndex] = {
       ...member,
-      status: 'REMOVED',
+      status: "REMOVED",
       removedAt: new Date().toISOString(),
       removedBy: removedByUserId,
     };
@@ -292,7 +328,7 @@ export class HiringTeamService {
 
     await this.prisma.activityLog.create({
       data: {
-        action: 'HIRING_TEAM_MEMBER_ADDED',
+        action: "HIRING_TEAM_MEMBER_ADDED",
         description: `${member.userName} removed from hiring team`,
         userId: removedByUserId,
         metadata: {
@@ -301,7 +337,7 @@ export class HiringTeamService {
           tenantId,
           teamMembers: currentTeam,
           latestChange: {
-            type: 'REMOVED',
+            type: "REMOVED",
             member: currentTeam[memberIndex],
             timestamp: new Date().toISOString(),
           },
@@ -311,8 +347,8 @@ export class HiringTeamService {
 
     // Notify the removed user
     await this.notificationsService.create({
-      type: 'JOB',
-      title: 'Removed from Hiring Team',
+      type: "JOB",
+      title: "Removed from Hiring Team",
       message: `You have been removed from the hiring team for "${job?.title}".`,
       userId: member.userId,
       tenantId,
@@ -328,7 +364,7 @@ export class HiringTeamService {
   async checkPermission(
     jobId: string,
     userId: string,
-    permission: keyof AddTeamMemberDto['permissions'],
+    permission: keyof AddTeamMemberDto["permissions"],
     tenantId: string,
   ): Promise<boolean> {
     const teamMembers = await this.getTeamMembers(jobId, tenantId);
@@ -348,9 +384,9 @@ export class HiringTeamService {
     // Get all hiring team logs
     const logs = await this.prisma.activityLog.findMany({
       where: {
-        action: 'HIRING_TEAM_MEMBER_ADDED',
+        action: "HIRING_TEAM_MEMBER_ADDED",
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
     const jobIds: string[] = [];
@@ -363,7 +399,9 @@ export class HiringTeamService {
       seenJobs.add(meta.jobId);
 
       const members = meta.teamMembers || [];
-      if (members.some((m: any) => m.userId === userId && m.status === 'ACTIVE')) {
+      if (
+        members.some((m: any) => m.userId === userId && m.status === "ACTIVE")
+      ) {
         jobIds.push(meta.jobId);
       }
     }
@@ -372,10 +410,7 @@ export class HiringTeamService {
     const directJobs = await this.prisma.job.findMany({
       where: {
         tenantId,
-        OR: [
-          { recruiterId: userId },
-          { hiringManagerId: userId },
-        ],
+        OR: [{ recruiterId: userId }, { hiringManagerId: userId }],
       },
       select: { id: true },
     });

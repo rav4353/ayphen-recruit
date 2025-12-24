@@ -1,11 +1,11 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../../prisma/prisma.service';
+import { Injectable } from "@nestjs/common";
+import { PrismaService } from "../../../prisma/prisma.service";
 
 @Injectable()
 export class SuperAdminAnalyticsService {
   constructor(private prisma: PrismaService) {}
 
-  async getOverview(period: 'day' | 'week' | 'month' | 'year' = 'month') {
+  async getOverview(period: "day" | "week" | "month" | "year" = "month") {
     const now = new Date();
     const periodStart = this.getPeriodStart(now, period);
     const previousPeriodStart = this.getPreviousPeriodStart(now, period);
@@ -44,13 +44,23 @@ export class SuperAdminAnalyticsService {
       this.getSubscriptionStats(),
     ]);
 
-    const tenantGrowth = newTenantsPreviousPeriod > 0
-      ? ((newTenantsThisPeriod - newTenantsPreviousPeriod) / newTenantsPreviousPeriod) * 100
-      : newTenantsThisPeriod > 0 ? 100 : 0;
+    const tenantGrowth =
+      newTenantsPreviousPeriod > 0
+        ? ((newTenantsThisPeriod - newTenantsPreviousPeriod) /
+            newTenantsPreviousPeriod) *
+          100
+        : newTenantsThisPeriod > 0
+          ? 100
+          : 0;
 
-    const userGrowth = newUsersPreviousPeriod > 0
-      ? ((newUsersThisPeriod - newUsersPreviousPeriod) / newUsersPreviousPeriod) * 100
-      : newUsersThisPeriod > 0 ? 100 : 0;
+    const userGrowth =
+      newUsersPreviousPeriod > 0
+        ? ((newUsersThisPeriod - newUsersPreviousPeriod) /
+            newUsersPreviousPeriod) *
+          100
+        : newUsersThisPeriod > 0
+          ? 100
+          : 0;
 
     return {
       totalTenants,
@@ -65,7 +75,7 @@ export class SuperAdminAnalyticsService {
     };
   }
 
-  async getTenantGrowth(period: 'day' | 'week' | 'month' | 'year' = 'month') {
+  async getTenantGrowth(period: "day" | "week" | "month" | "year" = "month") {
     const now = new Date();
     const dataPoints = this.getDataPointsCount(period);
     const results: { date: string; count: number }[] = [];
@@ -84,7 +94,7 @@ export class SuperAdminAnalyticsService {
       });
 
       results.push({
-        date: pointDate.toISOString().split('T')[0],
+        date: pointDate.toISOString().split("T")[0],
         count,
       });
     }
@@ -92,7 +102,7 @@ export class SuperAdminAnalyticsService {
     return results;
   }
 
-  async getUserGrowth(period: 'day' | 'week' | 'month' | 'year' = 'month') {
+  async getUserGrowth(period: "day" | "week" | "month" | "year" = "month") {
     const now = new Date();
     const dataPoints = this.getDataPointsCount(period);
     const results: { date: string; count: number }[] = [];
@@ -111,7 +121,7 @@ export class SuperAdminAnalyticsService {
       });
 
       results.push({
-        date: pointDate.toISOString().split('T')[0],
+        date: pointDate.toISOString().split("T")[0],
         count,
       });
     }
@@ -122,7 +132,7 @@ export class SuperAdminAnalyticsService {
   async getTopTenants(limit: number = 10) {
     const tenants = await this.prisma.tenant.findMany({
       take: limit,
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
       include: {
         _count: {
           select: {
@@ -154,7 +164,7 @@ export class SuperAdminAnalyticsService {
       totalInterviews,
     ] = await Promise.all([
       this.prisma.job.count({ where }),
-      this.prisma.job.count({ where: { ...where, status: 'OPEN' } }),
+      this.prisma.job.count({ where: { ...where, status: "OPEN" } }),
       this.prisma.candidate.count({ where }),
       this.prisma.application.count({
         where: tenantId ? { job: { tenantId } } : {},
@@ -170,15 +180,16 @@ export class SuperAdminAnalyticsService {
       totalCandidates,
       totalApplications,
       totalInterviews,
-      averageApplicationsPerJob: totalJobs > 0 ? Math.round(totalApplications / totalJobs) : 0,
+      averageApplicationsPerJob:
+        totalJobs > 0 ? Math.round(totalApplications / totalJobs) : 0,
     };
   }
 
   async getPlanDistribution() {
     const subscriptions = await this.prisma.subscription.groupBy({
-      by: ['planId'],
+      by: ["planId"],
       _count: { id: true },
-      where: { status: 'ACTIVE' },
+      where: { status: "ACTIVE" },
     });
 
     const plans = await this.prisma.subscriptionPlan.findMany();
@@ -187,7 +198,7 @@ export class SuperAdminAnalyticsService {
     const total = subscriptions.reduce((sum, s) => sum + s._count.id, 0);
 
     return subscriptions.map((s) => ({
-      plan: planMap.get(s.planId) || 'Unknown',
+      plan: planMap.get(s.planId) || "Unknown",
       count: s._count.id,
       percentage: total > 0 ? Math.round((s._count.id / total) * 100) : 0,
     }));
@@ -196,13 +207,13 @@ export class SuperAdminAnalyticsService {
   private async getSubscriptionStats() {
     try {
       const subscriptions = await this.prisma.subscription.findMany({
-        where: { status: 'ACTIVE' },
+        where: { status: "ACTIVE" },
         include: { plan: true },
       });
 
       let mrr = 0;
       subscriptions.forEach((sub) => {
-        if (sub.billingCycle === 'MONTHLY') {
+        if (sub.billingCycle === "MONTHLY") {
           mrr += sub.plan.monthlyPrice;
         } else {
           mrr += sub.plan.yearlyPrice / 12;
@@ -222,16 +233,16 @@ export class SuperAdminAnalyticsService {
   private getPeriodStart(date: Date, period: string): Date {
     const start = new Date(date);
     switch (period) {
-      case 'day':
+      case "day":
         start.setDate(start.getDate() - 1);
         break;
-      case 'week':
+      case "week":
         start.setDate(start.getDate() - 7);
         break;
-      case 'month':
+      case "month":
         start.setMonth(start.getMonth() - 1);
         break;
-      case 'year':
+      case "year":
         start.setFullYear(start.getFullYear() - 1);
         break;
     }
@@ -245,13 +256,13 @@ export class SuperAdminAnalyticsService {
 
   private getDataPointsCount(period: string): number {
     switch (period) {
-      case 'day':
+      case "day":
         return 24; // hourly for a day
-      case 'week':
+      case "week":
         return 7; // daily for a week
-      case 'month':
+      case "month":
         return 30; // daily for a month
-      case 'year':
+      case "year":
         return 12; // monthly for a year
       default:
         return 12;
@@ -261,16 +272,16 @@ export class SuperAdminAnalyticsService {
   private subtractPeriod(date: Date, period: string, multiplier: number): Date {
     const result = new Date(date);
     switch (period) {
-      case 'day':
+      case "day":
         result.setHours(result.getHours() - multiplier);
         break;
-      case 'week':
+      case "week":
         result.setDate(result.getDate() - multiplier);
         break;
-      case 'month':
+      case "month":
         result.setDate(result.getDate() - multiplier);
         break;
-      case 'year':
+      case "year":
         result.setMonth(result.getMonth() - multiplier);
         break;
     }

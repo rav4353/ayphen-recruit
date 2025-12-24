@@ -39,6 +39,7 @@ import { PublicCareerSite } from './pages/public/PublicCareerSite';
 import { PublicJobDetails } from './pages/public/PublicJobDetails';
 import { JobApplicationPage } from './pages/public/JobApplicationPage';
 import { InterviewSchedulePage } from './pages/public/InterviewSchedulePage';
+import { InterviewConfirmationPage } from './pages/public/InterviewConfirmationPage';
 import { ReferralsPage } from './pages/referrals/ReferralsPage';
 import { SettingsPage } from './components/settings/SettingsPage';
 import { CalendarPage } from './pages/interviews/CalendarPage';
@@ -56,8 +57,9 @@ import { OnboardingDashboardPage } from './pages/onboarding/OnboardingDashboardP
 import { OnboardingDetailPage } from './pages/onboarding/OnboardingDetailPage';
 import { EmployeeOnboardingPortal } from './pages/portal/EmployeeOnboardingPortal';
 import { SourcingPage } from './pages/sourcing/SourcingPage';
-import { TalentPoolsPage } from './pages/sourcing/TalentPoolsPage';
+
 import { CampaignsPage } from './pages/marketing/CampaignsPage';
+import { BackgroundChecksPage } from './pages/background-checks/BackgroundChecksPage';
 import { LandingPage } from './pages/LandingPage';
 import MaintenancePage from './pages/MaintenancePage';
 
@@ -208,7 +210,8 @@ function App() {
                   <Route path="onboarding" element={<OnboardingDashboardPage />} />
                   <Route path="onboarding/:id" element={<OnboardingDetailPage />} />
                   <Route path="sourcing" element={<SourcingPage />} />
-                  <Route path="talent-pools" element={<TalentPoolsPage />} />
+
+                  <Route path="background-checks" element={<BackgroundChecksPage />} />
                 </Route>
               </Route>
 
@@ -217,6 +220,7 @@ function App() {
               {/* <Route path="/jobs/public/:tenantId" element={<PublicJobBoard />} /> */}
               <Route path="/offers/public/:token" element={<CandidateOfferPage />} />
               <Route path="/schedule/:token" element={<InterviewSchedulePage />} />
+              <Route path="/interviews/confirm/:token" element={<InterviewConfirmationPage />} />
               <Route path="/portal/onboarding/:id" element={<EmployeeOnboardingPortal />} />
 
               {/* Super Admin Routes */}

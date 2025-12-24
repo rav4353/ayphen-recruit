@@ -1,5 +1,10 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+} from "@nestjs/common";
+import { PrismaService } from "../../prisma/prisma.service";
 import {
   CreateSourcedCandidateDto,
   UpdateSourcedCandidateDto,
@@ -9,7 +14,7 @@ import {
   BulkOutreachDto,
   SourcingStatus,
   SourcingChannel,
-} from './dto';
+} from "./dto";
 
 export interface SourcedCandidate {
   id: string;
@@ -53,11 +58,17 @@ export interface OutreachRecord {
 export class SourcingService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(dto: CreateSourcedCandidateDto, tenantId: string, userId: string): Promise<SourcedCandidate> {
+  async create(
+    dto: CreateSourcedCandidateDto,
+    tenantId: string,
+    userId: string,
+  ): Promise<SourcedCandidate> {
     // Check for duplicate email in sourced candidates
     const existingSourced = await this.findByEmail(dto.email, tenantId);
     if (existingSourced) {
-      throw new ConflictException('A sourced candidate with this email already exists');
+      throw new ConflictException(
+        "A sourced candidate with this email already exists",
+      );
     }
 
     // Check if candidate already exists in main candidate database
@@ -96,15 +107,17 @@ export class SourcingService {
     // Store in activity log (using JSON metadata for sourced candidates)
     await this.prisma.activityLog.create({
       data: {
-        action: 'SOURCED_CANDIDATE_CREATED',
+        action: "SOURCED_CANDIDATE_CREATED",
         description: `Sourced candidate created: ${dto.firstName} ${dto.lastName}`,
         userId,
-        metadata: JSON.parse(JSON.stringify({
-          type: 'sourced_candidate',
-          ...sourcedCandidate,
-          existsInCandidateDb: !!existingCandidate,
-          existingCandidateId: existingCandidate?.id,
-        })),
+        metadata: JSON.parse(
+          JSON.stringify({
+            type: "sourced_candidate",
+            ...sourcedCandidate,
+            existsInCandidateDb: !!existingCandidate,
+            existingCandidateId: existingCandidate?.id,
+          }),
+        ),
       },
     });
 
@@ -112,31 +125,46 @@ export class SourcingService {
   }
 
   async findAll(tenantId: string, query: SearchSourcedCandidatesDto) {
-    const { search, status, source, skills, location, page = 1, take = 20, sortBy = 'createdAt', sortOrder = 'desc' } = query;
+    const {
+      search,
+      status,
+      source,
+      skills,
+      location,
+      page = 1,
+      take = 20,
+      sortBy = "createdAt",
+      sortOrder = "desc",
+    } = query;
 
     // Get all sourced candidate logs for this tenant
     const logs = await this.prisma.activityLog.findMany({
       where: {
-        action: { in: ['SOURCED_CANDIDATE_CREATED', 'SOURCED_CANDIDATE_UPDATED'] },
+        action: {
+          in: ["SOURCED_CANDIDATE_CREATED", "SOURCED_CANDIDATE_UPDATED"],
+        },
         metadata: {
-          path: ['tenantId'],
+          path: ["tenantId"],
           equals: tenantId,
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
     // Build map of latest state for each sourced candidate
     const candidateMap = new Map<string, SourcedCandidate>();
     for (const log of logs) {
       const metadata = log.metadata as any;
-      if (metadata.type === 'sourced_candidate' && !candidateMap.has(metadata.id)) {
+      if (
+        metadata.type === "sourced_candidate" &&
+        !candidateMap.has(metadata.id)
+      ) {
         // Check if deleted
         const deletedLog = await this.prisma.activityLog.findFirst({
           where: {
-            action: 'SOURCED_CANDIDATE_DELETED',
+            action: "SOURCED_CANDIDATE_DELETED",
             metadata: {
-              path: ['id'],
+              path: ["id"],
               equals: metadata.id,
             },
           },
@@ -152,41 +180,44 @@ export class SourcingService {
     // Apply filters
     if (search) {
       const searchLower = search.toLowerCase();
-      candidates = candidates.filter(c =>
-        c.firstName.toLowerCase().includes(searchLower) ||
-        c.lastName.toLowerCase().includes(searchLower) ||
-        c.email.toLowerCase().includes(searchLower) ||
-        c.currentTitle?.toLowerCase().includes(searchLower) ||
-        c.currentCompany?.toLowerCase().includes(searchLower) ||
-        c.skills.some(s => s.toLowerCase().includes(searchLower))
+      candidates = candidates.filter(
+        (c) =>
+          c.firstName.toLowerCase().includes(searchLower) ||
+          c.lastName.toLowerCase().includes(searchLower) ||
+          c.email.toLowerCase().includes(searchLower) ||
+          c.currentTitle?.toLowerCase().includes(searchLower) ||
+          c.currentCompany?.toLowerCase().includes(searchLower) ||
+          c.skills.some((s) => s.toLowerCase().includes(searchLower)),
       );
     }
 
     if (status) {
-      candidates = candidates.filter(c => c.status === status);
+      candidates = candidates.filter((c) => c.status === status);
     }
 
     if (source) {
-      candidates = candidates.filter(c => c.source === source);
+      candidates = candidates.filter((c) => c.source === source);
     }
 
     if (skills && skills.length > 0) {
-      candidates = candidates.filter(c =>
-        skills.some(skill => c.skills.some(s => s.toLowerCase().includes(skill.toLowerCase())))
+      candidates = candidates.filter((c) =>
+        skills.some((skill) =>
+          c.skills.some((s) => s.toLowerCase().includes(skill.toLowerCase())),
+        ),
       );
     }
 
     if (location) {
-      candidates = candidates.filter(c =>
-        c.location?.toLowerCase().includes(location.toLowerCase())
+      candidates = candidates.filter((c) =>
+        c.location?.toLowerCase().includes(location.toLowerCase()),
       );
     }
 
     // Sort
     candidates.sort((a, b) => {
-      const aVal = (a as any)[sortBy] || '';
-      const bVal = (b as any)[sortBy] || '';
-      if (sortOrder === 'asc') {
+      const aVal = (a as any)[sortBy] || "";
+      const bVal = (b as any)[sortBy] || "";
+      if (sortOrder === "asc") {
         return aVal > bVal ? 1 : -1;
       }
       return aVal < bVal ? 1 : -1;
@@ -211,63 +242,70 @@ export class SourcingService {
   async findOne(id: string, tenantId: string): Promise<SourcedCandidate> {
     const log = await this.prisma.activityLog.findFirst({
       where: {
-        action: { in: ['SOURCED_CANDIDATE_CREATED', 'SOURCED_CANDIDATE_UPDATED'] },
+        action: {
+          in: ["SOURCED_CANDIDATE_CREATED", "SOURCED_CANDIDATE_UPDATED"],
+        },
         metadata: {
-          path: ['id'],
+          path: ["id"],
           equals: id,
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
     if (!log) {
-      throw new NotFoundException('Sourced candidate not found');
+      throw new NotFoundException("Sourced candidate not found");
     }
 
     const metadata = log.metadata as any;
     if (metadata.tenantId !== tenantId) {
-      throw new NotFoundException('Sourced candidate not found');
+      throw new NotFoundException("Sourced candidate not found");
     }
 
     // Check if deleted
     const deletedLog = await this.prisma.activityLog.findFirst({
       where: {
-        action: 'SOURCED_CANDIDATE_DELETED',
+        action: "SOURCED_CANDIDATE_DELETED",
         metadata: {
-          path: ['id'],
+          path: ["id"],
           equals: id,
         },
       },
     });
 
     if (deletedLog) {
-      throw new NotFoundException('Sourced candidate not found');
+      throw new NotFoundException("Sourced candidate not found");
     }
 
     return metadata as SourcedCandidate;
   }
 
-  async findByEmail(email: string, tenantId: string): Promise<SourcedCandidate | null> {
+  async findByEmail(
+    email: string,
+    tenantId: string,
+  ): Promise<SourcedCandidate | null> {
     const logs = await this.prisma.activityLog.findMany({
       where: {
-        action: { in: ['SOURCED_CANDIDATE_CREATED', 'SOURCED_CANDIDATE_UPDATED'] },
+        action: {
+          in: ["SOURCED_CANDIDATE_CREATED", "SOURCED_CANDIDATE_UPDATED"],
+        },
         metadata: {
-          path: ['tenantId'],
+          path: ["tenantId"],
           equals: tenantId,
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
     for (const log of logs) {
       const metadata = log.metadata as any;
-      if (metadata.type === 'sourced_candidate' && metadata.email === email) {
+      if (metadata.type === "sourced_candidate" && metadata.email === email) {
         // Check if deleted
         const deletedLog = await this.prisma.activityLog.findFirst({
           where: {
-            action: 'SOURCED_CANDIDATE_DELETED',
+            action: "SOURCED_CANDIDATE_DELETED",
             metadata: {
-              path: ['id'],
+              path: ["id"],
               equals: metadata.id,
             },
           },
@@ -281,7 +319,12 @@ export class SourcingService {
     return null;
   }
 
-  async update(id: string, dto: UpdateSourcedCandidateDto, tenantId: string, userId: string): Promise<SourcedCandidate> {
+  async update(
+    id: string,
+    dto: UpdateSourcedCandidateDto,
+    tenantId: string,
+    userId: string,
+  ): Promise<SourcedCandidate> {
     const existing = await this.findOne(id, tenantId);
 
     const updated: SourcedCandidate = {
@@ -293,40 +336,52 @@ export class SourcingService {
 
     await this.prisma.activityLog.create({
       data: {
-        action: 'SOURCED_CANDIDATE_UPDATED',
+        action: "SOURCED_CANDIDATE_UPDATED",
         description: `Sourced candidate updated: ${updated.firstName} ${updated.lastName}`,
         userId,
-        metadata: JSON.parse(JSON.stringify({
-          type: 'sourced_candidate',
-          ...updated,
-        })),
+        metadata: JSON.parse(
+          JSON.stringify({
+            type: "sourced_candidate",
+            ...updated,
+          }),
+        ),
       },
     });
 
     return updated;
   }
 
-  async delete(id: string, tenantId: string, userId: string): Promise<{ success: boolean }> {
+  async delete(
+    id: string,
+    tenantId: string,
+    userId: string,
+  ): Promise<{ success: boolean }> {
     const existing = await this.findOne(id, tenantId);
 
     await this.prisma.activityLog.create({
       data: {
-        action: 'SOURCED_CANDIDATE_DELETED',
+        action: "SOURCED_CANDIDATE_DELETED",
         description: `Sourced candidate deleted: ${existing.firstName} ${existing.lastName}`,
         userId,
-        metadata: JSON.parse(JSON.stringify({
-          type: 'sourced_candidate_deleted',
-          id,
-          tenantId,
-          deletedAt: new Date().toISOString(),
-        })),
+        metadata: JSON.parse(
+          JSON.stringify({
+            type: "sourced_candidate_deleted",
+            id,
+            tenantId,
+            deletedAt: new Date().toISOString(),
+          }),
+        ),
       },
     });
 
     return { success: true };
   }
 
-  async recordOutreach(dto: RecordOutreachDto, tenantId: string, userId: string): Promise<SourcedCandidate> {
+  async recordOutreach(
+    dto: RecordOutreachDto,
+    tenantId: string,
+    userId: string,
+  ): Promise<SourcedCandidate> {
     const existing = await this.findOne(dto.sourcedCandidateId, tenantId);
 
     const outreachRecord: OutreachRecord = {
@@ -341,20 +396,25 @@ export class SourcingService {
 
     const updated: SourcedCandidate = {
       ...existing,
-      status: existing.status === SourcingStatus.NEW ? SourcingStatus.CONTACTED : existing.status,
+      status:
+        existing.status === SourcingStatus.NEW
+          ? SourcingStatus.CONTACTED
+          : existing.status,
       outreachHistory: [...existing.outreachHistory, outreachRecord],
       updatedAt: new Date().toISOString(),
     };
 
     await this.prisma.activityLog.create({
       data: {
-        action: 'SOURCED_CANDIDATE_UPDATED',
+        action: "SOURCED_CANDIDATE_UPDATED",
         description: `Outreach recorded for: ${updated.firstName} ${updated.lastName}`,
         userId,
-        metadata: JSON.parse(JSON.stringify({
-          type: 'sourced_candidate',
-          ...updated,
-        })),
+        metadata: JSON.parse(
+          JSON.stringify({
+            type: "sourced_candidate",
+            ...updated,
+          }),
+        ),
       },
     });
 
@@ -362,16 +422,21 @@ export class SourcingService {
   }
 
   async addToPipeline(dto: AddToPipelineDto, tenantId: string, userId: string) {
-    const sourcedCandidate = await this.findOne(dto.sourcedCandidateId, tenantId);
+    const sourcedCandidate = await this.findOne(
+      dto.sourcedCandidateId,
+      tenantId,
+    );
 
     // Check if job exists
     const job = await this.prisma.job.findFirst({
       where: { id: dto.jobId, tenantId },
-      include: { pipeline: { include: { stages: { orderBy: { order: 'asc' } } } } },
+      include: {
+        pipeline: { include: { stages: { orderBy: { order: "asc" } } } },
+      },
     });
 
     if (!job) {
-      throw new NotFoundException('Job not found');
+      throw new NotFoundException("Job not found");
     }
 
     // Check if candidate already exists in main database
@@ -407,7 +472,9 @@ export class SourcingService {
     });
 
     if (existingApplication) {
-      throw new ConflictException('Candidate already has an application for this job');
+      throw new ConflictException(
+        "Candidate already has an application for this job",
+      );
     }
 
     // Get first pipeline stage
@@ -429,13 +496,13 @@ export class SourcingService {
       dto.sourcedCandidateId,
       { status: SourcingStatus.ADDED_TO_PIPELINE },
       tenantId,
-      userId
+      userId,
     );
 
     // Log activity
     await this.prisma.activityLog.create({
       data: {
-        action: 'SOURCED_CANDIDATE_ADDED_TO_PIPELINE',
+        action: "SOURCED_CANDIDATE_ADDED_TO_PIPELINE",
         description: `${sourcedCandidate.firstName} ${sourcedCandidate.lastName} added to pipeline for ${job.title}`,
         userId,
         applicationId: application.id,
@@ -466,17 +533,17 @@ export class SourcingService {
     for (const id of dto.sourcedCandidateIds) {
       try {
         const candidate = await this.findOne(id, tenantId);
-        
+
         // Record outreach
         await this.recordOutreach(
           {
             sourcedCandidateId: id,
-            type: 'EMAIL',
+            type: "EMAIL",
             subject: dto.subject,
             message: dto.message,
           },
           tenantId,
-          userId
+          userId,
         );
 
         results.success++;
@@ -509,13 +576,27 @@ export class SourcingService {
       sourceCounts[c.source] = (sourceCounts[c.source] || 0) + 1;
     }
 
-    const totalOutreach = candidates.reduce((sum, c) => sum + c.outreachHistory.length, 0);
-    const responseRate = candidates.length > 0
-      ? ((statusCounts[SourcingStatus.RESPONDED] + statusCounts[SourcingStatus.INTERESTED]) / candidates.length * 100).toFixed(1)
-      : '0';
-    const conversionRate = candidates.length > 0
-      ? (statusCounts[SourcingStatus.ADDED_TO_PIPELINE] / candidates.length * 100).toFixed(1)
-      : '0';
+    const totalOutreach = candidates.reduce(
+      (sum, c) => sum + c.outreachHistory.length,
+      0,
+    );
+    const responseRate =
+      candidates.length > 0
+        ? (
+            ((statusCounts[SourcingStatus.RESPONDED] +
+              statusCounts[SourcingStatus.INTERESTED]) /
+              candidates.length) *
+            100
+          ).toFixed(1)
+        : "0";
+    const conversionRate =
+      candidates.length > 0
+        ? (
+            (statusCounts[SourcingStatus.ADDED_TO_PIPELINE] /
+              candidates.length) *
+            100
+          ).toFixed(1)
+        : "0";
 
     return {
       total: candidates.length,
@@ -534,7 +615,7 @@ export class SourcingService {
     });
 
     if (!job) {
-      throw new NotFoundException('Job not found');
+      throw new NotFoundException("Job not found");
     }
 
     // Get candidates from internal database that haven't applied to this job
@@ -542,7 +623,7 @@ export class SourcingService {
       where: { jobId },
       select: { candidateId: true },
     });
-    const appliedCandidateIds = existingApplications.map(a => a.candidateId);
+    const appliedCandidateIds = existingApplications.map((a) => a.candidateId);
 
     const candidates = await this.prisma.candidate.findMany({
       where: {
@@ -553,12 +634,17 @@ export class SourcingService {
     });
 
     // Calculate match scores based on skills
-    const jobSkills = job.skills.map(s => s.toLowerCase());
-    
-    const scoredCandidates = candidates.map(c => {
-      const candidateSkills = c.skills.map(s => s.toLowerCase());
-      const matchingSkills = candidateSkills.filter(s => jobSkills.some(js => s.includes(js) || js.includes(s)));
-      const matchScore = jobSkills.length > 0 ? (matchingSkills.length / jobSkills.length) * 100 : 0;
+    const jobSkills = job.skills.map((s) => s.toLowerCase());
+
+    const scoredCandidates = candidates.map((c) => {
+      const candidateSkills = c.skills.map((s) => s.toLowerCase());
+      const matchingSkills = candidateSkills.filter((s) =>
+        jobSkills.some((js) => s.includes(js) || js.includes(s)),
+      );
+      const matchScore =
+        jobSkills.length > 0
+          ? (matchingSkills.length / jobSkills.length) * 100
+          : 0;
 
       return {
         ...c,

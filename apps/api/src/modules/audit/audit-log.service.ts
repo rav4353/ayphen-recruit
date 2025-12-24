@@ -1,5 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { Injectable, Logger } from "@nestjs/common";
+import { PrismaService } from "../../prisma/prisma.service";
 
 export interface AuditLogEntry {
   id: string;
@@ -40,49 +40,49 @@ export class AuditLogService {
   // Get available action types
   getActionTypes(): string[] {
     return [
-      'CREATE',
-      'UPDATE',
-      'DELETE',
-      'VIEW',
-      'LOGIN',
-      'LOGOUT',
-      'LOGIN_FAILED',
-      'PASSWORD_CHANGE',
-      'PASSWORD_RESET',
-      'BULK_IMPORT',
-      'EXPORT',
-      'APPROVE',
-      'REJECT',
-      'SEND_EMAIL',
-      'SCHEDULE_INTERVIEW',
-      'SUBMIT_FEEDBACK',
-      'MOVE_STAGE',
-      'CREATE_OFFER',
-      'ACCEPT_OFFER',
-      'DECLINE_OFFER',
-      'PERMISSION_CHANGE',
-      'SETTINGS_CHANGE',
-      'INTEGRATION_CONNECT',
-      'INTEGRATION_DISCONNECT',
+      "CREATE",
+      "UPDATE",
+      "DELETE",
+      "VIEW",
+      "LOGIN",
+      "LOGOUT",
+      "LOGIN_FAILED",
+      "PASSWORD_CHANGE",
+      "PASSWORD_RESET",
+      "BULK_IMPORT",
+      "EXPORT",
+      "APPROVE",
+      "REJECT",
+      "SEND_EMAIL",
+      "SCHEDULE_INTERVIEW",
+      "SUBMIT_FEEDBACK",
+      "MOVE_STAGE",
+      "CREATE_OFFER",
+      "ACCEPT_OFFER",
+      "DECLINE_OFFER",
+      "PERMISSION_CHANGE",
+      "SETTINGS_CHANGE",
+      "INTEGRATION_CONNECT",
+      "INTEGRATION_DISCONNECT",
     ];
   }
 
   // Get available entity types
   getEntityTypes(): string[] {
     return [
-      'User',
-      'Job',
-      'Candidate',
-      'Application',
-      'Interview',
-      'Offer',
-      'Pipeline',
-      'Department',
-      'Location',
-      'EmailTemplate',
-      'Setting',
-      'Role',
-      'Integration',
+      "User",
+      "Job",
+      "Candidate",
+      "Application",
+      "Interview",
+      "Offer",
+      "Pipeline",
+      "Department",
+      "Location",
+      "EmailTemplate",
+      "Setting",
+      "Role",
+      "Integration",
     ];
   }
 
@@ -92,7 +92,12 @@ export class AuditLogService {
     filters: AuditLogFilters,
     page = 1,
     limit = 50,
-  ): Promise<{ data: AuditLogEntry[]; total: number; page: number; totalPages: number }> {
+  ): Promise<{
+    data: AuditLogEntry[];
+    total: number;
+    page: number;
+    totalPages: number;
+  }> {
     const where: any = {};
 
     // Build filter conditions
@@ -125,15 +130,15 @@ export class AuditLogService {
     // Search in metadata or action
     if (filters.search) {
       where.OR = [
-        { action: { contains: filters.search, mode: 'insensitive' } },
-        { entityType: { contains: filters.search, mode: 'insensitive' } },
+        { action: { contains: filters.search, mode: "insensitive" } },
+        { entityType: { contains: filters.search, mode: "insensitive" } },
       ];
     }
 
     const [logs, total] = await Promise.all([
       this.prisma.activityLog.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         skip: (page - 1) * limit,
         take: limit,
         include: {
@@ -150,16 +155,18 @@ export class AuditLogService {
       this.prisma.activityLog.count({ where }),
     ]);
 
-    const data: AuditLogEntry[] = logs.map(log => ({
+    const data: AuditLogEntry[] = logs.map((log) => ({
       id: log.id,
       action: log.action,
       description: log.description || undefined,
       userId: log.user?.id,
       userEmail: log.user?.email,
-      userName: log.user ? `${log.user.firstName} ${log.user.lastName}` : undefined,
+      userName: log.user
+        ? `${log.user.firstName} ${log.user.lastName}`
+        : undefined,
       applicationId: log.applicationId || undefined,
       candidateId: log.candidateId || undefined,
-      metadata: log.metadata as Record<string, any> || undefined,
+      metadata: (log.metadata as Record<string, any>) || undefined,
       createdAt: log.createdAt,
     }));
 
@@ -172,7 +179,10 @@ export class AuditLogService {
   }
 
   // Get a single audit log entry
-  async getLogById(tenantId: string, logId: string): Promise<AuditLogEntry | null> {
+  async getLogById(
+    tenantId: string,
+    logId: string,
+  ): Promise<AuditLogEntry | null> {
     const log = await this.prisma.activityLog.findFirst({
       where: { id: logId },
       include: {
@@ -195,10 +205,12 @@ export class AuditLogService {
       description: log.description || undefined,
       userId: log.user?.id,
       userEmail: log.user?.email,
-      userName: log.user ? `${log.user.firstName} ${log.user.lastName}` : undefined,
+      userName: log.user
+        ? `${log.user.firstName} ${log.user.lastName}`
+        : undefined,
       applicationId: log.applicationId || undefined,
       candidateId: log.candidateId || undefined,
-      metadata: log.metadata as Record<string, any> || undefined,
+      metadata: (log.metadata as Record<string, any>) || undefined,
       createdAt: log.createdAt,
     };
   }
@@ -222,39 +234,43 @@ export class AuditLogService {
 
     // Get actions by type
     const actionsByTypeRaw = await this.prisma.activityLog.groupBy({
-      by: ['action'],
+      by: ["action"],
       where,
       _count: { action: true },
-      orderBy: { _count: { action: 'desc' } },
+      orderBy: { _count: { action: "desc" } },
       take: 10,
     });
 
-    const actionsByType = actionsByTypeRaw.map(item => ({
+    const actionsByType = actionsByTypeRaw.map((item) => ({
       action: item.action,
       count: item._count.action,
     }));
 
     // Get actions by user (top 10)
     const actionsByUserRaw = await this.prisma.activityLog.groupBy({
-      by: ['userId'],
+      by: ["userId"],
       where: { ...where, userId: { not: null } },
       _count: { userId: true },
-      orderBy: { _count: { userId: 'desc' } },
+      orderBy: { _count: { userId: "desc" } },
       take: 10,
     });
 
     // Get user details
-    const userIds = actionsByUserRaw.map(item => item.userId).filter(Boolean) as string[];
+    const userIds = actionsByUserRaw
+      .map((item) => item.userId)
+      .filter(Boolean) as string[];
     const users = await this.prisma.user.findMany({
       where: { id: { in: userIds } },
       select: { id: true, firstName: true, lastName: true },
     });
 
-    const userMap = new Map(users.map(u => [u.id, `${u.firstName} ${u.lastName}`]));
+    const userMap = new Map(
+      users.map((u) => [u.id, `${u.firstName} ${u.lastName}`]),
+    );
 
-    const actionsByUser = actionsByUserRaw.map(item => ({
-      userId: item.userId || '',
-      userName: userMap.get(item.userId || '') || 'Unknown',
+    const actionsByUser = actionsByUserRaw.map((item) => ({
+      userId: item.userId || "",
+      userName: userMap.get(item.userId || "") || "Unknown",
       count: item._count.userId,
     }));
 
@@ -262,7 +278,9 @@ export class AuditLogService {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    const actionsOverTimeRaw = await this.prisma.$queryRaw<{ date: Date; count: bigint }[]>`
+    const actionsOverTimeRaw = await this.prisma.$queryRaw<
+      { date: Date; count: bigint }[]
+    >`
       SELECT DATE(created_at) as date, COUNT(*) as count
       FROM activity_logs
       WHERE created_at >= ${thirtyDaysAgo}
@@ -270,8 +288,8 @@ export class AuditLogService {
       ORDER BY date ASC
     `;
 
-    const actionsOverTime = actionsOverTimeRaw.map(item => ({
-      date: item.date.toISOString().split('T')[0],
+    const actionsOverTime = actionsOverTimeRaw.map((item) => ({
+      date: item.date.toISOString().split("T")[0],
       count: Number(item.count),
     }));
 
@@ -290,19 +308,31 @@ export class AuditLogService {
   ): Promise<string> {
     const { data } = await this.getLogs(tenantId, filters, 1, 10000);
 
-    const headers = ['Timestamp', 'Action', 'Description', 'User', 'Email', 'Application ID', 'Candidate ID'].join(',');
+    const headers = [
+      "Timestamp",
+      "Action",
+      "Description",
+      "User",
+      "Email",
+      "Application ID",
+      "Candidate ID",
+    ].join(",");
 
-    const rows = data.map(log => [
-      log.createdAt.toISOString(),
-      log.action,
-      log.description || '',
-      log.userName || '',
-      log.userEmail || '',
-      log.applicationId || '',
-      log.candidateId || '',
-    ].map(val => `"${val}"`).join(','));
+    const rows = data.map((log) =>
+      [
+        log.createdAt.toISOString(),
+        log.action,
+        log.description || "",
+        log.userName || "",
+        log.userEmail || "",
+        log.applicationId || "",
+        log.candidateId || "",
+      ]
+        .map((val) => `"${val}"`)
+        .join(","),
+    );
 
-    return [headers, ...rows].join('\n');
+    return [headers, ...rows].join("\n");
   }
 
   // Log an action (utility method for other services)
@@ -326,7 +356,7 @@ export class AuditLogService {
         },
       });
     } catch (error) {
-      this.logger.error('Failed to log action:', error);
+      this.logger.error("Failed to log action:", error);
     }
   }
 }

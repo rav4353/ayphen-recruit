@@ -1,5 +1,6 @@
-import { SetMetadata } from '@nestjs/common';
-import { Permission } from '../../../common/constants/permissions';
+import { SetMetadata } from "@nestjs/common";
+import { Permission } from "../../../common/constants/permissions";
 
-export const PERMISSIONS_KEY = 'permissions';
-export const RequirePermissions = (...permissions: Permission[]) => SetMetadata(PERMISSIONS_KEY, permissions);
+export const PERMISSIONS_KEY = "permissions";
+export const RequirePermissions = (...permissions: Permission[]) =>
+  SetMetadata(PERMISSIONS_KEY, permissions);

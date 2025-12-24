@@ -1,10 +1,14 @@
-import { Injectable, UnauthorizedException, ForbiddenException } from '@nestjs/common';
-import { PassportStrategy } from '@nestjs/passport';
-import { ExtractJwt, Strategy } from 'passport-jwt';
-import { ConfigService } from '@nestjs/config';
-import { JwtPayload } from '../auth.service';
-import { UsersService } from '../../users/users.service';
-import { PrismaService } from '../../../prisma/prisma.service';
+import {
+  Injectable,
+  UnauthorizedException,
+  ForbiddenException,
+} from "@nestjs/common";
+import { PassportStrategy } from "@nestjs/passport";
+import { ExtractJwt, Strategy } from "passport-jwt";
+import { ConfigService } from "@nestjs/config";
+import { JwtPayload } from "../auth.service";
+import { UsersService } from "../../users/users.service";
+import { PrismaService } from "../../../prisma/prisma.service";
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -16,15 +20,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>('JWT_SECRET'),
+      secretOrKey: configService.get<string>("JWT_SECRET"),
     });
   }
 
   async validate(payload: JwtPayload) {
     try {
       const user = await this.usersService.findById(payload.sub);
-      if (!user || user.status !== 'ACTIVE') {
-        throw new UnauthorizedException('User not found or inactive');
+      if (!user || user.status !== "ACTIVE") {
+        throw new UnauthorizedException("User not found or inactive");
       }
 
       // CRITICAL: Check tenant status - block suspended/inactive tenants
@@ -35,16 +39,20 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         });
 
         if (!tenant) {
-          throw new ForbiddenException('Organization not found');
+          throw new ForbiddenException("Organization not found");
         }
 
         // Check tenant status (stored as string in DB)
         const tenantStatus = (tenant as any).status;
-        if (tenantStatus === 'SUSPENDED') {
-          throw new ForbiddenException('Your organization has been suspended. Please contact support.');
+        if (tenantStatus === "SUSPENDED") {
+          throw new ForbiddenException(
+            "Your organization has been suspended. Please contact support.",
+          );
         }
-        if (tenantStatus === 'INACTIVE' || tenantStatus === 'DELETED') {
-          throw new ForbiddenException('Your organization is no longer active. Please contact support.');
+        if (tenantStatus === "INACTIVE" || tenantStatus === "DELETED") {
+          throw new ForbiddenException(
+            "Your organization is no longer active. Please contact support.",
+          );
         }
       }
 
@@ -59,7 +67,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       if (error instanceof ForbiddenException) {
         throw error;
       }
-      throw new UnauthorizedException('User not found or inactive');
+      throw new UnauthorizedException("User not found or inactive");
     }
   }
 }

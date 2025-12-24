@@ -1,17 +1,17 @@
-import { IsString, IsNotEmpty, IsIP, IsOptional } from 'class-validator';
+import { IsString, IsNotEmpty, IsIP, IsOptional } from "class-validator";
 
 export class BlockIpDto {
-    @IsIP()
-    @IsNotEmpty()
-    ipAddress: string;
+  @IsIP()
+  @IsNotEmpty()
+  ipAddress: string;
 
-    @IsString()
-    @IsNotEmpty()
-    reason: string;
+  @IsString()
+  @IsNotEmpty()
+  reason: string;
 }
 
 export class ResolveAlertDto {
-    @IsString()
-    @IsOptional()
-    status?: string;
+  @IsString()
+  @IsOptional()
+  status?: string;
 }

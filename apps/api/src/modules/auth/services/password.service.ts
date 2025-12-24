@@ -3,16 +3,16 @@ import {
   BadRequestException,
   NotFoundException,
   UnauthorizedException,
-} from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import * as bcrypt from 'bcrypt';
-import { v4 as uuidv4 } from 'uuid';
-import { PrismaService } from '../../../prisma/prisma.service';
-import { UsersService } from '../../users/users.service';
-import { EmailService } from '../../../common/services/email.service';
-import { ForgotPasswordDto } from '../dto/forgot-password.dto';
-import { ResetPasswordDto } from '../dto/reset-password.dto';
-import { ChangePasswordDto } from '../dto/change-password.dto';
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import * as bcrypt from "bcrypt";
+import { v4 as uuidv4 } from "uuid";
+import { PrismaService } from "../../../prisma/prisma.service";
+import { UsersService } from "../../users/users.service";
+import { EmailService } from "../../../common/services/email.service";
+import { ForgotPasswordDto } from "../dto/forgot-password.dto";
+import { ResetPasswordDto } from "../dto/reset-password.dto";
+import { ChangePasswordDto } from "../dto/change-password.dto";
 
 @Injectable()
 export class PasswordService {
@@ -24,9 +24,11 @@ export class PasswordService {
     private readonly usersService: UsersService,
     private readonly configService: ConfigService,
     private readonly emailService: EmailService,
-  ) { }
+  ) {}
 
-  async requestPasswordReset(dto: ForgotPasswordDto): Promise<{ message: string }> {
+  async requestPasswordReset(
+    dto: ForgotPasswordDto,
+  ): Promise<{ message: string }> {
     let user;
     if (dto.tenantId) {
       user = await this.usersService.findByEmail(dto.email, dto.tenantId);
@@ -42,7 +44,9 @@ export class PasswordService {
 
     // Always return success to prevent email enumeration
     if (!user) {
-      return { message: 'If an account exists, a password reset link has been sent' };
+      return {
+        message: "If an account exists, a password reset link has been sent",
+      };
     }
 
     // Invalidate any existing reset tokens
@@ -65,17 +69,19 @@ export class PasswordService {
     });
 
     // Send email with reset link
-    const resetLink = `${this.configService.get('WEB_URL') || 'http://localhost:3000'}/auth/reset-password?token=${token}`;
+    const resetLink = `${this.configService.get("WEB_URL") || "http://localhost:3000"}/auth/reset-password?token=${token}`;
 
     // Send password reset email without blocking the response
     this.emailService
       .sendPasswordResetEmail(user.email, resetLink)
       .catch((err) => {
         // Log but do not fail the request for email issues
-        console.error('Failed to send password reset email', err);
+        console.error("Failed to send password reset email", err);
       });
 
-    return { message: 'If an account exists, a password reset link has been sent' };
+    return {
+      message: "If an account exists, a password reset link has been sent",
+    };
   }
 
   async resetPassword(dto: ResetPasswordDto): Promise<{ message: string }> {
@@ -85,19 +91,22 @@ export class PasswordService {
     });
 
     if (!resetToken) {
-      throw new BadRequestException('Invalid or expired reset token');
+      throw new BadRequestException("Invalid or expired reset token");
     }
 
     if (resetToken.usedAt) {
-      throw new BadRequestException('This reset link has already been used');
+      throw new BadRequestException("This reset link has already been used");
     }
 
     if (resetToken.expiresAt < new Date()) {
-      throw new BadRequestException('This reset link has expired');
+      throw new BadRequestException("This reset link has expired");
     }
 
     // Check password history
-    const isReused = await this.isPasswordReused(resetToken.userId, dto.newPassword);
+    const isReused = await this.isPasswordReused(
+      resetToken.userId,
+      dto.newPassword,
+    );
     if (isReused) {
       throw new BadRequestException(
         `New password cannot be the same as your last ${this.PASSWORD_HISTORY_COUNT} passwords`,
@@ -105,8 +114,7 @@ export class PasswordService {
     }
 
     // Hash new password
-    const saltRounds =
-      Number(this.configService.get('BCRYPT_ROUNDS')) || 12;
+    const saltRounds = Number(this.configService.get("BCRYPT_ROUNDS")) || 12;
     const passwordHash = await bcrypt.hash(dto.newPassword, saltRounds);
 
     // Update password and mark token as used
@@ -138,22 +146,28 @@ export class PasswordService {
       }),
     ]);
 
-    return { message: 'Password has been reset successfully' };
+    return { message: "Password has been reset successfully" };
   }
 
-  async changePassword(userId: string, dto: ChangePasswordDto): Promise<{ message: string }> {
+  async changePassword(
+    userId: string,
+    dto: ChangePasswordDto,
+  ): Promise<{ message: string }> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
     });
 
     if (!user || !user.passwordHash) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException("User not found");
     }
 
     // Verify current password
-    const isCurrentPasswordValid = await bcrypt.compare(dto.currentPassword, user.passwordHash);
+    const isCurrentPasswordValid = await bcrypt.compare(
+      dto.currentPassword,
+      user.passwordHash,
+    );
     if (!isCurrentPasswordValid) {
-      throw new UnauthorizedException('Current password is incorrect');
+      throw new UnauthorizedException("Current password is incorrect");
     }
 
     // Check password history
@@ -189,14 +203,17 @@ export class PasswordService {
       }),
     ]);
 
-    return { message: 'Password changed successfully' };
+    return { message: "Password changed successfully" };
   }
 
-  private async isPasswordReused(userId: string, newPassword: string): Promise<boolean> {
+  private async isPasswordReused(
+    userId: string,
+    newPassword: string,
+  ): Promise<boolean> {
     // Get last N passwords from history
     const passwordHistory = await this.prisma.passwordHistory.findMany({
       where: { userId },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
       take: this.PASSWORD_HISTORY_COUNT,
     });
 
@@ -227,19 +244,21 @@ export class PasswordService {
     const errors: string[] = [];
 
     if (password.length < 8) {
-      errors.push('Password must be at least 8 characters long');
+      errors.push("Password must be at least 8 characters long");
     }
     if (!/[a-z]/.test(password)) {
-      errors.push('Password must contain at least one lowercase letter');
+      errors.push("Password must contain at least one lowercase letter");
     }
     if (!/[A-Z]/.test(password)) {
-      errors.push('Password must contain at least one uppercase letter');
+      errors.push("Password must contain at least one uppercase letter");
     }
     if (!/\d/.test(password)) {
-      errors.push('Password must contain at least one number');
+      errors.push("Password must contain at least one number");
     }
     if (!/[@$!%*?&]/.test(password)) {
-      errors.push('Password must contain at least one special character (@$!%*?&)');
+      errors.push(
+        "Password must contain at least one special character (@$!%*?&)",
+      );
     }
 
     return {

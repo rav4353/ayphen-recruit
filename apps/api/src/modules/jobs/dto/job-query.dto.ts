@@ -1,11 +1,31 @@
-import { IsOptional, IsString, IsIn } from 'class-validator';
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { PaginationDto } from '../../../common/dto/pagination.dto';
+import { IsOptional, IsString, IsIn } from "class-validator";
+import { ApiPropertyOptional } from "@nestjs/swagger";
+import { PaginationDto } from "../../../common/dto/pagination.dto";
 
 export class JobQueryDto extends PaginationDto {
-  @ApiPropertyOptional({ enum: ['DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'OPEN', 'ON_HOLD', 'CLOSED', 'CANCELLED'] })
+  @ApiPropertyOptional({
+    enum: [
+      "DRAFT",
+      "PENDING_APPROVAL",
+      "APPROVED",
+      "REJECTED",
+      "OPEN",
+      "ON_HOLD",
+      "CLOSED",
+      "CANCELLED",
+    ],
+  })
   @IsOptional()
-  @IsIn(['DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'OPEN', 'ON_HOLD', 'CLOSED', 'CANCELLED'])
+  @IsIn([
+    "DRAFT",
+    "PENDING_APPROVAL",
+    "APPROVED",
+    "REJECTED",
+    "OPEN",
+    "ON_HOLD",
+    "CLOSED",
+    "CANCELLED",
+  ])
   status?: string;
 
   @ApiPropertyOptional()
@@ -18,14 +38,16 @@ export class JobQueryDto extends PaginationDto {
   @IsString()
   locationId?: string;
 
-  @ApiPropertyOptional({ enum: ['FULL_TIME', 'PART_TIME', 'CONTRACT', 'INTERNSHIP', 'TEMPORARY'] })
+  @ApiPropertyOptional({
+    enum: ["FULL_TIME", "PART_TIME", "CONTRACT", "INTERNSHIP", "TEMPORARY"],
+  })
   @IsOptional()
-  @IsIn(['FULL_TIME', 'PART_TIME', 'CONTRACT', 'INTERNSHIP', 'TEMPORARY'])
+  @IsIn(["FULL_TIME", "PART_TIME", "CONTRACT", "INTERNSHIP", "TEMPORARY"])
   employmentType?: string;
 
-  @ApiPropertyOptional({ enum: ['ONSITE', 'REMOTE', 'HYBRID'] })
+  @ApiPropertyOptional({ enum: ["ONSITE", "REMOTE", "HYBRID"] })
   @IsOptional()
-  @IsIn(['ONSITE', 'REMOTE', 'HYBRID'])
+  @IsIn(["ONSITE", "REMOTE", "HYBRID"])
   workLocation?: string;
 
   @ApiPropertyOptional()
@@ -38,8 +60,8 @@ export class JobQueryDto extends PaginationDto {
   @IsString()
   sortBy?: string;
 
-  @ApiPropertyOptional({ enum: ['asc', 'desc'] })
+  @ApiPropertyOptional({ enum: ["asc", "desc"] })
   @IsOptional()
-  @IsIn(['asc', 'desc'])
-  sortOrder?: 'asc' | 'desc';
+  @IsIn(["asc", "desc"])
+  sortOrder?: "asc" | "desc";
 }

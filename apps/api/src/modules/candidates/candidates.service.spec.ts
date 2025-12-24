@@ -1,10 +1,10 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { CandidatesService } from './candidates.service';
-import { PrismaService } from '../../prisma/prisma.service';
-import { EmailService } from '../../common/services/email.service';
-import { SkillsService } from '../reference/skills.service';
+import { Test, TestingModule } from "@nestjs/testing";
+import { CandidatesService } from "./candidates.service";
+import { PrismaService } from "../../prisma/prisma.service";
+import { EmailService } from "../../common/services/email.service";
+import { SkillsService } from "../reference/skills.service";
 
-describe('CandidatesService', () => {
+describe("CandidatesService", () => {
   let service: CandidatesService;
 
   const mockPrismaService = {
@@ -30,7 +30,9 @@ describe('CandidatesService', () => {
   };
 
   const mockSkillsService = {
-    normalizeSkills: jest.fn().mockImplementation((skills) => Promise.resolve(skills)),
+    normalizeSkills: jest
+      .fn()
+      .mockImplementation((skills) => Promise.resolve(skills)),
   };
 
   beforeEach(async () => {
@@ -50,55 +52,69 @@ describe('CandidatesService', () => {
     jest.clearAllMocks();
   });
 
-  it('should be defined', () => {
+  it("should be defined", () => {
     expect(service).toBeDefined();
   });
 
-  describe('findAll', () => {
-    it('should return paginated candidates', async () => {
+  describe("findAll", () => {
+    it("should return paginated candidates", async () => {
       const mockCandidates = [
-        { id: '1', firstName: 'John', lastName: 'Doe', email: 'john@example.com', applications: [], _count: { applications: 0 } },
-        { id: '2', firstName: 'Jane', lastName: 'Smith', email: 'jane@example.com', applications: [], _count: { applications: 0 } },
+        {
+          id: "1",
+          firstName: "John",
+          lastName: "Doe",
+          email: "john@example.com",
+          applications: [],
+          _count: { applications: 0 },
+        },
+        {
+          id: "2",
+          firstName: "Jane",
+          lastName: "Smith",
+          email: "jane@example.com",
+          applications: [],
+          _count: { applications: 0 },
+        },
       ];
 
       mockPrismaService.candidate.findMany.mockResolvedValue(mockCandidates);
       mockPrismaService.candidate.count.mockResolvedValue(2);
 
-      const result = await service.findAll('tenant-1', {});
+      const result = await service.findAll("tenant-1", {});
 
       expect(mockPrismaService.candidate.findMany).toHaveBeenCalled();
       expect(result.candidates).toHaveLength(2);
     });
 
-    it('should apply search filter', async () => {
+    it("should apply search filter", async () => {
       mockPrismaService.candidate.findMany.mockResolvedValue([]);
       mockPrismaService.candidate.count.mockResolvedValue(0);
 
-      await service.findAll('tenant-1', { search: 'john' });
+      await service.findAll("tenant-1", { search: "john" });
 
       expect(mockPrismaService.candidate.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
-            tenantId: 'tenant-1',
+            tenantId: "tenant-1",
           }),
         }),
       );
     });
   });
 
-  describe('create', () => {
-    it('should create a new candidate', async () => {
+  describe("create", () => {
+    it("should create a new candidate", async () => {
       const createDto = {
-        firstName: 'John',
-        lastName: 'Doe',
-        email: 'john@example.com',
+        firstName: "John",
+        lastName: "Doe",
+        email: "john@example.com",
       };
 
       const mockCreated = {
-        id: '1',
-        candidateId: 'CAND-123456',
+        id: "1",
+        candidateId: "CAND-123456",
         ...createDto,
-        tenantId: 'tenant-1',
+        tenantId: "tenant-1",
         createdAt: new Date(),
       };
 
@@ -106,25 +122,27 @@ describe('CandidatesService', () => {
       mockPrismaService.candidate.create.mockResolvedValue(mockCreated);
       mockPrismaService.activityLog.create.mockResolvedValue({});
 
-      const result = await service.create(createDto as any, 'tenant-1');
+      const result = await service.create(createDto as any, "tenant-1");
 
       expect(mockPrismaService.candidate.create).toHaveBeenCalled();
-      expect(result.email).toBe('john@example.com');
+      expect(result.email).toBe("john@example.com");
     });
 
-    it('should throw ConflictException for duplicate email', async () => {
+    it("should throw ConflictException for duplicate email", async () => {
       const createDto = {
-        firstName: 'John',
-        lastName: 'Doe',
-        email: 'existing@example.com',
+        firstName: "John",
+        lastName: "Doe",
+        email: "existing@example.com",
       };
 
       mockPrismaService.candidate.findFirst.mockResolvedValue({
-        id: '1',
-        email: 'existing@example.com',
+        id: "1",
+        email: "existing@example.com",
       });
 
-      await expect(service.create(createDto as any, 'tenant-1')).rejects.toThrow();
+      await expect(
+        service.create(createDto as any, "tenant-1"),
+      ).rejects.toThrow();
     });
   });
 });

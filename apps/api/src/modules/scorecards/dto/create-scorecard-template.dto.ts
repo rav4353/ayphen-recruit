@@ -1,15 +1,21 @@
-import { IsString, IsNotEmpty, IsArray, IsOptional, IsBoolean } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsArray,
+  IsOptional,
+  IsBoolean,
+} from "class-validator";
 
 export class CreateScorecardTemplateDto {
-    @IsString()
-    @IsNotEmpty()
-    name: string;
+  @IsString()
+  @IsNotEmpty()
+  name: string;
 
-    @IsArray()
-    @IsNotEmpty()
-    sections: any[];
+  @IsArray()
+  @IsNotEmpty()
+  sections: any[];
 
-    @IsBoolean()
-    @IsOptional()
-    isActive?: boolean;
+  @IsBoolean()
+  @IsOptional()
+  isActive?: boolean;
 }

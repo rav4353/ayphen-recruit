@@ -1,75 +1,92 @@
-import { Controller, Post, UseInterceptors, UploadedFile, UseGuards, ParseFilePipe, MaxFileSizeValidator, FileTypeValidator } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
-import 'multer';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiConsumes, ApiBody } from '@nestjs/swagger';
-import { StorageService } from './storage.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { ApiResponse } from '../../common/dto/api-response.dto';
-import { Public } from '../auth/decorators/public.decorator';
+import {
+  Controller,
+  Post,
+  UseInterceptors,
+  UploadedFile,
+  UseGuards,
+  ParseFilePipe,
+  MaxFileSizeValidator,
+  FileTypeValidator,
+} from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
+import "multer";
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiConsumes,
+  ApiBody,
+} from "@nestjs/swagger";
+import { StorageService } from "./storage.service";
+import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import { ApiResponse } from "../../common/dto/api-response.dto";
+import { Public } from "../auth/decorators/public.decorator";
 
-@ApiTags('storage')
-@Controller('storage')
+@ApiTags("storage")
+@Controller("storage")
 export class StorageController {
-    constructor(private readonly storageService: StorageService) { }
+  constructor(private readonly storageService: StorageService) {}
 
-    @Post('upload')
-    @UseGuards(JwtAuthGuard)
-    @ApiBearerAuth()
-    @UseInterceptors(FileInterceptor('file'))
-    @ApiOperation({ summary: 'Upload a file (authenticated)' })
-    @ApiConsumes('multipart/form-data')
-    @ApiBody({
-        schema: {
-            type: 'object',
-            properties: {
-                file: {
-                    type: 'string',
-                    format: 'binary',
-                },
-            },
+  @Post("upload")
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @UseInterceptors(FileInterceptor("file"))
+  @ApiOperation({ summary: "Upload a file (authenticated)" })
+  @ApiConsumes("multipart/form-data")
+  @ApiBody({
+    schema: {
+      type: "object",
+      properties: {
+        file: {
+          type: "string",
+          format: "binary",
         },
-    })
-    async uploadFile(
-        @UploadedFile(
-            new ParseFilePipe({
-                validators: [
-                    new MaxFileSizeValidator({ maxSize: 5 * 1024 * 1024 }), // 5MB
-                ],
-            }),
-        )
-        file: Express.Multer.File,
-    ) {
-        const result = await this.storageService.uploadFile(file);
-        return ApiResponse.success(result, 'File uploaded successfully');
-    }
+      },
+    },
+  })
+  async uploadFile(
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 5 * 1024 * 1024 }), // 5MB
+        ],
+      }),
+    )
+    file: Express.Multer.File,
+  ) {
+    const result = await this.storageService.uploadFile(file);
+    return ApiResponse.success(result, "File uploaded successfully");
+  }
 
-    @Public()
-    @Post('upload/public')
-    @UseInterceptors(FileInterceptor('file'))
-    @ApiOperation({ summary: 'Upload a resume file (public - for job applications)' })
-    @ApiConsumes('multipart/form-data')
-    @ApiBody({
-        schema: {
-            type: 'object',
-            properties: {
-                file: {
-                    type: 'string',
-                    format: 'binary',
-                },
-            },
+  @Public()
+  @Post("upload/public")
+  @UseInterceptors(FileInterceptor("file"))
+  @ApiOperation({
+    summary: "Upload a resume file (public - for job applications)",
+  })
+  @ApiConsumes("multipart/form-data")
+  @ApiBody({
+    schema: {
+      type: "object",
+      properties: {
+        file: {
+          type: "string",
+          format: "binary",
         },
-    })
-    async uploadPublicFile(
-        @UploadedFile(
-            new ParseFilePipe({
-                validators: [
-                    new MaxFileSizeValidator({ maxSize: 10 * 1024 * 1024 }), // 10MB for resumes
-                ],
-            }),
-        )
-        file: Express.Multer.File,
-    ) {
-        const result = await this.storageService.uploadFile(file);
-        return ApiResponse.success(result, 'File uploaded successfully');
-    }
+      },
+    },
+  })
+  async uploadPublicFile(
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 10 * 1024 * 1024 }), // 10MB for resumes
+        ],
+      }),
+    )
+    file: Express.Multer.File,
+  ) {
+    const result = await this.storageService.uploadFile(file);
+    return ApiResponse.success(result, "File uploaded successfully");
+  }
 }

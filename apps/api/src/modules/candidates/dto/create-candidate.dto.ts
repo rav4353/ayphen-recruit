@@ -1,50 +1,56 @@
-import { IsEmail, IsString, IsOptional, IsArray, IsBoolean } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  IsEmail,
+  IsString,
+  IsOptional,
+  IsArray,
+  IsBoolean,
+} from "class-validator";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 export class CreateCandidateDto {
-  @ApiProperty({ example: 'john@example.com' })
+  @ApiProperty({ example: "john@example.com" })
   @IsEmail()
   email: string;
 
-  @ApiProperty({ example: 'John' })
+  @ApiProperty({ example: "John" })
   @IsString()
   firstName: string;
 
-  @ApiProperty({ example: 'Doe' })
+  @ApiProperty({ example: "Doe" })
   @IsString()
   lastName: string;
 
-  @ApiPropertyOptional({ example: 'CAND-001' })
+  @ApiPropertyOptional({ example: "CAND-001" })
   @IsOptional()
   @IsString()
   candidateId?: string;
 
-  @ApiPropertyOptional({ example: '+1234567890' })
+  @ApiPropertyOptional({ example: "+1234567890" })
   @IsOptional()
   @IsString()
   phone?: string;
 
-  @ApiPropertyOptional({ example: 'https://linkedin.com/in/johndoe' })
+  @ApiPropertyOptional({ example: "https://linkedin.com/in/johndoe" })
   @IsOptional()
   @IsString()
   linkedinUrl?: string;
 
-  @ApiPropertyOptional({ example: 'https://johndoe.com' })
+  @ApiPropertyOptional({ example: "https://johndoe.com" })
   @IsOptional()
   @IsString()
   portfolioUrl?: string;
 
-  @ApiPropertyOptional({ example: 'Senior Developer' })
+  @ApiPropertyOptional({ example: "Senior Developer" })
   @IsOptional()
   @IsString()
   currentTitle?: string;
 
-  @ApiPropertyOptional({ example: 'Tech Corp' })
+  @ApiPropertyOptional({ example: "Tech Corp" })
   @IsOptional()
   @IsString()
   currentCompany?: string;
 
-  @ApiPropertyOptional({ example: 'San Francisco, CA' })
+  @ApiPropertyOptional({ example: "San Francisco, CA" })
   @IsOptional()
   @IsString()
   location?: string;
@@ -54,13 +60,13 @@ export class CreateCandidateDto {
   @IsString()
   summary?: string;
 
-  @ApiPropertyOptional({ example: ['TypeScript', 'React', 'Node.js'] })
+  @ApiPropertyOptional({ example: ["TypeScript", "React", "Node.js"] })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
   skills?: string[];
 
-  @ApiPropertyOptional({ example: 'LinkedIn' })
+  @ApiPropertyOptional({ example: "LinkedIn" })
   @IsOptional()
   @IsString()
   source?: string;
@@ -70,7 +76,7 @@ export class CreateCandidateDto {
   @IsBoolean()
   gdprConsent?: boolean;
 
-  @ApiPropertyOptional({ example: ['senior', 'frontend'] })
+  @ApiPropertyOptional({ example: ["senior", "frontend"] })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
@@ -95,4 +101,9 @@ export class CreateCandidateDto {
   @IsOptional()
   @IsString()
   referrerId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  avatarUrl?: string;
 }

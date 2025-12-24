@@ -113,6 +113,7 @@ export interface JobApproval {
   order: number;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   comment?: string;
+  rejectionReason?: string;
   approvedAt?: string;
   approverId: string;
   approver?: User;
@@ -132,6 +133,7 @@ export interface Candidate {
   linkedinUrl?: string;
   portfolioUrl?: string;
   resumeUrl?: string;
+  avatarUrl?: string;
   source?: string;
   tags: string[];
   skills?: string[];
@@ -165,8 +167,23 @@ export interface PipelineStage {
   pipelineId: string;
 }
 
+export interface ApplicationDocument {
+  id: string;
+  title: string;
+  description?: string;
+  isRequired: boolean;
+  status: 'REQUESTED' | 'UPLOADED' | 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED';
+  documentUrl?: string;
+  rejectionReason?: string;
+  uploadedAt?: string;
+  reviewedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Application {
   id: string;
+  applicationId?: string; // Custom display ID (e.g., APP-000001)
   status: ApplicationStatus;
   candidateId: string;
   candidate?: Candidate;
@@ -181,6 +198,7 @@ export interface Application {
   appliedAt: string;
   createdAt: string;
   updatedAt: string;
+  documents?: ApplicationDocument[];
 }
 
 // Enums
@@ -188,6 +206,7 @@ export type JobStatus =
   | 'DRAFT'
   | 'PENDING_APPROVAL'
   | 'APPROVED'
+  | 'REJECTED'
   | 'OPEN'
   | 'ON_HOLD'
   | 'CLOSED'

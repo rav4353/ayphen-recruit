@@ -7,6 +7,7 @@ import { AdminDashboard } from '../../components/dashboard/AdminDashboard';
 import { CandidateDashboard } from '../../components/dashboard/CandidateDashboard';
 import { AnnouncementsWidget } from '../../components/dashboard/AnnouncementsWidget';
 import { Sparkles, Sun, Moon, Sunset } from 'lucide-react';
+import { ConfigurationWarning } from '../../components/common/ConfigurationWarning';
 
 const getGreeting = () => {
     const hour = new Date().getHours();
@@ -83,6 +84,9 @@ export const DashboardPage = () => {
                     </div>
                 </div>
             </motion.div>
+
+            {/* Configuration Warning */}
+            <ConfigurationWarning />
 
             {/* Announcements */}
             <AnnouncementsWidget />

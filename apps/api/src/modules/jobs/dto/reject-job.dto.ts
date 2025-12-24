@@ -1,9 +1,9 @@
-import { IsNotEmpty, IsString } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { IsNotEmpty, IsString } from "class-validator";
+import { ApiProperty } from "@nestjs/swagger";
 
 export class RejectJobDto {
-    @ApiProperty({ description: 'Reason for rejection' })
-    @IsNotEmpty()
-    @IsString()
-    reason: string;
+  @ApiProperty({ description: "Reason for rejection" })
+  @IsNotEmpty()
+  @IsString()
+  reason: string;
 }

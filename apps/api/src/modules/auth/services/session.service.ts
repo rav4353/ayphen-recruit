@@ -1,10 +1,7 @@
-import {
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { v4 as uuidv4 } from 'uuid';
-import { PrismaService } from '../../../prisma/prisma.service';
+import { Injectable, UnauthorizedException } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { v4 as uuidv4 } from "uuid";
+import { PrismaService } from "../../../prisma/prisma.service";
 
 export interface SessionInfo {
   id: string;
@@ -111,7 +108,7 @@ export class SessionService {
     });
 
     if (!session || session.expiresAt < new Date()) {
-      throw new UnauthorizedException('Session expired');
+      throw new UnauthorizedException("Session expired");
     }
 
     const timeoutMinutes = session.user?.role
@@ -132,13 +129,16 @@ export class SessionService {
     return { expiresAt };
   }
 
-  async getUserSessions(userId: string, currentSessionToken?: string): Promise<SessionInfo[]> {
+  async getUserSessions(
+    userId: string,
+    currentSessionToken?: string,
+  ): Promise<SessionInfo[]> {
     const sessions = await this.prisma.userSession.findMany({
       where: {
         userId,
         expiresAt: { gt: new Date() },
       },
-      orderBy: { lastActiveAt: 'desc' },
+      orderBy: { lastActiveAt: "desc" },
     });
 
     return sessions.map((session) => ({
@@ -160,7 +160,10 @@ export class SessionService {
     });
   }
 
-  async terminateAllSessions(userId: string, exceptSessionToken?: string): Promise<void> {
+  async terminateAllSessions(
+    userId: string,
+    exceptSessionToken?: string,
+  ): Promise<void> {
     await this.prisma.userSession.deleteMany({
       where: {
         userId,
@@ -172,11 +175,13 @@ export class SessionService {
   }
 
   async terminateSessionByToken(sessionToken: string): Promise<void> {
-    await this.prisma.userSession.delete({
-      where: { sessionToken },
-    }).catch(() => {
-      // Session might already be deleted
-    });
+    await this.prisma.userSession
+      .delete({
+        where: { sessionToken },
+      })
+      .catch(() => {
+        // Session might already be deleted
+      });
   }
 
   async cleanupExpiredSessions(): Promise<number> {

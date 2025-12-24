@@ -39,6 +39,7 @@ enum JobStatus {
   DRAFT
   PENDING_APPROVAL
   APPROVED
+  REJECTED
   OPEN
   ON_HOLD
   CLOSED
@@ -80,6 +81,7 @@ enum InterviewType {
 }
 
 enum InterviewStatus {
+  PENDING_CONFIRMATION
   SCHEDULED
   CONFIRMED
   COMPLETED
@@ -184,6 +186,7 @@ model User {
 
   // Job Approvals
   jobApprovals JobApproval[] @relation("JobApprover")
+  jobEdits     JobPendingEdit[] @relation("JobEditor")
 
   // Offer Approvals
   offerApprovals OfferApproval[] @relation("OfferApprover")
@@ -484,6 +487,7 @@ model Job {
 
   applications Application[]
   approvals    JobApproval[]
+  pendingEdits JobPendingEdit[]
 
   scorecardTemplateId String?
   scorecardTemplate   ScorecardTemplate? @relation(fields: [scorecardTemplateId], references: [id])
@@ -559,13 +563,17 @@ model OfferTemplate {
 }
 
 model JobApproval {
-  id         String    @id @default(uuid())
-  order      Int
-  status     String    @default("PENDING") // PENDING, APPROVED, REJECTED
-  comment    String?
-  approvedAt DateTime?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  id                  String    @id @default(uuid())
+  order               Int
+  status              String    @default("PENDING") // PENDING, APPROVED, REJECTED
+  comment             String?   // Approver's comment when reviewing
+  rejectionReason     String?   // Reason for rejection
+  resubmissionComment String?   // Comment added when resubmitting after rejection
+  approvedAt          DateTime?
+  rejectedAt          DateTime?
+  reviewedAt          DateTime? // When the approval was last reviewed
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   jobId      String
   job        Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
@@ -574,6 +582,30 @@ model JobApproval {
 
   @@index([jobId])
   @@map("job_approvals")
+}
+
+// Stores pending edits for approved jobs that require re-approval
+model JobPendingEdit {
+  id              String    @id @default(uuid())
+  status          String    @default("PENDING") // PENDING, APPROVED, REJECTED
+  fieldName       String    // The field that was edited
+  oldValue        Json?     // Previous value (stored as JSON for flexibility)
+  newValue        Json?     // New proposed value
+  comment         String?   // Comment from the editor explaining the change
+  rejectionReason String?   // Reason for rejection if rejected
+  reviewedAt      DateTime?
+  reviewedBy      String?   // User who reviewed the edit
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  jobId    String
+  job      Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  editorId String
+  editor   User   @relation("JobEditor", fields: [editorId], references: [id])
+
+  @@index([jobId])
+  @@index([status])
+  @@map("job_pending_edits")
 }
 
 // ============================================
@@ -598,6 +630,7 @@ model Candidate {
   education      Json?    // Structured education
   customFieldValues Json? // Custom field values from settings
   resumeUrl      String?
+  avatarUrl      String?
   resumeText     String?  @db.Text
   source         String?  // Where they came from
   sourceDetails  String?
@@ -670,6 +703,7 @@ model ApplicationDocument {
 
 model Application {
   id               String            @id @default(uuid())
+  applicationId    String?           // Custom display ID (e.g., APP-000001)
   status           ApplicationStatus @default(APPLIED)
   matchScore       Float?
   matchSummary     String?           @db.Text
@@ -706,6 +740,7 @@ model Application {
   @@index([jobId])
   @@index([candidateId])
   @@index([status])
+  @@index([applicationId])
   @@map("applications")
 }
 
@@ -795,6 +830,7 @@ model Interview {
   
   // Calendar Integration
   calendarEvents CalendarEvent[]
+  confirmationToken String? @unique
 
   @@index([applicationId])
   @@index([interviewerId])

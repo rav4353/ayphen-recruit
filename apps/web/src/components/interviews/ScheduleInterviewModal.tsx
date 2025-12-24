@@ -6,6 +6,7 @@ import { Button, Input, Select, SelectContent, SelectItem, SelectTrigger, Select
 import { interviewsApi, usersApi, videoMeetingsApi } from '../../lib/api';
 import { User, InterviewType } from '../../lib/types';
 import toast from 'react-hot-toast';
+import { SmtpConfigurationWarning } from '../common';
 
 interface ScheduleInterviewModalProps {
     isOpen: boolean;
@@ -131,7 +132,11 @@ export function ScheduleInterviewModal({
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-4">
+                <div className="px-6 pt-4">
+                    <SmtpConfigurationWarning />
+                </div>
+
+                <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-4 pt-2">
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">

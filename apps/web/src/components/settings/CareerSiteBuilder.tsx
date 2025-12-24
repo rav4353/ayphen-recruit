@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -25,11 +25,13 @@ import {
   Link2,
   Image,
 } from 'lucide-react';
-import { careerSiteApi, customDomainApi, applicationFormApi } from '@/lib/api';
+import { careerSiteApi, customDomainApi, applicationFormApi, storageApi } from '@/lib/api';
+import toast from 'react-hot-toast';
 
 type TabType = 'branding' | 'layout' | 'company' | 'seo' | 'domain' | 'form' | 'pages';
 
 export function CareerSiteBuilder() {
+  const { tenantId } = useParams<{ tenantId: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = (searchParams.get('view') as TabType) || 'branding';
 
@@ -84,7 +86,7 @@ export function CareerSiteBuilder() {
               variant="outline" 
               size="sm"
               className="gap-2 bg-white dark:bg-neutral-800 shadow-sm"
-              onClick={() => window.open('/careers/preview', '_blank')}
+              onClick={() => window.open(`/careers/${tenantId}`, '_blank')}
             >
               <Eye className="h-4 w-4" />
               Preview
@@ -141,11 +143,37 @@ export function CareerSiteBuilder() {
 function BrandingSection({ config }: { config: any }) {
   const queryClient = useQueryClient();
   const [branding, setBranding] = useState(config?.branding || {});
+  const [isUploading, setIsUploading] = useState<string | null>(null);
 
   const mutation = useMutation({
     mutationFn: (data: any) => careerSiteApi.updateBranding(data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['career-site-config'] }),
   });
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'logo' | 'favicon') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('File size should be less than 2MB');
+      return;
+    }
+
+    setIsUploading(field);
+    try {
+      const response = await storageApi.upload(file);
+      const url = response.data.url || response.data.data?.url || response.data.path;
+      if (url) {
+        setBranding({ ...branding, [field]: url });
+        toast.success(`${field === 'logo' ? 'Logo' : 'Favicon'} uploaded successfully`);
+      }
+    } catch (error) {
+      console.error('Upload failed', error);
+      toast.error('Failed to upload file');
+    } finally {
+      setIsUploading(null);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -224,7 +252,7 @@ function BrandingSection({ config }: { config: any }) {
         <div className="grid grid-cols-2 gap-6">
           <div>
             <label className="block text-sm font-medium mb-2">Company Logo</label>
-            <div className="border-2 border-dashed border-neutral-300 rounded-lg p-6 text-center">
+            <div className="border-2 border-dashed border-neutral-300 rounded-lg p-6 text-center relative">
               {branding.logo ? (
                 <img src={branding.logo} alt="Logo" className="max-h-16 mx-auto" />
               ) : (
@@ -233,14 +261,22 @@ function BrandingSection({ config }: { config: any }) {
                   <p className="text-sm">Upload logo (PNG, SVG)</p>
                 </div>
               )}
-              <Button variant="secondary" size="sm" className="mt-3">
-                Upload Logo
+              <input
+                type="file"
+                accept="image/png,image/svg+xml,image/jpeg"
+                onChange={(e) => handleFileUpload(e, 'logo')}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                disabled={isUploading === 'logo'}
+              />
+              <Button variant="secondary" size="sm" className="mt-3" disabled={isUploading === 'logo'}>
+                {isUploading === 'logo' ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+                {branding.logo ? 'Change Logo' : 'Upload Logo'}
               </Button>
             </div>
           </div>
           <div>
             <label className="block text-sm font-medium mb-2">Favicon</label>
-            <div className="border-2 border-dashed border-neutral-300 rounded-lg p-6 text-center">
+            <div className="border-2 border-dashed border-neutral-300 rounded-lg p-6 text-center relative">
               {branding.favicon ? (
                 <img src={branding.favicon} alt="Favicon" className="h-8 w-8 mx-auto" />
               ) : (
@@ -249,8 +285,16 @@ function BrandingSection({ config }: { config: any }) {
                   <p className="text-sm">Upload favicon (32x32 PNG)</p>
                 </div>
               )}
-              <Button variant="secondary" size="sm" className="mt-3">
-                Upload Favicon
+              <input
+                type="file"
+                accept="image/png,image/x-icon"
+                onChange={(e) => handleFileUpload(e, 'favicon')}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                disabled={isUploading === 'favicon'}
+              />
+              <Button variant="secondary" size="sm" className="mt-3" disabled={isUploading === 'favicon'}>
+                {isUploading === 'favicon' ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+                {branding.favicon ? 'Change Favicon' : 'Upload Favicon'}
               </Button>
             </div>
           </div>
@@ -562,11 +606,37 @@ function CompanyInfoSection({ config }: { config: any }) {
 function SeoSection({ config }: { config: any }) {
   const queryClient = useQueryClient();
   const [seo, setSeo] = useState(config?.seo || {});
+  const [isUploading, setIsUploading] = useState(false);
 
   const mutation = useMutation({
     mutationFn: (data: any) => careerSiteApi.updateSeo(data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['career-site-config'] }),
   });
+
+  const handleOgImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File size should be less than 5MB');
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const response = await storageApi.upload(file);
+      const url = response.data.url || response.data.data?.url || response.data.path;
+      if (url) {
+        setSeo({ ...seo, ogImage: url });
+        toast.success('Open Graph image uploaded successfully');
+      }
+    } catch (error) {
+      console.error('Upload failed', error);
+      toast.error('Failed to upload image');
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -604,7 +674,7 @@ function SeoSection({ config }: { config: any }) {
         <h3 className="text-lg font-semibold mb-4">Social Sharing</h3>
         <div>
           <label className="block text-sm font-medium mb-2">Open Graph Image</label>
-          <div className="border-2 border-dashed border-neutral-300 rounded-lg p-6 text-center">
+          <div className="border-2 border-dashed border-neutral-300 rounded-lg p-6 text-center relative">
             {seo.ogImage ? (
               <img src={seo.ogImage} alt="OG Image" className="max-h-32 mx-auto" />
             ) : (
@@ -613,8 +683,16 @@ function SeoSection({ config }: { config: any }) {
                 <p className="text-sm">Upload image (1200x630 recommended)</p>
               </div>
             )}
-            <Button variant="secondary" size="sm" className="mt-3">
-              Upload Image
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              onChange={handleOgImageUpload}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              disabled={isUploading}
+            />
+            <Button variant="secondary" size="sm" className="mt-3" disabled={isUploading}>
+              {isUploading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+              {seo.ogImage ? 'Change Image' : 'Upload Image'}
             </Button>
           </div>
         </div>

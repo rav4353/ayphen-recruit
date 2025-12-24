@@ -1,14 +1,14 @@
-import { IsString, IsOptional, IsIn } from 'class-validator';
+import { IsString, IsOptional, IsIn } from "class-validator";
 
 export class UpdatePreferencesDto {
   @IsOptional()
   @IsString()
-  @IsIn(['light', 'dark', 'system', 'auto'])
+  @IsIn(["light", "dark", "system", "auto"])
   theme?: string;
 
   @IsOptional()
   @IsString()
-  @IsIn(['en', 'es', 'fr', 'de', 'hi'])
+  @IsIn(["en", "es", "fr", "de", "hi"])
   language?: string;
 }
 

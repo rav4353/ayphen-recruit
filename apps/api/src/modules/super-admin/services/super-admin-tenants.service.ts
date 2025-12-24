@@ -1,7 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../../../prisma/prisma.service';
-import { SuperAdminAuditService } from './super-admin-audit.service';
-import { SuperAdminGateway } from '../super-admin.gateway';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { PrismaService } from "../../../prisma/prisma.service";
+import { SuperAdminAuditService } from "./super-admin-audit.service";
+import { SuperAdminGateway } from "../super-admin.gateway";
 
 @Injectable()
 export class SuperAdminTenantsService {
@@ -9,7 +9,7 @@ export class SuperAdminTenantsService {
     private prisma: PrismaService,
     private auditService: SuperAdminAuditService,
     private gateway: SuperAdminGateway,
-  ) { }
+  ) {}
 
   async getAll(params: {
     page?: number;
@@ -26,8 +26,8 @@ export class SuperAdminTenantsService {
 
     if (params.search) {
       where.OR = [
-        { name: { contains: params.search, mode: 'insensitive' } },
-        { slug: { contains: params.search, mode: 'insensitive' } },
+        { name: { contains: params.search, mode: "insensitive" } },
+        { slug: { contains: params.search, mode: "insensitive" } },
       ];
     }
 
@@ -36,7 +36,7 @@ export class SuperAdminTenantsService {
         where,
         skip,
         take: limit,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         include: {
           _count: {
             select: {
@@ -45,7 +45,7 @@ export class SuperAdminTenantsService {
             },
           },
           users: {
-            where: { role: 'ADMIN' },
+            where: { role: "ADMIN" },
             take: 1,
             select: {
               id: true,
@@ -64,8 +64,8 @@ export class SuperAdminTenantsService {
         id: tenant.id,
         name: tenant.name,
         slug: (tenant as any).slug || tenant.id.slice(0, 8),
-        status: (tenant as any).status || 'ACTIVE',
-        plan: 'PROFESSIONAL', // Would come from subscription
+        status: (tenant as any).status || "ACTIVE",
+        plan: "PROFESSIONAL", // Would come from subscription
         owner: tenant.users[0] || null,
         _count: tenant._count,
         createdAt: tenant.createdAt,
@@ -91,7 +91,7 @@ export class SuperAdminTenantsService {
           },
         },
         users: {
-          where: { role: 'ADMIN' },
+          where: { role: "ADMIN" },
           take: 1,
           select: {
             id: true,
@@ -104,13 +104,13 @@ export class SuperAdminTenantsService {
     });
 
     if (!tenant) {
-      throw new NotFoundException('Tenant not found');
+      throw new NotFoundException("Tenant not found");
     }
 
     return {
       ...tenant,
       slug: (tenant as any).slug || tenant.id.slice(0, 8),
-      status: (tenant as any).status || 'ACTIVE',
+      status: (tenant as any).status || "ACTIVE",
       owner: tenant.users[0] || null,
     };
   }
@@ -131,14 +131,14 @@ export class SuperAdminTenantsService {
       data: {
         name: data.name,
         slug: data.slug,
-        status: 'ACTIVE',
+        status: "ACTIVE",
         users: {
           create: {
             email: data.ownerEmail,
             firstName: data.ownerFirstName,
             lastName: data.ownerLastName,
-            role: 'ADMIN',
-            status: 'ACTIVE',
+            role: "ADMIN",
+            status: "ACTIVE",
           },
         },
       } as any,
@@ -150,17 +150,21 @@ export class SuperAdminTenantsService {
     // Log audit
     await this.auditService.log({
       superAdminId,
-      action: 'CREATE_TENANT',
-      entityType: 'TENANT',
+      action: "CREATE_TENANT",
+      entityType: "TENANT",
       entityId: tenant.id,
       details: { name: data.name, ownerEmail: data.ownerEmail },
     });
 
-    this.gateway.broadcast('tenantCreated', tenant);
+    this.gateway.broadcast("tenantCreated", tenant);
     return tenant;
   }
 
-  async update(id: string, data: Record<string, unknown>, superAdminId: string) {
+  async update(
+    id: string,
+    data: Record<string, unknown>,
+    superAdminId: string,
+  ) {
     const tenant = await this.prisma.tenant.update({
       where: { id },
       data: {
@@ -171,8 +175,8 @@ export class SuperAdminTenantsService {
 
     await this.auditService.log({
       superAdminId,
-      action: 'UPDATE_TENANT',
-      entityType: 'TENANT',
+      action: "UPDATE_TENANT",
+      entityType: "TENANT",
       entityId: id,
       details: data,
     });
@@ -188,13 +192,13 @@ export class SuperAdminTenantsService {
 
     await this.auditService.log({
       superAdminId,
-      action: 'SUSPEND_TENANT',
-      entityType: 'TENANT',
+      action: "SUSPEND_TENANT",
+      entityType: "TENANT",
       entityId: id,
       details: { reason },
     });
 
-    this.gateway.broadcast('tenantSuspended', { id });
+    this.gateway.broadcast("tenantSuspended", { id });
     return { success: true };
   }
 
@@ -205,12 +209,12 @@ export class SuperAdminTenantsService {
 
     await this.auditService.log({
       superAdminId,
-      action: 'ACTIVATE_TENANT',
-      entityType: 'TENANT',
+      action: "ACTIVATE_TENANT",
+      entityType: "TENANT",
       entityId: id,
     });
 
-    this.gateway.broadcast('tenantActivated', { id });
+    this.gateway.broadcast("tenantActivated", { id });
     return { success: true };
   }
 
@@ -226,13 +230,13 @@ export class SuperAdminTenantsService {
 
     await this.auditService.log({
       superAdminId,
-      action: 'DELETE_TENANT',
-      entityType: 'TENANT',
+      action: "DELETE_TENANT",
+      entityType: "TENANT",
       entityId: id,
       details: { name: tenant?.name },
     });
 
-    this.gateway.broadcast('tenantDeleted', { id });
+    this.gateway.broadcast("tenantDeleted", { id });
     return { success: true };
   }
 
@@ -245,9 +249,9 @@ export class SuperAdminTenantsService {
 
     if (params.search) {
       where.OR = [
-        { firstName: { contains: params.search, mode: 'insensitive' } },
-        { lastName: { contains: params.search, mode: 'insensitive' } },
-        { email: { contains: params.search, mode: 'insensitive' } },
+        { firstName: { contains: params.search, mode: "insensitive" } },
+        { lastName: { contains: params.search, mode: "insensitive" } },
+        { email: { contains: params.search, mode: "insensitive" } },
       ];
     }
 
@@ -256,7 +260,7 @@ export class SuperAdminTenantsService {
         where,
         skip,
         take: limit,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         select: {
           id: true,
           email: true,
@@ -283,14 +287,15 @@ export class SuperAdminTenantsService {
   }
 
   async getStats(tenantId: string) {
-    const [usersCount, jobsCount, candidatesCount, applicationsCount] = await Promise.all([
-      this.prisma.user.count({ where: { tenantId } }),
-      this.prisma.job.count({ where: { tenantId } }),
-      this.prisma.candidate.count({ where: { tenantId } }),
-      this.prisma.application.count({
-        where: { job: { tenantId } },
-      }),
-    ]);
+    const [usersCount, jobsCount, candidatesCount, applicationsCount] =
+      await Promise.all([
+        this.prisma.user.count({ where: { tenantId } }),
+        this.prisma.job.count({ where: { tenantId } }),
+        this.prisma.candidate.count({ where: { tenantId } }),
+        this.prisma.application.count({
+          where: { job: { tenantId } },
+        }),
+      ]);
 
     return {
       users: usersCount,
@@ -305,13 +310,13 @@ export class SuperAdminTenantsService {
       where: { id: userId },
       include: {
         tenant: {
-          select: { name: true }
-        }
-      }
+          select: { name: true },
+        },
+      },
     });
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException("User not found");
     }
 
     // Generate tokens for this user
@@ -326,8 +331,8 @@ export class SuperAdminTenantsService {
 
     await this.auditService.log({
       superAdminId,
-      action: 'IMPERSONATE_USER',
-      entityType: 'USER',
+      action: "IMPERSONATE_USER",
+      entityType: "USER",
       entityId: userId,
       details: {
         targetUserEmail: user.email,
@@ -343,8 +348,8 @@ export class SuperAdminTenantsService {
         firstName: user.firstName,
         lastName: user.lastName,
         role: user.role,
-        tenantId: user.tenantId
-      }
+        tenantId: user.tenantId,
+      },
     };
   }
 }

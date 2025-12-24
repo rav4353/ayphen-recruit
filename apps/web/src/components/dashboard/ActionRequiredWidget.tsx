@@ -40,7 +40,7 @@ export function ActionRequiredWidget() {
     const handleApprove = async (item: ActionItem) => {
         if (item.entity === 'Job' && user?.tenantId) {
             try {
-                await jobsApi.approve(user.tenantId, item.entityId);
+                await jobsApi.approve(user.tenantId, item.entityId, { status: 'APPROVED' });
                 toast.success('Job approved successfully');
                 fetchActions(); // Refresh list
             } catch (error) {
@@ -57,7 +57,7 @@ export function ActionRequiredWidget() {
         if (!rejectingItem || !user?.tenantId) return;
 
         try {
-            await jobsApi.reject(user.tenantId, rejectingItem.entityId, reason);
+            await jobsApi.approve(user.tenantId, rejectingItem.entityId, { status: 'REJECTED', rejectionReason: reason });
             toast.success('Job rejected');
             setRejectingItem(null);
             fetchActions(); // Refresh list

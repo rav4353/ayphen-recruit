@@ -1,13 +1,13 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../../../prisma/prisma.service';
-import { SuperAdminAuditService } from './super-admin-audit.service';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { PrismaService } from "../../../prisma/prisma.service";
+import { SuperAdminAuditService } from "./super-admin-audit.service";
 
 @Injectable()
 export class SuperAdminSubscriptionsService {
   constructor(
     private prisma: PrismaService,
     private auditService: SuperAdminAuditService,
-  ) { }
+  ) {}
 
   async getAll(params: {
     page?: number;
@@ -28,10 +28,17 @@ export class SuperAdminSubscriptionsService {
         where,
         skip,
         take: limit,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         include: {
           tenant: { select: { id: true, name: true } },
-          plan: { select: { name: true, monthlyPrice: true, yearlyPrice: true, currency: true } },
+          plan: {
+            select: {
+              name: true,
+              monthlyPrice: true,
+              yearlyPrice: true,
+              currency: true,
+            },
+          },
         },
       }),
       this.prisma.subscription.count({ where }),
@@ -45,7 +52,10 @@ export class SuperAdminSubscriptionsService {
         plan: sub.plan.name,
         status: sub.status,
         billingCycle: sub.billingCycle,
-        amount: (sub.billingCycle === 'MONTHLY' ? sub.plan.monthlyPrice : sub.plan.yearlyPrice) / 100,
+        amount:
+          (sub.billingCycle === "MONTHLY"
+            ? sub.plan.monthlyPrice
+            : sub.plan.yearlyPrice) / 100,
         currency: sub.plan.currency,
         currentPeriodStart: sub.currentPeriodStart,
         currentPeriodEnd: sub.currentPeriodEnd,
@@ -64,39 +74,47 @@ export class SuperAdminSubscriptionsService {
   async getPlans() {
     const plans = await this.prisma.subscriptionPlan.findMany({
       where: { isActive: true },
-      orderBy: { sortOrder: 'asc' },
+      orderBy: { sortOrder: "asc" },
     });
 
     if (plans.length === 0) {
       return [
         {
-          id: 'starter',
-          name: 'STARTER',
-          displayName: 'Starter',
+          id: "starter",
+          name: "STARTER",
+          displayName: "Starter",
           monthlyPrice: 9900,
           yearlyPrice: 99000,
-          currency: 'USD',
-          features: ['Up to 5 users', 'Up to 10 active jobs', '500 candidates'],
+          currency: "USD",
+          features: ["Up to 5 users", "Up to 10 active jobs", "500 candidates"],
           limits: { users: 5, jobs: 10, candidates: 500 },
         },
         {
-          id: 'professional',
-          name: 'PROFESSIONAL',
-          displayName: 'Professional',
+          id: "professional",
+          name: "PROFESSIONAL",
+          displayName: "Professional",
           monthlyPrice: 29900,
           yearlyPrice: 299000,
-          currency: 'USD',
-          features: ['Up to 25 users', 'Up to 50 active jobs', '5000 candidates'],
+          currency: "USD",
+          features: [
+            "Up to 25 users",
+            "Up to 50 active jobs",
+            "5000 candidates",
+          ],
           limits: { users: 25, jobs: 50, candidates: 5000 },
         },
         {
-          id: 'enterprise',
-          name: 'ENTERPRISE',
-          displayName: 'Enterprise',
+          id: "enterprise",
+          name: "ENTERPRISE",
+          displayName: "Enterprise",
           monthlyPrice: 99900,
           yearlyPrice: 999000,
-          currency: 'USD',
-          features: ['Unlimited users', 'Unlimited jobs', 'Unlimited candidates'],
+          currency: "USD",
+          features: [
+            "Unlimited users",
+            "Unlimited jobs",
+            "Unlimited candidates",
+          ],
           limits: { users: -1, jobs: -1, candidates: -1 },
         },
       ];
@@ -125,7 +143,7 @@ export class SuperAdminSubscriptionsService {
         description: data.description,
         monthlyPrice: data.monthlyPrice,
         yearlyPrice: data.yearlyPrice,
-        currency: data.currency || 'USD',
+        currency: data.currency || "USD",
         features: data.features || [],
         limits: data.limits || {},
         sortOrder: data.sortOrder || 0,
@@ -134,8 +152,8 @@ export class SuperAdminSubscriptionsService {
 
     await this.auditService.log({
       superAdminId,
-      action: 'CREATE_PLAN',
-      entityType: 'PLAN',
+      action: "CREATE_PLAN",
+      entityType: "PLAN",
       entityId: plan.id,
       details: data,
     });
@@ -162,8 +180,8 @@ export class SuperAdminSubscriptionsService {
 
     await this.auditService.log({
       superAdminId,
-      action: 'UPDATE_PLAN',
-      entityType: 'PLAN',
+      action: "UPDATE_PLAN",
+      entityType: "PLAN",
       entityId: id,
       details: data,
     });
@@ -188,8 +206,8 @@ export class SuperAdminSubscriptionsService {
 
     await this.auditService.log({
       superAdminId,
-      action: 'DELETE_PLAN',
-      entityType: 'PLAN',
+      action: "DELETE_PLAN",
+      entityType: "PLAN",
       entityId: id,
       details: { id },
     });
@@ -207,13 +225,13 @@ export class SuperAdminSubscriptionsService {
     });
 
     if (!plan) {
-      throw new NotFoundException('Plan not found');
+      throw new NotFoundException("Plan not found");
     }
 
     const now = new Date();
     const periodEnd = new Date(now);
 
-    if (data.billingCycle === 'MONTHLY') {
+    if (data.billingCycle === "MONTHLY") {
       periodEnd.setMonth(periodEnd.getMonth() + 1);
     } else {
       periodEnd.setFullYear(periodEnd.getFullYear() + 1);
@@ -223,7 +241,7 @@ export class SuperAdminSubscriptionsService {
       data: {
         tenantId,
         planId: plan.id,
-        status: 'ACTIVE',
+        status: "ACTIVE",
         billingCycle: data.billingCycle as any,
         currentPeriodStart: now,
         currentPeriodEnd: periodEnd,
@@ -232,8 +250,8 @@ export class SuperAdminSubscriptionsService {
 
     await this.auditService.log({
       superAdminId,
-      action: 'CREATE_SUBSCRIPTION',
-      entityType: 'SUBSCRIPTION',
+      action: "CREATE_SUBSCRIPTION",
+      entityType: "SUBSCRIPTION",
       entityId: tenantId,
       details: { plan: data.plan, billingCycle: data.billingCycle },
     });
@@ -245,7 +263,7 @@ export class SuperAdminSubscriptionsService {
     await this.prisma.subscription.update({
       where: { id },
       data: {
-        status: 'CANCELLED',
+        status: "CANCELLED",
         cancelledAt: new Date(),
         cancelReason: reason,
       },
@@ -253,8 +271,8 @@ export class SuperAdminSubscriptionsService {
 
     await this.auditService.log({
       superAdminId,
-      action: 'CANCEL_SUBSCRIPTION',
-      entityType: 'SUBSCRIPTION',
+      action: "CANCEL_SUBSCRIPTION",
+      entityType: "SUBSCRIPTION",
       entityId: id,
       details: { reason },
     });
@@ -267,7 +285,7 @@ export class SuperAdminSubscriptionsService {
       where: { id },
     });
 
-    if (!sub) throw new NotFoundException('Subscription not found');
+    if (!sub) throw new NotFoundException("Subscription not found");
 
     const newEnd = new Date(sub.currentPeriodEnd);
     newEnd.setDate(newEnd.getDate() + days);
@@ -279,8 +297,8 @@ export class SuperAdminSubscriptionsService {
 
     await this.auditService.log({
       superAdminId,
-      action: 'EXTEND_SUBSCRIPTION',
-      entityType: 'SUBSCRIPTION',
+      action: "EXTEND_SUBSCRIPTION",
+      entityType: "SUBSCRIPTION",
       entityId: id,
       details: { days },
     });
@@ -290,7 +308,7 @@ export class SuperAdminSubscriptionsService {
 
   async getStats() {
     const subs = await this.prisma.subscription.findMany({
-      include: { plan: true }
+      include: { plan: true },
     });
 
     const stats = {
@@ -300,17 +318,17 @@ export class SuperAdminSubscriptionsService {
       totalMRR: 0,
     };
 
-    subs.forEach(s => {
-      if (s.status === 'ACTIVE') {
+    subs.forEach((s) => {
+      if (s.status === "ACTIVE") {
         stats.activeSubscriptions++;
-        if (s.billingCycle === 'MONTHLY') {
+        if (s.billingCycle === "MONTHLY") {
           stats.totalMRR += s.plan.monthlyPrice;
         } else {
           stats.totalMRR += s.plan.yearlyPrice / 12;
         }
-      } else if (s.status === 'TRIAL') {
+      } else if (s.status === "TRIAL") {
         stats.trialSubscriptions++;
-      } else if (s.status === 'CANCELLED') {
+      } else if (s.status === "CANCELLED") {
         stats.cancelledSubscriptions++;
       }
     });

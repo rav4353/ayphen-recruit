@@ -1,7 +1,10 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../../prisma/prisma.service';
-import { SuperAdminGateway } from '../super-admin.gateway';
-import { SuperAdminNotificationType, SuperAdminNotificationPriority } from '@prisma/client';
+import { Injectable } from "@nestjs/common";
+import { PrismaService } from "../../../prisma/prisma.service";
+import { SuperAdminGateway } from "../super-admin.gateway";
+import {
+  SuperAdminNotificationType,
+  SuperAdminNotificationPriority,
+} from "@prisma/client";
 
 export interface CreateNotificationInput {
   type: SuperAdminNotificationType;
@@ -28,14 +31,15 @@ export class SuperAdminNotificationService {
       const notification = await this.prisma.superAdminNotification.create({
         data: {
           ...notificationData,
-          priority: notificationData.priority || SuperAdminNotificationPriority.MEDIUM,
+          priority:
+            notificationData.priority || SuperAdminNotificationPriority.MEDIUM,
           metadata: notificationData.metadata as any,
           superAdminId,
         },
       });
 
       // Emit real-time notification
-      this.gateway.broadcast('notification', {
+      this.gateway.broadcast("notification", {
         id: notification.id,
         type: notification.type,
         priority: notification.priority,
@@ -49,7 +53,7 @@ export class SuperAdminNotificationService {
     } else {
       // Create notification for all super admins
       const superAdmins = await this.prisma.superAdmin.findMany({
-        where: { status: 'ACTIVE' },
+        where: { status: "ACTIVE" },
         select: { id: true },
       });
 
@@ -58,7 +62,9 @@ export class SuperAdminNotificationService {
           this.prisma.superAdminNotification.create({
             data: {
               ...notificationData,
-              priority: notificationData.priority || SuperAdminNotificationPriority.MEDIUM,
+              priority:
+                notificationData.priority ||
+                SuperAdminNotificationPriority.MEDIUM,
               metadata: notificationData.metadata as any,
               superAdminId: admin.id,
             },
@@ -68,7 +74,7 @@ export class SuperAdminNotificationService {
 
       // Emit real-time notification to all
       if (notifications.length > 0) {
-        this.gateway.broadcast('notification', {
+        this.gateway.broadcast("notification", {
           id: notifications[0].id,
           type: notifications[0].type,
           priority: notifications[0].priority,
@@ -116,7 +122,7 @@ export class SuperAdminNotificationService {
         where,
         skip,
         take: limit,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
       }),
       this.prisma.superAdminNotification.count({ where }),
       this.prisma.superAdminNotification.count({
@@ -209,29 +215,39 @@ export class SuperAdminNotificationService {
     return this.create({
       type: SuperAdminNotificationType.TENANT,
       priority: SuperAdminNotificationPriority.MEDIUM,
-      title: 'New Tenant Registered',
+      title: "New Tenant Registered",
       message: `A new tenant "${tenantName}" has registered on the platform.`,
       link: `/super-admin/tenants/${tenantId}`,
       metadata: { tenantId, tenantName },
     });
   }
 
-  async notifySecurityAlert(alertType: string, message: string, alertId?: string) {
+  async notifySecurityAlert(
+    alertType: string,
+    message: string,
+    alertId?: string,
+  ) {
     return this.create({
       type: SuperAdminNotificationType.SECURITY,
       priority: SuperAdminNotificationPriority.HIGH,
       title: `Security Alert: ${alertType}`,
       message,
-      link: alertId ? `/super-admin/security?alertId=${alertId}` : '/super-admin/security',
+      link: alertId
+        ? `/super-admin/security?alertId=${alertId}`
+        : "/super-admin/security",
       metadata: { alertType, alertId },
     });
   }
 
-  async notifyNewSupportTicket(ticketId: string, subject: string, tenantName: string) {
+  async notifyNewSupportTicket(
+    ticketId: string,
+    subject: string,
+    tenantName: string,
+  ) {
     return this.create({
       type: SuperAdminNotificationType.SUPPORT,
       priority: SuperAdminNotificationPriority.MEDIUM,
-      title: 'New Support Ticket',
+      title: "New Support Ticket",
       message: `New ticket from ${tenantName}: "${subject}"`,
       link: `/super-admin/support/${ticketId}`,
       metadata: { ticketId, subject, tenantName },
@@ -239,14 +255,14 @@ export class SuperAdminNotificationService {
   }
 
   async notifySubscriptionEvent(
-    event: 'cancelled' | 'expired' | 'payment_failed',
+    event: "cancelled" | "expired" | "payment_failed",
     tenantName: string,
     tenantId: string,
   ) {
     const titles = {
-      cancelled: 'Subscription Cancelled',
-      expired: 'Subscription Expired',
-      payment_failed: 'Payment Failed',
+      cancelled: "Subscription Cancelled",
+      expired: "Subscription Expired",
+      payment_failed: "Payment Failed",
     };
 
     const messages = {
@@ -257,7 +273,10 @@ export class SuperAdminNotificationService {
 
     return this.create({
       type: SuperAdminNotificationType.SUBSCRIPTION,
-      priority: event === 'payment_failed' ? SuperAdminNotificationPriority.HIGH : SuperAdminNotificationPriority.MEDIUM,
+      priority:
+        event === "payment_failed"
+          ? SuperAdminNotificationPriority.HIGH
+          : SuperAdminNotificationPriority.MEDIUM,
       title: titles[event],
       message: messages[event],
       link: `/super-admin/tenants/${tenantId}`,
@@ -265,13 +284,17 @@ export class SuperAdminNotificationService {
     });
   }
 
-  async notifySystemAlert(title: string, message: string, priority: SuperAdminNotificationPriority = SuperAdminNotificationPriority.HIGH) {
+  async notifySystemAlert(
+    title: string,
+    message: string,
+    priority: SuperAdminNotificationPriority = SuperAdminNotificationPriority.HIGH,
+  ) {
     return this.create({
       type: SuperAdminNotificationType.SYSTEM,
       priority,
       title,
       message,
-      link: '/super-admin/monitoring',
+      link: "/super-admin/monitoring",
     });
   }
 }

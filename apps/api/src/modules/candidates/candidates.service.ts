@@ -1,15 +1,20 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
-import { Prisma } from '@prisma/client';
-import { EmailService } from '../../common/services/email.service';
-import { SkillsService } from '../reference/skills.service';
-import { SettingsService } from '../settings/settings.service';
-import { CreateCandidateDto } from './dto/create-candidate.dto';
-import { UpdateCandidateDto } from './dto/update-candidate.dto';
-import { CandidateQueryDto } from './dto/candidate-query.dto';
-import { Parser } from 'json2csv';
-import * as crypto from 'crypto';
-import { SemanticSearchService } from './semantic-search.service';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+} from "@nestjs/common";
+import { PrismaService } from "../../prisma/prisma.service";
+import { Prisma } from "@prisma/client";
+import { EmailService } from "../../common/services/email.service";
+import { SkillsService } from "../reference/skills.service";
+import { SettingsService } from "../settings/settings.service";
+import { CreateCandidateDto } from "./dto/create-candidate.dto";
+import { UpdateCandidateDto } from "./dto/update-candidate.dto";
+import { CandidateQueryDto } from "./dto/candidate-query.dto";
+import { Parser } from "json2csv";
+import * as crypto from "crypto";
+import { SemanticSearchService } from "./semantic-search.service";
 
 @Injectable()
 export class CandidatesService {
@@ -19,20 +24,22 @@ export class CandidatesService {
     private readonly skillsService: SkillsService,
     private readonly settingsService: SettingsService,
     private readonly semanticSearchService: SemanticSearchService,
-  ) { }
+  ) {}
 
   async peekCandidateId(tenantId: string) {
     try {
-      const setting = await this.settingsService.getSettingByKey(tenantId, 'candidate_id_settings').catch(() => null);
+      const setting = await this.settingsService
+        .getSettingByKey(tenantId, "candidate_id_settings")
+        .catch(() => null);
 
       if (setting && setting.value) {
         const config = setting.value as any;
-        const prefix = config.prefix || 'CAND';
+        const prefix = config.prefix || "CAND";
         const minDigits = config.minDigits || 6;
 
-        if (config.type === 'sequential') {
+        if (config.type === "sequential") {
           const nextNumber = config.nextNumber || 1;
-          const numberStr = nextNumber.toString().padStart(minDigits, '0');
+          const numberStr = nextNumber.toString().padStart(minDigits, "0");
           return `${prefix}-${numberStr}`;
         } else {
           // For random, we just return a placeholder or example
@@ -40,52 +47,61 @@ export class CandidatesService {
         }
       }
     } catch (error) {
-      console.error('Error peeking custom candidate ID:', error);
+      console.error("Error peeking custom candidate ID:", error);
     }
     return `CAND-XXXXXX`;
   }
 
   private async generateCandidateId(tenantId: string) {
     try {
-      const setting = await this.settingsService.getSettingByKey(tenantId, 'candidate_id_settings').catch(() => null);
+      const setting = await this.settingsService
+        .getSettingByKey(tenantId, "candidate_id_settings")
+        .catch(() => null);
 
       if (setting && setting.value) {
         const config = setting.value as any;
-        const prefix = config.prefix || 'CAND';
+        const prefix = config.prefix || "CAND";
         const minDigits = config.minDigits || 6;
 
-        if (config.type === 'sequential') {
+        if (config.type === "sequential") {
           // Atomic update using raw query or transaction if possible
           // For now, simple update in transaction
           return await this.prisma.$transaction(async (tx) => {
             const currentSetting = await tx.setting.findUnique({
-              where: { tenantId_key: { tenantId, key: 'candidate_id_settings' } }
+              where: {
+                tenantId_key: { tenantId, key: "candidate_id_settings" },
+              },
             });
 
             const currentConfig = currentSetting?.value as any;
             const nextNumber = currentConfig?.nextNumber || 1;
 
             await tx.setting.update({
-              where: { tenantId_key: { tenantId, key: 'candidate_id_settings' } },
+              where: {
+                tenantId_key: { tenantId, key: "candidate_id_settings" },
+              },
               data: {
                 value: {
                   ...currentConfig,
-                  nextNumber: nextNumber + 1
-                }
-              }
+                  nextNumber: nextNumber + 1,
+                },
+              },
             });
 
-            const numberStr = nextNumber.toString().padStart(minDigits, '0');
+            const numberStr = nextNumber.toString().padStart(minDigits, "0");
             return `${prefix}-${numberStr}`;
           });
         } else {
           // Custom prefix with random number
-          const randomNum = crypto.randomInt(Math.pow(10, minDigits - 1), Math.pow(10, minDigits) - 1);
+          const randomNum = crypto.randomInt(
+            Math.pow(10, minDigits - 1),
+            Math.pow(10, minDigits) - 1,
+          );
           return `${prefix}-${randomNum}`;
         }
       }
     } catch (error) {
-      console.error('Error generating custom candidate ID:', error);
+      console.error("Error generating custom candidate ID:", error);
     }
 
     const randomNum = crypto.randomInt(100000, 999999);
@@ -93,23 +109,35 @@ export class CandidatesService {
   }
 
   async create(dto: CreateCandidateDto, tenantId: string, userId?: string) {
+    // Validate that candidate_id_settings is configured
+    const idSettingsConfigured = await this.settingsService.isSettingConfigured(
+      tenantId,
+      "candidate_id_settings",
+    );
+    if (!idSettingsConfigured) {
+      throw new BadRequestException(
+        "Candidate ID settings must be configured before adding candidates. Please configure in Settings > ID Configuration.",
+      );
+    }
+
     // Check for duplicate email
     const existing = await this.prisma.candidate.findFirst({
       where: {
-        email: { equals: dto.email, mode: 'insensitive' },
+        email: { equals: dto.email, mode: "insensitive" },
         tenantId,
       },
     });
 
     if (existing) {
-      throw new ConflictException('Candidate with this email already exists');
+      throw new ConflictException("Candidate with this email already exists");
     }
 
     // Validate phone number if provided
     if (dto.phone) {
-      const phoneRegex = /^[\+]?[(]?[0-9]{1,4}[)]?[-\s\.]?[(]?[0-9]{1,4}[)]?[-\s\.]?[0-9]{1,9}$/;
-      if (!phoneRegex.test(dto.phone.replace(/\s/g, ''))) {
-        throw new ConflictException('Invalid phone number format');
+      const phoneRegex =
+        /^[\+]?[(]?[0-9]{1,4}[)]?[-\s\.]?[(]?[0-9]{1,4}[)]?[-\s\.]?[0-9]{1,9}$/;
+      if (!phoneRegex.test(dto.phone.replace(/\s/g, ""))) {
+        throw new ConflictException("Invalid phone number format");
       }
     }
 
@@ -120,7 +148,8 @@ export class CandidatesService {
     }
 
     // Use provided candidateId or generate one if enabled
-    const candidateId = dto.candidateId || await this.generateCandidateId(tenantId);
+    const candidateId =
+      dto.candidateId || (await this.generateCandidateId(tenantId));
 
     const candidate = await this.prisma.candidate.create({
       data: {
@@ -135,7 +164,7 @@ export class CandidatesService {
     // Log activity
     await this.prisma.activityLog.create({
       data: {
-        action: 'CANDIDATE_CREATED',
+        action: "CANDIDATE_CREATED",
         description: `Candidate profile created for ${candidate.firstName} ${candidate.lastName}`,
         candidateId: candidate.id,
         userId,
@@ -147,18 +176,27 @@ export class CandidatesService {
     });
 
     // Generate embedding in background (don't block the main flow)
-    this.semanticSearchService.updateCandidateEmbedding(candidate.id, tenantId).catch(err => {
-      console.error(`Failed to update embedding for candidate ${candidate.id}:`, err);
-    });
+    this.semanticSearchService
+      .updateCandidateEmbedding(candidate.id, tenantId)
+      .catch((err) => {
+        console.error(
+          `Failed to update embedding for candidate ${candidate.id}:`,
+          err,
+        );
+      });
 
     return candidate;
   }
 
-  async createReferral(dto: CreateCandidateDto, tenantId: string, referrerId: string) {
+  async createReferral(
+    dto: CreateCandidateDto,
+    tenantId: string,
+    referrerId: string,
+  ) {
     // Ensure source is set to REFERRAL
     const referralDto = {
       ...dto,
-      source: 'REFERRAL',
+      source: "REFERRAL",
       sourceDetails: `Referred by user ${referrerId}`,
       referrerId,
     };
@@ -167,9 +205,9 @@ export class CandidatesService {
   }
 
   async findAll(tenantId: string, query: CandidateQueryDto) {
-    console.log('CandidatesService.findAll called');
-    console.log('TenantID:', tenantId);
-    console.log('Query:', JSON.stringify(query));
+    console.log("CandidatesService.findAll called");
+    console.log("TenantID:", tenantId);
+    console.log("Query:", JSON.stringify(query));
 
     const {
       skip,
@@ -179,8 +217,8 @@ export class CandidatesService {
       location,
       source,
       status,
-      sortBy = 'createdAt',
-      sortOrder = 'desc',
+      sortBy = "createdAt",
+      sortOrder = "desc",
       referrerId, // Add this
     } = query;
 
@@ -189,31 +227,32 @@ export class CandidatesService {
       // Filter by search term (name, email, currentTitle, currentCompany)
       ...(search && {
         OR: [
-          { firstName: { contains: search, mode: 'insensitive' } },
-          { lastName: { contains: search, mode: 'insensitive' } },
-          { email: { contains: search, mode: 'insensitive' } },
-          { currentTitle: { contains: search, mode: 'insensitive' } },
-          { currentCompany: { contains: search, mode: 'insensitive' } },
+          { firstName: { contains: search, mode: "insensitive" } },
+          { lastName: { contains: search, mode: "insensitive" } },
+          { email: { contains: search, mode: "insensitive" } },
+          { currentTitle: { contains: search, mode: "insensitive" } },
+          { currentCompany: { contains: search, mode: "insensitive" } },
         ],
       }),
       // Filter by location
       ...(location && {
-        location: { contains: location, mode: 'insensitive' },
+        location: { contains: location, mode: "insensitive" },
       }),
       // Filter by source
       ...(source && {
-        source: { contains: source, mode: 'insensitive' },
+        source: { contains: source, mode: "insensitive" },
       }),
       // Filter by referrerId
       ...(referrerId && {
         referrerId,
       }),
       // Filter by skills (array of strings)
-      ...(skills && skills.length > 0 && {
-        skills: {
-          hasSome: skills,
-        },
-      }),
+      ...(skills &&
+        skills.length > 0 && {
+          skills: {
+            hasSome: skills,
+          },
+        }),
       // Filter by application status
       ...(status && {
         applications: {
@@ -224,7 +263,7 @@ export class CandidatesService {
       }),
     };
 
-    console.log('Prisma Where:', JSON.stringify(where, null, 2));
+    console.log("Prisma Where:", JSON.stringify(where, null, 2));
 
     const [candidates, total] = await Promise.all([
       this.prisma.candidate.findMany({
@@ -240,7 +279,7 @@ export class CandidatesService {
           },
           // Include the most recent application status
           applications: {
-            orderBy: { updatedAt: 'desc' },
+            orderBy: { updatedAt: "desc" },
             take: 1,
             select: {
               id: true,
@@ -271,10 +310,10 @@ export class CandidatesService {
         tenantId,
         referrerId,
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
       include: {
         applications: {
-          orderBy: { updatedAt: 'desc' },
+          orderBy: { updatedAt: "desc" },
           take: 1,
           select: {
             status: true,
@@ -290,30 +329,39 @@ export class CandidatesService {
   }
 
   async export(tenantId: string, query: CandidateQueryDto) {
-    const { candidates } = await this.findAll(tenantId, { ...query, take: 10000, skip: 0 });
+    const { candidates } = await this.findAll(tenantId, {
+      ...query,
+      take: 10000,
+      skip: 0,
+    });
 
     if (candidates.length === 0) {
-      return '';
+      return "";
     }
 
     const fields = [
-      'firstName',
-      'lastName',
-      'email',
-      'phone',
-      'currentTitle',
-      'currentCompany',
-      'location',
-      'skills',
-      'source',
-      'createdAt',
+      "firstName",
+      "lastName",
+      "email",
+      "phone",
+      "currentTitle",
+      "currentCompany",
+      "location",
+      "skills",
+      "source",
+      "createdAt",
     ];
 
     const json2csvParser = new Parser({ fields });
     return json2csvParser.parse(candidates);
   }
 
-  async sendBulkEmail(ids: string[], subject: string, message: string, tenantId: string) {
+  async sendBulkEmail(
+    ids: string[],
+    subject: string,
+    message: string,
+    tenantId: string,
+  ) {
     const candidates = await this.prisma.candidate.findMany({
       where: {
         id: { in: ids },
@@ -333,11 +381,11 @@ export class CandidatesService {
         this.emailService.sendEmail({
           to: candidate.email,
           subject,
-          html: `<p>Hi ${candidate.firstName},</p><p>${message.replace(/\n/g, '<br>')}</p>`,
+          html: `<p>Hi ${candidate.firstName},</p><p>${message.replace(/\n/g, "<br>")}</p>`,
           text: `Hi ${candidate.firstName},\n\n${message}`,
           tenantId,
-        })
-      )
+        }),
+      ),
     );
 
     const successCount = results.filter((success) => success).length;
@@ -349,7 +397,7 @@ export class CandidatesService {
     const secondary = await this.findById(secondaryId);
 
     if (primary.tenantId !== tenantId || secondary.tenantId !== tenantId) {
-      throw new ConflictException('Candidates must belong to the same tenant');
+      throw new ConflictException("Candidates must belong to the same tenant");
     }
 
     // Transaction to ensure data integrity
@@ -387,7 +435,7 @@ export class CandidatesService {
       // 6. Log Merge Activity
       await tx.activityLog.create({
         data: {
-          action: 'CANDIDATE_MERGED',
+          action: "CANDIDATE_MERGED",
           description: `Merged candidate ${secondary.firstName} ${secondary.lastName} into this profile`,
           candidateId: primaryId,
           userId: primary.referrerId, // Best guess for now, or pass userId from controller
@@ -419,12 +467,13 @@ export class CandidatesService {
           include: {
             job: { select: { id: true, title: true, status: true } },
             currentStage: true,
+            documents: true,
           },
         },
       },
     });
     if (!candidate) {
-      throw new NotFoundException('Candidate not found');
+      throw new NotFoundException("Candidate not found");
     }
     return candidate;
   }
@@ -442,7 +491,10 @@ export class CandidatesService {
 
     let skills = dto.skills;
     if (skills && skills.length > 0) {
-      skills = await this.skillsService.normalizeSkills(skills, candidate.tenantId);
+      skills = await this.skillsService.normalizeSkills(
+        skills,
+        candidate.tenantId,
+      );
     }
 
     const updatedCandidate = await this.prisma.candidate.update({
@@ -454,9 +506,11 @@ export class CandidatesService {
     });
 
     // Generate embedding in background
-    this.semanticSearchService.updateCandidateEmbedding(id, updatedCandidate.tenantId).catch(err => {
-      console.error(`Failed to update embedding for candidate ${id}:`, err);
-    });
+    this.semanticSearchService
+      .updateCandidateEmbedding(id, updatedCandidate.tenantId)
+      .catch((err) => {
+        console.error(`Failed to update embedding for candidate ${id}:`, err);
+      });
 
     return updatedCandidate;
   }
@@ -496,7 +550,7 @@ export class CandidatesService {
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
       take: 50,
     });
   }
@@ -512,26 +566,26 @@ export class CandidatesService {
     candidateId: string,
     tenantId: string,
     userId: string,
-    data: { content: string; isPrivate?: boolean; mentionedUserIds?: string[] }
+    data: { content: string; isPrivate?: boolean; mentionedUserIds?: string[] },
   ) {
     const candidate = await this.prisma.candidate.findFirst({
       where: { id: candidateId, tenantId },
     });
 
     if (!candidate) {
-      throw new NotFoundException('Candidate not found');
+      throw new NotFoundException("Candidate not found");
     }
 
-    const noteId = `note-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+    const noteId = `note-${Date.now()}-${crypto.randomBytes(4).toString("hex")}`;
 
     await this.prisma.activityLog.create({
       data: {
-        action: 'CANDIDATE_NOTE_CREATED',
+        action: "CANDIDATE_NOTE_CREATED",
         description: `Note added to candidate`,
         userId,
         candidateId,
         metadata: {
-          type: 'candidate_note',
+          type: "candidate_note",
           id: noteId,
           tenantId,
           candidateId,
@@ -566,15 +620,15 @@ export class CandidatesService {
     });
 
     if (!candidate) {
-      throw new NotFoundException('Candidate not found');
+      throw new NotFoundException("Candidate not found");
     }
 
     const noteLogs = await this.prisma.activityLog.findMany({
       where: {
-        action: { in: ['CANDIDATE_NOTE_CREATED', 'CANDIDATE_NOTE_UPDATED'] },
+        action: { in: ["CANDIDATE_NOTE_CREATED", "CANDIDATE_NOTE_UPDATED"] },
         candidateId,
         metadata: {
-          path: ['tenantId'],
+          path: ["tenantId"],
           equals: tenantId,
         },
       },
@@ -583,14 +637,14 @@ export class CandidatesService {
           select: { id: true, firstName: true, lastName: true },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
     // Get latest state of each note
     const noteMap = new Map<string, any>();
     for (const log of noteLogs) {
       const metadata = log.metadata as any;
-      if (metadata.type === 'candidate_note' && !noteMap.has(metadata.id)) {
+      if (metadata.type === "candidate_note" && !noteMap.has(metadata.id)) {
         noteMap.set(metadata.id, {
           ...metadata,
           author: log.user,
@@ -600,7 +654,7 @@ export class CandidatesService {
 
     // Filter based on visibility
     const notes = Array.from(noteMap.values()).filter(
-      (n) => !n.isPrivate || n.createdBy === userId
+      (n) => !n.isPrivate || n.createdBy === userId,
     );
 
     // Sort: pinned first, then by date
@@ -627,22 +681,23 @@ export class CandidatesService {
     noteId: string,
     tenantId: string,
     userId: string,
-    data: { content?: string; isPrivate?: boolean }
+    data: { content?: string; isPrivate?: boolean },
   ) {
     const notes = await this.getNotes(candidateId, tenantId, userId);
     const existing = notes.find((n) => n.id === noteId);
 
     if (!existing) {
-      throw new NotFoundException('Note not found');
+      throw new NotFoundException("Note not found");
     }
 
     const updatedMetadata = {
-      type: 'candidate_note',
+      type: "candidate_note",
       id: noteId,
       tenantId,
       candidateId,
       content: data.content !== undefined ? data.content : existing.content,
-      isPrivate: data.isPrivate !== undefined ? data.isPrivate : existing.isPrivate,
+      isPrivate:
+        data.isPrivate !== undefined ? data.isPrivate : existing.isPrivate,
       isPinned: existing.isPinned,
       mentionedUserIds: existing.mentionedUserIds,
       createdBy: (existing as any).createdBy || userId,
@@ -652,7 +707,7 @@ export class CandidatesService {
 
     await this.prisma.activityLog.create({
       data: {
-        action: 'CANDIDATE_NOTE_UPDATED',
+        action: "CANDIDATE_NOTE_UPDATED",
         description: `Note updated`,
         userId,
         candidateId,
@@ -669,22 +724,27 @@ export class CandidatesService {
     };
   }
 
-  async deleteNote(candidateId: string, noteId: string, tenantId: string, userId: string) {
+  async deleteNote(
+    candidateId: string,
+    noteId: string,
+    tenantId: string,
+    userId: string,
+  ) {
     const notes = await this.getNotes(candidateId, tenantId, userId);
     const existing = notes.find((n) => n.id === noteId);
 
     if (!existing) {
-      throw new NotFoundException('Note not found');
+      throw new NotFoundException("Note not found");
     }
 
     await this.prisma.activityLog.create({
       data: {
-        action: 'CANDIDATE_NOTE_DELETED',
+        action: "CANDIDATE_NOTE_DELETED",
         description: `Note deleted`,
         userId,
         candidateId,
         metadata: {
-          type: 'candidate_note_deleted',
+          type: "candidate_note_deleted",
           id: noteId,
           tenantId,
           deletedAt: new Date().toISOString(),
@@ -695,11 +755,21 @@ export class CandidatesService {
     return { success: true };
   }
 
-  async pinNote(candidateId: string, noteId: string, tenantId: string, userId: string) {
+  async pinNote(
+    candidateId: string,
+    noteId: string,
+    tenantId: string,
+    userId: string,
+  ) {
     return this.toggleNotePin(candidateId, noteId, tenantId, userId, true);
   }
 
-  async unpinNote(candidateId: string, noteId: string, tenantId: string, userId: string) {
+  async unpinNote(
+    candidateId: string,
+    noteId: string,
+    tenantId: string,
+    userId: string,
+  ) {
     return this.toggleNotePin(candidateId, noteId, tenantId, userId, false);
   }
 
@@ -708,17 +778,17 @@ export class CandidatesService {
     noteId: string,
     tenantId: string,
     userId: string,
-    pinned: boolean
+    pinned: boolean,
   ) {
     const notes = await this.getNotes(candidateId, tenantId, userId);
     const existing = notes.find((n) => n.id === noteId);
 
     if (!existing) {
-      throw new NotFoundException('Note not found');
+      throw new NotFoundException("Note not found");
     }
 
     const updatedMetadata = {
-      type: 'candidate_note',
+      type: "candidate_note",
       id: noteId,
       tenantId,
       candidateId,
@@ -733,8 +803,8 @@ export class CandidatesService {
 
     await this.prisma.activityLog.create({
       data: {
-        action: 'CANDIDATE_NOTE_UPDATED',
-        description: pinned ? 'Note pinned' : 'Note unpinned',
+        action: "CANDIDATE_NOTE_UPDATED",
+        description: pinned ? "Note pinned" : "Note unpinned",
         userId,
         candidateId,
         metadata: updatedMetadata,
@@ -763,27 +833,35 @@ export class CandidatesService {
       lastName: string;
       email: string;
       phone: string | null;
-      matchType: 'exact_email' | 'exact_phone' | 'fuzzy_name';
+      matchType: "exact_email" | "exact_phone" | "fuzzy_name";
       confidence: number;
     }> = [];
 
-    const excludeFilter = criteria.excludeId ? { id: { not: criteria.excludeId } } : {};
+    const excludeFilter = criteria.excludeId
+      ? { id: { not: criteria.excludeId } }
+      : {};
 
     // 1. Exact email match (highest confidence)
     if (criteria.email) {
       const emailMatches = await this.prisma.candidate.findMany({
         where: {
           tenantId,
-          email: { equals: criteria.email, mode: 'insensitive' },
+          email: { equals: criteria.email, mode: "insensitive" },
           ...excludeFilter,
         },
-        select: { id: true, firstName: true, lastName: true, email: true, phone: true },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          phone: true,
+        },
       });
 
       for (const match of emailMatches) {
         duplicates.push({
           ...match,
-          matchType: 'exact_email',
+          matchType: "exact_email",
           confidence: 100,
         });
       }
@@ -791,24 +869,33 @@ export class CandidatesService {
 
     // 2. Exact phone match (high confidence)
     if (criteria.phone) {
-      const normalizedPhone = criteria.phone.replace(/[\s\-\(\)]/g, '');
+      const normalizedPhone = criteria.phone.replace(/[\s\-\(\)]/g, "");
       const phoneMatches = await this.prisma.candidate.findMany({
         where: {
           tenantId,
           phone: { not: null },
           ...excludeFilter,
         },
-        select: { id: true, firstName: true, lastName: true, email: true, phone: true },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          phone: true,
+        },
       });
 
       for (const match of phoneMatches) {
         if (match.phone) {
-          const matchPhone = match.phone.replace(/[\s\-\(\)]/g, '');
-          if (matchPhone === normalizedPhone || matchPhone.endsWith(normalizedPhone.slice(-10))) {
-            if (!duplicates.some(d => d.id === match.id)) {
+          const matchPhone = match.phone.replace(/[\s\-\(\)]/g, "");
+          if (
+            matchPhone === normalizedPhone ||
+            matchPhone.endsWith(normalizedPhone.slice(-10))
+          ) {
+            if (!duplicates.some((d) => d.id === match.id)) {
               duplicates.push({
                 ...match,
-                matchType: 'exact_phone',
+                matchType: "exact_phone",
                 confidence: 95,
               });
             }
@@ -822,18 +909,24 @@ export class CandidatesService {
       const nameMatches = await this.prisma.candidate.findMany({
         where: {
           tenantId,
-          firstName: { equals: criteria.firstName, mode: 'insensitive' },
-          lastName: { equals: criteria.lastName, mode: 'insensitive' },
+          firstName: { equals: criteria.firstName, mode: "insensitive" },
+          lastName: { equals: criteria.lastName, mode: "insensitive" },
           ...excludeFilter,
         },
-        select: { id: true, firstName: true, lastName: true, email: true, phone: true },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          phone: true,
+        },
       });
 
       for (const match of nameMatches) {
-        if (!duplicates.some(d => d.id === match.id)) {
+        if (!duplicates.some((d) => d.id === match.id)) {
           duplicates.push({
             ...match,
-            matchType: 'fuzzy_name',
+            matchType: "fuzzy_name",
             confidence: 70,
           });
         }
@@ -868,8 +961,8 @@ export class CandidatesService {
     // Log the consent update
     await this.prisma.activityLog.create({
       data: {
-        action: 'GDPR_CONSENT_UPDATED',
-        description: `GDPR consent ${consent.dataProcessingConsent ? 'granted' : 'revoked'} via ${consent.consentSource || 'manual update'}`,
+        action: "GDPR_CONSENT_UPDATED",
+        description: `GDPR consent ${consent.dataProcessingConsent ? "granted" : "revoked"} via ${consent.consentSource || "manual update"}`,
         candidateId: id,
         userId,
         metadata: {
@@ -894,8 +987,8 @@ export class CandidatesService {
     const anonymized = await this.prisma.candidate.update({
       where: { id },
       data: {
-        firstName: 'ANONYMIZED',
-        lastName: 'USER',
+        firstName: "ANONYMIZED",
+        lastName: "USER",
         email: `anonymized-${id}@deleted.local`,
         phone: null,
         resumeUrl: null,
@@ -904,21 +997,22 @@ export class CandidatesService {
         linkedinUrl: null,
         currentTitle: null,
         currentCompany: null,
-        summary: 'This candidate data has been anonymized per GDPR request.',
+        summary: "This candidate data has been anonymized per GDPR request.",
         skills: [],
         experience: null,
         education: null,
         gdprConsent: false,
         gdprConsentAt: null,
-        tags: ['ANONYMIZED'],
+        tags: ["ANONYMIZED"],
       },
     });
 
     // Log the anonymization
     await this.prisma.activityLog.create({
       data: {
-        action: 'CANDIDATE_ANONYMIZED',
-        description: 'Candidate data anonymized per GDPR Right to be Forgotten request',
+        action: "CANDIDATE_ANONYMIZED",
+        description:
+          "Candidate data anonymized per GDPR Right to be Forgotten request",
         candidateId: id,
         userId,
         metadata: {
@@ -946,18 +1040,26 @@ export class CandidatesService {
       tags?: string[];
     },
   ) {
-    const lines = csvData.split('\n').filter(line => line.trim());
+    const lines = csvData.split("\n").filter((line) => line.trim());
     if (lines.length < 2) {
-      return { success: false, error: 'CSV must have header row and at least one data row' };
+      return {
+        success: false,
+        error: "CSV must have header row and at least one data row",
+      };
     }
 
     // Parse header row
-    const headers = this.parseCsvLine(lines[0]).map(h => h.toLowerCase().trim());
-    const requiredFields = ['email'];
-    const missingFields = requiredFields.filter(f => !headers.includes(f));
+    const headers = this.parseCsvLine(lines[0]).map((h) =>
+      h.toLowerCase().trim(),
+    );
+    const requiredFields = ["email"];
+    const missingFields = requiredFields.filter((f) => !headers.includes(f));
 
     if (missingFields.length > 0) {
-      return { success: false, error: `Missing required fields: ${missingFields.join(', ')}` };
+      return {
+        success: false,
+        error: `Missing required fields: ${missingFields.join(", ")}`,
+      };
     }
 
     const results: {
@@ -980,19 +1082,23 @@ export class CandidatesService {
       const rowData: Record<string, string> = {};
 
       headers.forEach((header, index) => {
-        rowData[header] = values[index]?.trim() || '';
+        rowData[header] = values[index]?.trim() || "";
       });
 
-      const email = rowData['email'];
+      const email = rowData["email"];
       if (!email) {
-        results.errors.push({ row: i + 1, email: '', error: 'Email is required' });
+        results.errors.push({
+          row: i + 1,
+          email: "",
+          error: "Email is required",
+        });
         continue;
       }
 
       try {
         // Check for existing candidate
         const existing = await this.prisma.candidate.findFirst({
-          where: { email: { equals: email, mode: 'insensitive' }, tenantId },
+          where: { email: { equals: email, mode: "insensitive" }, tenantId },
         });
 
         if (existing) {
@@ -1012,7 +1118,7 @@ export class CandidatesService {
           }
 
           results.skipped++;
-          results.errors.push({ row: i + 1, email, error: 'Duplicate email' });
+          results.errors.push({ row: i + 1, email, error: "Duplicate email" });
           continue;
         }
 
@@ -1032,7 +1138,7 @@ export class CandidatesService {
             where: { id: options.jobId, tenantId },
             include: {
               pipeline: {
-                include: { stages: { orderBy: { order: 'asc' }, take: 1 } },
+                include: { stages: { orderBy: { order: "asc" }, take: 1 } },
               },
             },
           });
@@ -1043,7 +1149,7 @@ export class CandidatesService {
                 candidateId: candidate.id,
                 jobId: options.jobId,
                 currentStageId: job.pipeline?.stages[0]?.id,
-                status: 'APPLIED',
+                status: "APPLIED",
               },
             });
           }
@@ -1058,7 +1164,7 @@ export class CandidatesService {
     // Log the import
     await this.prisma.activityLog.create({
       data: {
-        action: 'CANDIDATES_IMPORTED',
+        action: "CANDIDATES_IMPORTED",
         description: `Imported ${results.imported} candidates from CSV`,
         userId,
         metadata: {
@@ -1067,7 +1173,7 @@ export class CandidatesService {
           skipped: results.skipped,
           updated: results.updated,
           errorCount: results.errors.length,
-          source: options?.source || 'CSV Import',
+          source: options?.source || "CSV Import",
           jobId: options?.jobId,
         },
       },
@@ -1084,7 +1190,7 @@ export class CandidatesService {
    */
   private parseCsvLine(line: string): string[] {
     const result: string[] = [];
-    let current = '';
+    let current = "";
     let inQuotes = false;
 
     for (let i = 0; i < line.length; i++) {
@@ -1092,9 +1198,9 @@ export class CandidatesService {
 
       if (char === '"') {
         inQuotes = !inQuotes;
-      } else if (char === ',' && !inQuotes) {
+      } else if (char === "," && !inQuotes) {
         result.push(current);
-        current = '';
+        current = "";
       } else {
         current += char;
       }
@@ -1111,23 +1217,51 @@ export class CandidatesService {
     rowData: Record<string, string>,
     options?: { source?: string; tags?: string[] },
   ): any {
-    const skills = rowData['skills']
-      ? rowData['skills'].split(/[,;]/).map(s => s.trim()).filter(Boolean)
+    const skills = rowData["skills"]
+      ? rowData["skills"]
+          .split(/[,;]/)
+          .map((s) => s.trim())
+          .filter(Boolean)
       : [];
 
     return {
-      email: rowData['email'],
-      firstName: rowData['firstname'] || rowData['first_name'] || rowData['first name'] || '',
-      lastName: rowData['lastname'] || rowData['last_name'] || rowData['last name'] || '',
-      phone: rowData['phone'] || rowData['phonenumber'] || rowData['phone_number'] || null,
-      location: rowData['location'] || rowData['city'] || null,
-      currentTitle: rowData['title'] || rowData['currenttitle'] || rowData['current_title'] || rowData['job_title'] || null,
-      currentCompany: rowData['company'] || rowData['currentcompany'] || rowData['current_company'] || null,
-      linkedinUrl: rowData['linkedin'] || rowData['linkedinurl'] || rowData['linkedin_url'] || null,
+      email: rowData["email"],
+      firstName:
+        rowData["firstname"] ||
+        rowData["first_name"] ||
+        rowData["first name"] ||
+        "",
+      lastName:
+        rowData["lastname"] ||
+        rowData["last_name"] ||
+        rowData["last name"] ||
+        "",
+      phone:
+        rowData["phone"] ||
+        rowData["phonenumber"] ||
+        rowData["phone_number"] ||
+        null,
+      location: rowData["location"] || rowData["city"] || null,
+      currentTitle:
+        rowData["title"] ||
+        rowData["currenttitle"] ||
+        rowData["current_title"] ||
+        rowData["job_title"] ||
+        null,
+      currentCompany:
+        rowData["company"] ||
+        rowData["currentcompany"] ||
+        rowData["current_company"] ||
+        null,
+      linkedinUrl:
+        rowData["linkedin"] ||
+        rowData["linkedinurl"] ||
+        rowData["linkedin_url"] ||
+        null,
       skills: skills.length > 0 ? skills : [],
-      summary: rowData['summary'] || rowData['bio'] || rowData['about'] || null,
-      source: options?.source || rowData['source'] || 'CSV_IMPORT',
-      sourceDetails: 'Imported from CSV',
+      summary: rowData["summary"] || rowData["bio"] || rowData["about"] || null,
+      source: options?.source || rowData["source"] || "CSV_IMPORT",
+      sourceDetails: "Imported from CSV",
       tags: options?.tags || [],
     };
   }
@@ -1137,34 +1271,34 @@ export class CandidatesService {
    */
   getImportTemplate(): string {
     const headers = [
-      'email',
-      'firstName',
-      'lastName',
-      'phone',
-      'location',
-      'currentTitle',
-      'currentCompany',
-      'linkedin',
-      'skills',
-      'summary',
-      'source',
+      "email",
+      "firstName",
+      "lastName",
+      "phone",
+      "location",
+      "currentTitle",
+      "currentCompany",
+      "linkedin",
+      "skills",
+      "summary",
+      "source",
     ];
 
     const sampleRow = [
-      'john.doe@example.com',
-      'John',
-      'Doe',
-      '+1-555-123-4567',
-      'New York, NY',
-      'Software Engineer',
-      'Tech Corp',
-      'https://linkedin.com/in/johndoe',
-      'JavaScript, TypeScript, React',
-      'Experienced software engineer with 5+ years',
-      'LinkedIn',
+      "john.doe@example.com",
+      "John",
+      "Doe",
+      "+1-555-123-4567",
+      "New York, NY",
+      "Software Engineer",
+      "Tech Corp",
+      "https://linkedin.com/in/johndoe",
+      "JavaScript, TypeScript, React",
+      "Experienced software engineer with 5+ years",
+      "LinkedIn",
     ];
 
-    return [headers.join(','), sampleRow.join(',')].join('\n');
+    return [headers.join(","), sampleRow.join(",")].join("\n");
   }
 
   /**
@@ -1176,31 +1310,43 @@ export class CandidatesService {
     headers: string[];
     errors: string[];
   } {
-    const lines = csvData.split('\n').filter(line => line.trim());
+    const lines = csvData.split("\n").filter((line) => line.trim());
     const errors: string[] = [];
 
     if (lines.length < 1) {
-      return { valid: false, rowCount: 0, headers: [], errors: ['CSV file is empty'] };
+      return {
+        valid: false,
+        rowCount: 0,
+        headers: [],
+        errors: ["CSV file is empty"],
+      };
     }
 
-    const headers = this.parseCsvLine(lines[0]).map(h => h.toLowerCase().trim());
+    const headers = this.parseCsvLine(lines[0]).map((h) =>
+      h.toLowerCase().trim(),
+    );
 
-    if (!headers.includes('email')) {
-      errors.push('Missing required column: email');
+    if (!headers.includes("email")) {
+      errors.push("Missing required column: email");
     }
 
     // Check for common column names
-    const hasName = headers.includes('firstname') || headers.includes('first_name') ||
-      headers.includes('first name') || headers.includes('name');
+    const hasName =
+      headers.includes("firstname") ||
+      headers.includes("first_name") ||
+      headers.includes("first name") ||
+      headers.includes("name");
     if (!hasName) {
-      errors.push('Warning: No name columns found (firstname, first_name, name)');
+      errors.push(
+        "Warning: No name columns found (firstname, first_name, name)",
+      );
     }
 
     // Validate data rows
     let validRows = 0;
     for (let i = 1; i < lines.length; i++) {
       const values = this.parseCsvLine(lines[i]);
-      const emailIndex = headers.indexOf('email');
+      const emailIndex = headers.indexOf("email");
       const email = values[emailIndex]?.trim();
 
       if (email && this.isValidEmail(email)) {
@@ -1211,7 +1357,7 @@ export class CandidatesService {
     }
 
     return {
-      valid: errors.filter(e => !e.startsWith('Warning')).length === 0,
+      valid: errors.filter((e) => !e.startsWith("Warning")).length === 0,
       rowCount: lines.length - 1,
       headers,
       errors,

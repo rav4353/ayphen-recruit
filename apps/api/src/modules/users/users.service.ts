@@ -1,13 +1,17 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import * as bcrypt from 'bcrypt';
-import * as crypto from 'crypto';
-import { PrismaService } from '../../prisma/prisma.service';
-import { EmailService } from '../../common/services/email.service';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
-import { UserQueryDto } from './dto/user-query.dto';
-import { UpdatePreferencesDto } from './dto/preferences.dto';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import * as bcrypt from "bcrypt";
+import * as crypto from "crypto";
+import { PrismaService } from "../../prisma/prisma.service";
+import { EmailService } from "../../common/services/email.service";
+import { CreateUserDto } from "./dto/create-user.dto";
+import { UpdateUserDto } from "./dto/update-user.dto";
+import { UserQueryDto } from "./dto/user-query.dto";
+import { UpdatePreferencesDto } from "./dto/preferences.dto";
 
 @Injectable()
 export class UsersService {
@@ -15,11 +19,18 @@ export class UsersService {
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
     private readonly emailService: EmailService,
-  ) { }
+  ) {}
 
   async create(dto: CreateUserDto, tenantId: string) {
     try {
-      const { departmentId, role, password, customPermissions, roleId, ...userData } = dto as any;
+      const {
+        departmentId,
+        role,
+        password,
+        customPermissions,
+        roleId,
+        ...userData
+      } = dto as any;
 
       const email = dto.email.toLowerCase();
       const employeeId = dto.employeeId?.trim();
@@ -28,12 +39,14 @@ export class UsersService {
       const existingEmail = await this.prisma.user.findFirst({
         where: {
           tenantId,
-          email: { equals: email, mode: 'insensitive' }
+          email: { equals: email, mode: "insensitive" },
         },
       });
 
       if (existingEmail) {
-        throw new ConflictException(`User with email ${dto.email} already exists in this organization`);
+        throw new ConflictException(
+          `User with email ${dto.email} already exists in this organization`,
+        );
       }
 
       // Check if user with this Employee ID / Vendor ID already exists in this organization
@@ -41,43 +54,52 @@ export class UsersService {
         const existingEmployee = await this.prisma.user.findFirst({
           where: {
             tenantId,
-            employeeId: { equals: employeeId, mode: 'insensitive' }
-          }
+            employeeId: { equals: employeeId, mode: "insensitive" },
+          },
         });
 
         if (existingEmployee) {
-          throw new ConflictException(`User with Employee ID / Vendor ID ${employeeId} already exists in this organization`);
+          throw new ConflictException(
+            `User with Employee ID / Vendor ID ${employeeId} already exists in this organization`,
+          );
         }
       }
 
       let passwordHash = undefined;
       if (password) {
-        const defaultRounds = process.env.NODE_ENV === 'production' ? 12 : 10;
-        const saltRounds = Number(this.configService.get('BCRYPT_ROUNDS')) || defaultRounds;
+        const defaultRounds = process.env.NODE_ENV === "production" ? 12 : 10;
+        const saltRounds =
+          Number(this.configService.get("BCRYPT_ROUNDS")) || defaultRounds;
         passwordHash = await bcrypt.hash(password, saltRounds);
       }
 
-      console.log('Creating user with data:', { email: dto.email, employeeId: dto.employeeId, tenantId });
+      console.log("Creating user with data:", {
+        email: dto.email,
+        employeeId: dto.employeeId,
+        tenantId,
+      });
 
       const user = await this.prisma.user.create({
         data: {
           ...userData,
           email: email,
-          employeeId: employeeId || await this.generateUniqueEmployeeId(tenantId),
+          employeeId:
+            employeeId || (await this.generateUniqueEmployeeId(tenantId)),
           tenantId,
           ...(passwordHash && { passwordHash }),
           ...(role && { role }), // Ensure role is valid UserRole enum or ignored
           ...(departmentId && { departmentId }),
           ...(roleId && { roleId }),
           ...(customPermissions && { customPermissions }),
-          status: 'ACTIVE',
+          status: "ACTIVE",
           requirePasswordChange: !!password,
         },
       });
 
       // If a password was provided, it means this is an invite flow where the admin set a temp password
       if (password) {
-        const frontendUrl = this.configService.get('FRONTEND_URL') || 'http://localhost:3000';
+        const frontendUrl =
+          this.configService.get("FRONTEND_URL") || "http://localhost:3000";
         const loginUrl = `${frontendUrl}/login`;
 
         try {
@@ -86,10 +108,10 @@ export class UsersService {
             user.firstName,
             password,
             loginUrl,
-            tenantId
+            tenantId,
           );
         } catch (emailError) {
-          console.error('Failed to send invitation email:', emailError);
+          console.error("Failed to send invitation email:", emailError);
           // Do not fail the request if email sending fails, just log it.
           // Or maybe we should warn? For now, swallow error to allow user creation.
         }
@@ -97,7 +119,7 @@ export class UsersService {
 
       return user;
     } catch (error) {
-      console.error('Error in UsersService.create:', error);
+      console.error("Error in UsersService.create:", error);
       throw error;
     }
   }
@@ -119,15 +141,15 @@ export class UsersService {
     // Apply search
     if (query.search) {
       where.OR = [
-        { firstName: { contains: query.search, mode: 'insensitive' } },
-        { lastName: { contains: query.search, mode: 'insensitive' } },
-        { email: { contains: query.search, mode: 'insensitive' } },
+        { firstName: { contains: query.search, mode: "insensitive" } },
+        { lastName: { contains: query.search, mode: "insensitive" } },
+        { email: { contains: query.search, mode: "insensitive" } },
       ];
     }
 
     // Build sort order
-    const sortField = query.sortBy || 'createdAt';
-    const sortOrder = query.sortOrder || 'desc';
+    const sortField = query.sortBy || "createdAt";
+    const sortOrder = query.sortOrder || "desc";
     const orderBy = { [sortField]: sortOrder };
 
     const [users, total] = await Promise.all([
@@ -138,7 +160,7 @@ export class UsersService {
         orderBy,
         include: {
           department: true,
-          roleDef: true
+          roleDef: true,
         },
       }),
       this.prisma.user.count({ where }),
@@ -153,7 +175,7 @@ export class UsersService {
       include: { department: true },
     });
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException("User not found");
     }
     return user;
   }
@@ -164,24 +186,33 @@ export class UsersService {
         email_tenantId: { email, tenantId },
       },
       include: {
-        roleDef: true
-      }
+        roleDef: true,
+      },
     });
   }
 
   async update(id: string, dto: UpdateUserDto) {
     const user = await this.findById(id);
-    const { departmentId, role, customPermissions, roleId, password, ...userData } = dto;
+    const {
+      departmentId,
+      role,
+      customPermissions,
+      roleId,
+      password,
+      ...userData
+    } = dto;
 
     if (dto.email && dto.email.toLowerCase() !== user.email.toLowerCase()) {
       const existing = await this.prisma.user.findFirst({
         where: {
           tenantId: user.tenantId,
-          email: { equals: dto.email, mode: 'insensitive' }
-        }
+          email: { equals: dto.email, mode: "insensitive" },
+        },
       });
       if (existing) {
-        throw new ConflictException(`User with email ${dto.email} already exists in this organization`);
+        throw new ConflictException(
+          `User with email ${dto.email} already exists in this organization`,
+        );
       }
     }
 
@@ -189,11 +220,13 @@ export class UsersService {
       const existing = await this.prisma.user.findFirst({
         where: {
           tenantId: user.tenantId,
-          employeeId: { equals: dto.employeeId, mode: 'insensitive' }
-        }
+          employeeId: { equals: dto.employeeId, mode: "insensitive" },
+        },
       });
       if (existing) {
-        throw new ConflictException(`User with Employee ID / Vendor ID ${dto.employeeId} already exists in this organization`);
+        throw new ConflictException(
+          `User with Employee ID / Vendor ID ${dto.employeeId} already exists in this organization`,
+        );
       }
     }
 
@@ -204,7 +237,9 @@ export class UsersService {
         ...(dto.email && { email: dto.email.toLowerCase() }),
         ...(role && { role }),
         ...(roleId !== undefined && { roleId: roleId || null }),
-        ...(departmentId !== undefined && { departmentId: departmentId || null }),
+        ...(departmentId !== undefined && {
+          departmentId: departmentId || null,
+        }),
         ...(customPermissions && { customPermissions }),
       } as any,
     });
@@ -217,7 +252,7 @@ export class UsersService {
     });
   }
 
-  async updateStatus(id: string, status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED') {
+  async updateStatus(id: string, status: "ACTIVE" | "INACTIVE" | "SUSPENDED") {
     const user = await this.findById(id);
     return this.prisma.user.update({
       where: { id: user.id },
@@ -235,7 +270,7 @@ export class UsersService {
     });
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException("User not found");
     }
 
     return {
@@ -250,7 +285,7 @@ export class UsersService {
     });
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException("User not found");
     }
 
     const updated = await this.prisma.user.update({
@@ -275,11 +310,14 @@ export class UsersService {
     const user = await this.findById(userId);
 
     // Generate a new secure temporary password
-    const tempPassword = crypto.randomBytes(8).toString('base64').slice(0, 10) + crypto.randomBytes(2).toString('hex').toUpperCase();
+    const tempPassword =
+      crypto.randomBytes(8).toString("base64").slice(0, 10) +
+      crypto.randomBytes(2).toString("hex").toUpperCase();
 
     // Hash the password
-    const defaultRounds = process.env.NODE_ENV === 'production' ? 12 : 10;
-    const saltRounds = Number(this.configService.get('BCRYPT_ROUNDS')) || defaultRounds;
+    const defaultRounds = process.env.NODE_ENV === "production" ? 12 : 10;
+    const saltRounds =
+      Number(this.configService.get("BCRYPT_ROUNDS")) || defaultRounds;
     const passwordHash = await bcrypt.hash(tempPassword, saltRounds);
 
     // Update user with new password and set requirePasswordChange flag
@@ -293,7 +331,8 @@ export class UsersService {
     });
 
     // Send email with new temporary password
-    const frontendUrl = this.configService.get('FRONTEND_URL') || 'http://localhost:3000';
+    const frontendUrl =
+      this.configService.get("FRONTEND_URL") || "http://localhost:3000";
     const loginUrl = `${frontendUrl}/login`;
 
     await this.emailService.sendInvitationEmail(
@@ -301,7 +340,7 @@ export class UsersService {
       user.firstName,
       tempPassword,
       loginUrl,
-      user.tenantId
+      user.tenantId,
     );
   }
 
@@ -309,7 +348,7 @@ export class UsersService {
     const jobApprovals = await this.prisma.jobApproval.findMany({
       where: {
         approverId: userId,
-        status: 'PENDING',
+        status: "PENDING",
       },
       include: {
         job: {
@@ -328,15 +367,18 @@ export class UsersService {
       ...jobApprovals.map((approval) => ({
         id: approval.id,
         title: `Approve Job Requisition: ${approval.job.title}`,
-        type: 'approval',
-        entity: 'Job',
+        type: "approval",
+        entity: "Job",
         entityId: approval.job.id,
-        due: 'Today', // You might want to calculate this based on SLA or creation date
+        due: "Today", // You might want to calculate this based on SLA or creation date
         createdAt: approval.createdAt,
       })),
     ];
 
-    return actions.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return actions.sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
   }
 
   private generateEmployeeId(): string {
@@ -345,7 +387,7 @@ export class UsersService {
   }
 
   private async generateUniqueEmployeeId(tenantId: string): Promise<string> {
-    let id: string = '';
+    let id: string = "";
     let exists = true;
     let attempts = 0;
     while (exists && attempts < 10) {
@@ -353,8 +395,8 @@ export class UsersService {
       const existing = await this.prisma.user.findFirst({
         where: {
           tenantId,
-          employeeId: id
-        }
+          employeeId: id,
+        },
       });
       if (!existing) exists = false;
       attempts++;
@@ -372,26 +414,26 @@ export class UsersService {
     });
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException("User not found");
     }
 
     // Get availability from activity log (stored as USER_AVAILABILITY action)
     const availabilityLog = await this.prisma.activityLog.findFirst({
       where: {
         userId,
-        action: 'USER_AVAILABILITY',
+        action: "USER_AVAILABILITY",
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
     const defaultAvailability = {
-      timezone: 'UTC',
+      timezone: "UTC",
       slots: [
-        { dayOfWeek: 1, startTime: '09:00', endTime: '17:00' },
-        { dayOfWeek: 2, startTime: '09:00', endTime: '17:00' },
-        { dayOfWeek: 3, startTime: '09:00', endTime: '17:00' },
-        { dayOfWeek: 4, startTime: '09:00', endTime: '17:00' },
-        { dayOfWeek: 5, startTime: '09:00', endTime: '17:00' },
+        { dayOfWeek: 1, startTime: "09:00", endTime: "17:00" },
+        { dayOfWeek: 2, startTime: "09:00", endTime: "17:00" },
+        { dayOfWeek: 3, startTime: "09:00", endTime: "17:00" },
+        { dayOfWeek: 4, startTime: "09:00", endTime: "17:00" },
+        { dayOfWeek: 5, startTime: "09:00", endTime: "17:00" },
       ],
       bufferMinutes: 15,
       maxMeetingsPerDay: 8,
@@ -424,7 +466,7 @@ export class UsersService {
     });
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException("User not found");
     }
 
     const currentAvailability = await this.getAvailability(userId);
@@ -439,15 +481,15 @@ export class UsersService {
     await this.prisma.activityLog.deleteMany({
       where: {
         userId,
-        action: 'USER_AVAILABILITY',
+        action: "USER_AVAILABILITY",
       },
     });
 
     // Create new availability record
     await this.prisma.activityLog.create({
       data: {
-        action: 'USER_AVAILABILITY',
-        description: 'User availability updated',
+        action: "USER_AVAILABILITY",
+        description: "User availability updated",
         userId,
         metadata: updatedAvailability,
       },
@@ -469,14 +511,16 @@ export class UsersService {
     const dayOfWeek = targetDate.getDay() === 0 ? 7 : targetDate.getDay(); // Convert Sunday from 0 to 7
 
     // Check if user has availability on this day
-    const daySlot = availability.slots?.find((s: any) => s.dayOfWeek === dayOfWeek);
+    const daySlot = availability.slots?.find(
+      (s: any) => s.dayOfWeek === dayOfWeek,
+    );
     if (!daySlot) {
-      return { date, slots: [], message: 'User not available on this day' };
+      return { date, slots: [], message: "User not available on this day" };
     }
 
     // Check if date is blocked
     if (availability.blockedDates?.includes(date)) {
-      return { date, slots: [], message: 'Date is blocked' };
+      return { date, slots: [], message: "Date is blocked" };
     }
 
     // Get existing interviews for this user on this date
@@ -492,22 +536,29 @@ export class UsersService {
           gte: startOfDay,
           lte: endOfDay,
         },
-        status: { not: 'CANCELLED' },
+        status: { not: "CANCELLED" },
       },
       select: { scheduledAt: true, duration: true },
     });
 
     // Check max meetings limit
-    if (availability.maxMeetingsPerDay && existingInterviews.length >= availability.maxMeetingsPerDay) {
-      return { date, slots: [], message: 'Maximum meetings reached for this day' };
+    if (
+      availability.maxMeetingsPerDay &&
+      existingInterviews.length >= availability.maxMeetingsPerDay
+    ) {
+      return {
+        date,
+        slots: [],
+        message: "Maximum meetings reached for this day",
+      };
     }
 
     // Generate available time slots
     const slots: { start: string; end: string }[] = [];
     const bufferMinutes = availability.bufferMinutes || 0;
 
-    const [startHour, startMin] = daySlot.startTime.split(':').map(Number);
-    const [endHour, endMin] = daySlot.endTime.split(':').map(Number);
+    const [startHour, startMin] = daySlot.startTime.split(":").map(Number);
+    const [endHour, endMin] = daySlot.endTime.split(":").map(Number);
 
     let currentTime = new Date(date);
     currentTime.setHours(startHour, startMin, 0, 0);
@@ -515,17 +566,28 @@ export class UsersService {
     const endTime = new Date(date);
     endTime.setHours(endHour, endMin, 0, 0);
 
-    while (currentTime.getTime() + durationMinutes * 60 * 1000 <= endTime.getTime()) {
-      const slotEnd = new Date(currentTime.getTime() + durationMinutes * 60 * 1000);
+    while (
+      currentTime.getTime() + durationMinutes * 60 * 1000 <=
+      endTime.getTime()
+    ) {
+      const slotEnd = new Date(
+        currentTime.getTime() + durationMinutes * 60 * 1000,
+      );
 
       // Check if slot conflicts with existing interviews
       const hasConflict = existingInterviews.some((interview) => {
         const interviewStart = new Date(interview.scheduledAt);
-        const interviewEnd = new Date(interviewStart.getTime() + interview.duration * 60 * 1000);
+        const interviewEnd = new Date(
+          interviewStart.getTime() + interview.duration * 60 * 1000,
+        );
 
         // Add buffer time
-        const bufferedStart = new Date(interviewStart.getTime() - bufferMinutes * 60 * 1000);
-        const bufferedEnd = new Date(interviewEnd.getTime() + bufferMinutes * 60 * 1000);
+        const bufferedStart = new Date(
+          interviewStart.getTime() - bufferMinutes * 60 * 1000,
+        );
+        const bufferedEnd = new Date(
+          interviewEnd.getTime() + bufferMinutes * 60 * 1000,
+        );
 
         return (
           (currentTime >= bufferedStart && currentTime < bufferedEnd) ||
@@ -565,7 +627,9 @@ export class UsersService {
   async unblockDates(userId: string, dates: string[]) {
     const availability = await this.getAvailability(userId);
     const existingBlocked = availability.blockedDates || [];
-    const newBlocked = existingBlocked.filter((d: string) => !dates.includes(d));
+    const newBlocked = existingBlocked.filter(
+      (d: string) => !dates.includes(d),
+    );
 
     return this.updateAvailability(userId, { blockedDates: newBlocked });
   }

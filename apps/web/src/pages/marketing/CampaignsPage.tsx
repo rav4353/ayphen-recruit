@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Send, Users, Search, CheckSquare, Square, Loader2, Mail, Eye, Sparkles, User, BarChart3, RefreshCw } from 'lucide-react';
 import { bulkEmailApi, candidatesApi } from '../../lib/api';
 import { Button, Input, Card, Modal } from '../../components/ui';
+import { SmtpConfigurationWarning } from '../../components/common';
 
 export function CampaignsPage() {
     const { t } = useTranslation();
@@ -287,6 +288,9 @@ export function CampaignsPage() {
                 {/* Right Column: Email Composition */}
                 <div className="lg:col-span-8 flex flex-col gap-6 h-full min-h-0">
                     <Card className="flex-1 flex flex-col overflow-hidden border-neutral-200 dark:border-neutral-800 shadow-sm">
+                        <div className="px-4 pt-4">
+                            <SmtpConfigurationWarning />
+                        </div>
                         <div className="p-4 border-b border-neutral-100 dark:border-neutral-800 bg-white dark:bg-neutral-900">
                             <Input
                                 value={campaignName}

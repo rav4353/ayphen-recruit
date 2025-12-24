@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, AlertTriangle } from 'lucide-react';
 import { Button } from './Button';
 
@@ -23,7 +24,7 @@ export function UnsavedChangesModal({
 
     if (!show) return null;
 
-    return (
+    return createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center animate-fade-in">
             {/* Backdrop */}
             <div
@@ -72,6 +73,7 @@ export function UnsavedChangesModal({
                     </Button>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }

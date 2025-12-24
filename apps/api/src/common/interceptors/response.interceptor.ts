@@ -3,9 +3,9 @@ import {
   NestInterceptor,
   ExecutionContext,
   CallHandler,
-} from '@nestjs/common';
-import { Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
+} from "@nestjs/common";
+import { Observable } from "rxjs";
+import { map } from "rxjs/operators";
 
 export interface ResponseFormat<T> {
   success: boolean;
@@ -15,9 +15,10 @@ export interface ResponseFormat<T> {
 }
 
 @Injectable()
-export class ResponseInterceptor<T>
-  implements NestInterceptor<T, ResponseFormat<T>>
-{
+export class ResponseInterceptor<T> implements NestInterceptor<
+  T,
+  ResponseFormat<T>
+> {
   intercept(
     context: ExecutionContext,
     next: CallHandler,
@@ -25,14 +26,14 @@ export class ResponseInterceptor<T>
     return next.handle().pipe(
       map((data) => {
         // If already wrapped in ApiResponse format, return as-is
-        if (data && typeof data === 'object' && 'success' in data) {
+        if (data && typeof data === "object" && "success" in data) {
           return data;
         }
 
         // Otherwise wrap in standard format
         return {
           success: true,
-          message: 'Success',
+          message: "Success",
           data,
           timestamp: new Date().toISOString(),
         };

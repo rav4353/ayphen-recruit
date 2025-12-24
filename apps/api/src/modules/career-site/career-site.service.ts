@@ -1,7 +1,12 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { PrismaService } from '../../prisma/prisma.service';
-import { JobStatus } from '@prisma/client';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  BadRequestException,
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { PrismaService } from "../../prisma/prisma.service";
+import { JobStatus } from "@prisma/client";
 
 export interface CareerSiteConfig {
   enabled: boolean;
@@ -22,7 +27,7 @@ export interface CareerSiteConfig {
 
   // Layout
   layout: {
-    template: 'modern' | 'classic' | 'minimal' | 'corporate';
+    template: "modern" | "classic" | "minimal" | "corporate";
     showHero: boolean;
     heroImage?: string;
     heroTitle?: string;
@@ -92,7 +97,7 @@ export interface CareerSiteConfig {
   }[];
 }
 
-const CAREER_SITE_SETTINGS_KEY = 'career_site_config';
+const CAREER_SITE_SETTINGS_KEY = "career_site_config";
 
 @Injectable()
 export class CareerSiteService {
@@ -101,7 +106,7 @@ export class CareerSiteService {
   constructor(
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
-  ) { }
+  ) {}
 
   /**
    * Get career site configuration
@@ -118,17 +123,17 @@ export class CareerSiteService {
     const defaultConfig: CareerSiteConfig = {
       enabled: true,
       branding: {
-        primaryColor: '#6366F1',
-        secondaryColor: '#8B5CF6',
-        backgroundColor: '#FFFFFF',
-        textColor: '#1F2937',
-        fontFamily: 'Inter, sans-serif',
+        primaryColor: "#6366F1",
+        secondaryColor: "#8B5CF6",
+        backgroundColor: "#FFFFFF",
+        textColor: "#1F2937",
+        fontFamily: "Inter, sans-serif",
       },
       layout: {
-        template: 'modern',
+        template: "modern",
         showHero: true,
-        heroTitle: `Join ${tenant?.name || 'Our Team'}`,
-        heroSubtitle: 'Discover exciting career opportunities',
+        heroTitle: `Join ${tenant?.name || "Our Team"}`,
+        heroSubtitle: "Discover exciting career opportunities",
         showSearch: true,
         showFilters: true,
         showDepartmentFilter: true,
@@ -140,11 +145,11 @@ export class CareerSiteService {
         showTestimonials: false,
       },
       companyInfo: {
-        name: tenant?.name || 'Company',
+        name: tenant?.name || "Company",
       },
       seo: {
-        title: `Careers at ${tenant?.name || 'Company'}`,
-        description: `Explore job opportunities at ${tenant?.name || 'our company'}`,
+        title: `Careers at ${tenant?.name || "Company"}`,
+        description: `Explore job opportunities at ${tenant?.name || "our company"}`,
       },
       customCode: {},
       pages: [],
@@ -164,7 +169,10 @@ export class CareerSiteService {
   /**
    * Update career site configuration
    */
-  async updateConfig(tenantId: string, config: Partial<CareerSiteConfig>): Promise<CareerSiteConfig> {
+  async updateConfig(
+    tenantId: string,
+    config: Partial<CareerSiteConfig>,
+  ): Promise<CareerSiteConfig> {
     const currentConfig = await this.getConfig(tenantId);
     const newConfig = this.deepMerge(currentConfig, config);
 
@@ -175,7 +183,7 @@ export class CareerSiteService {
         tenantId,
         key: CAREER_SITE_SETTINGS_KEY,
         value: newConfig as any,
-        category: 'CAREER_SITE',
+        category: "CAREER_SITE",
         isPublic: true,
       },
     });
@@ -190,7 +198,7 @@ export class CareerSiteService {
     const config = await this.getConfig(tenantId);
 
     if (!config.enabled) {
-      throw new NotFoundException('Career site is not enabled');
+      throw new NotFoundException("Career site is not enabled");
     }
 
     const tenant = await this.prisma.tenant.findUnique({
@@ -233,8 +241,8 @@ export class CareerSiteService {
       },
       stats: {
         totalJobs,
-        departments: departments.filter(d => d._count.jobs > 0),
-        locations: locations.filter(l => l._count.jobs > 0),
+        departments: departments.filter((d) => d._count.jobs > 0),
+        locations: locations.filter((l) => l._count.jobs > 0),
       },
     };
   }
@@ -242,19 +250,22 @@ export class CareerSiteService {
   /**
    * Get public job listings
    */
-  async getPublicJobs(tenantId: string, params: {
-    search?: string;
-    department?: string;
-    location?: string;
-    employmentType?: string;
-    workLocation?: string;
-    page?: number;
-    limit?: number;
-  }) {
+  async getPublicJobs(
+    tenantId: string,
+    params: {
+      search?: string;
+      department?: string;
+      location?: string;
+      employmentType?: string;
+      workLocation?: string;
+      page?: number;
+      limit?: number;
+    },
+  ) {
     const config = await this.getConfig(tenantId);
 
     if (!config.enabled) {
-      throw new NotFoundException('Career site is not enabled');
+      throw new NotFoundException("Career site is not enabled");
     }
 
     const page = params.page || 1;
@@ -269,8 +280,8 @@ export class CareerSiteService {
 
     if (params.search) {
       where.OR = [
-        { title: { contains: params.search, mode: 'insensitive' } },
-        { description: { contains: params.search, mode: 'insensitive' } },
+        { title: { contains: params.search, mode: "insensitive" } },
+        { description: { contains: params.search, mode: "insensitive" } },
       ];
     }
 
@@ -305,9 +316,11 @@ export class CareerSiteService {
           showSalary: true,
           publishedAt: true,
           department: { select: { id: true, name: true } },
-          locations: { select: { id: true, city: true, state: true, country: true } },
+          locations: {
+            select: { id: true, city: true, state: true, country: true },
+          },
         },
-        orderBy: { publishedAt: 'desc' },
+        orderBy: { publishedAt: "desc" },
         skip,
         take: limit,
       }),
@@ -315,12 +328,13 @@ export class CareerSiteService {
     ]);
 
     return {
-      jobs: jobs.map(job => ({
+      jobs: jobs.map((job) => ({
         ...job,
         location: (job as any).locations?.[0],
-        salary: job.showSalary && job.salaryMin && job.salaryMax
-          ? `${job.salaryCurrency} ${job.salaryMin.toNumber().toLocaleString()} - ${job.salaryMax.toNumber().toLocaleString()}`
-          : null,
+        salary:
+          job.showSalary && job.salaryMin && job.salaryMax
+            ? `${job.salaryCurrency} ${job.salaryMin.toNumber().toLocaleString()} - ${job.salaryMax.toNumber().toLocaleString()}`
+            : null,
       })),
       pagination: {
         page,
@@ -338,7 +352,7 @@ export class CareerSiteService {
     const config = await this.getConfig(tenantId);
 
     if (!config.enabled) {
-      throw new NotFoundException('Career site is not enabled');
+      throw new NotFoundException("Career site is not enabled");
     }
 
     const job = await this.prisma.job.findFirst({
@@ -350,13 +364,15 @@ export class CareerSiteService {
       },
       include: {
         department: { select: { id: true, name: true } },
-        locations: { select: { id: true, city: true, state: true, country: true } },
+        locations: {
+          select: { id: true, city: true, state: true, country: true },
+        },
         tenant: { select: { id: true, name: true, logo: true } },
       },
     });
 
     if (!job) {
-      throw new NotFoundException('Job not found');
+      throw new NotFoundException("Job not found");
     }
 
     // Get related jobs
@@ -390,9 +406,10 @@ export class CareerSiteService {
         benefits: job.benefits,
         employmentType: job.employmentType,
         workLocation: job.workLocation,
-        salary: job.showSalary && job.salaryMin && job.salaryMax
-          ? `${job.salaryCurrency} ${job.salaryMin.toNumber().toLocaleString()} - ${job.salaryMax.toNumber().toLocaleString()}`
-          : null,
+        salary:
+          job.showSalary && job.salaryMin && job.salaryMax
+            ? `${job.salaryCurrency} ${job.salaryMin.toNumber().toLocaleString()} - ${job.salaryMax.toNumber().toLocaleString()}`
+            : null,
         skills: job.skills,
         experience: job.experience,
         education: job.education,
@@ -416,7 +433,8 @@ export class CareerSiteService {
    * Get career site URL
    */
   getCareerSiteUrl(tenantId: string, config: CareerSiteConfig): string {
-    const baseUrl = this.configService.get<string>('WEB_URL') || 'http://localhost:3000';
+    const baseUrl =
+      this.configService.get<string>("WEB_URL") || "http://localhost:3000";
 
     if (config.customDomain && config.customDomainVerified) {
       return `https://${config.customDomain}`;
@@ -432,17 +450,20 @@ export class CareerSiteService {
   /**
    * Add a custom page
    */
-  async addPage(tenantId: string, page: {
-    title: string;
-    slug: string;
-    content: string;
-    isPublished?: boolean;
-  }) {
+  async addPage(
+    tenantId: string,
+    page: {
+      title: string;
+      slug: string;
+      content: string;
+      isPublished?: boolean;
+    },
+  ) {
     const config = await this.getConfig(tenantId);
 
     // Check slug uniqueness
-    if (config.pages.some(p => p.slug === page.slug)) {
-      throw new BadRequestException('Page with this slug already exists');
+    if (config.pages.some((p) => p.slug === page.slug)) {
+      throw new BadRequestException("Page with this slug already exists");
     }
 
     const newPage = {
@@ -463,18 +484,22 @@ export class CareerSiteService {
   /**
    * Update a page
    */
-  async updatePage(tenantId: string, pageId: string, updates: Partial<{
-    title: string;
-    slug: string;
-    content: string;
-    isPublished: boolean;
-    order: number;
-  }>) {
+  async updatePage(
+    tenantId: string,
+    pageId: string,
+    updates: Partial<{
+      title: string;
+      slug: string;
+      content: string;
+      isPublished: boolean;
+      order: number;
+    }>,
+  ) {
     const config = await this.getConfig(tenantId);
-    const pageIndex = config.pages.findIndex(p => p.id === pageId);
+    const pageIndex = config.pages.findIndex((p) => p.id === pageId);
 
     if (pageIndex === -1) {
-      throw new NotFoundException('Page not found');
+      throw new NotFoundException("Page not found");
     }
 
     config.pages[pageIndex] = { ...config.pages[pageIndex], ...updates };
@@ -488,7 +513,7 @@ export class CareerSiteService {
    */
   async deletePage(tenantId: string, pageId: string) {
     const config = await this.getConfig(tenantId);
-    config.pages = config.pages.filter(p => p.id !== pageId);
+    config.pages = config.pages.filter((p) => p.id !== pageId);
     await this.updateConfig(tenantId, { pages: config.pages });
     return { success: true };
   }
@@ -496,12 +521,15 @@ export class CareerSiteService {
   /**
    * Add testimonial
    */
-  async addTestimonial(tenantId: string, testimonial: {
-    name: string;
-    role: string;
-    image?: string;
-    quote: string;
-  }) {
+  async addTestimonial(
+    tenantId: string,
+    testimonial: {
+      name: string;
+      role: string;
+      image?: string;
+      quote: string;
+    },
+  ) {
     const config = await this.getConfig(tenantId);
 
     const newTestimonial = {
@@ -521,7 +549,9 @@ export class CareerSiteService {
    */
   async deleteTestimonial(tenantId: string, testimonialId: string) {
     const config = await this.getConfig(tenantId);
-    config.testimonials = config.testimonials.filter(t => t.id !== testimonialId);
+    config.testimonials = config.testimonials.filter(
+      (t) => t.id !== testimonialId,
+    );
     await this.updateConfig(tenantId, { testimonials: config.testimonials });
     return { success: true };
   }
@@ -530,15 +560,20 @@ export class CareerSiteService {
    * Preview career site (generates preview URL)
    */
   async generatePreviewUrl(tenantId: string): Promise<string> {
-    const token = Buffer.from(`${tenantId}:${Date.now()}`).toString('base64');
-    const baseUrl = this.configService.get<string>('WEB_URL') || 'http://localhost:3000';
+    const token = Buffer.from(`${tenantId}:${Date.now()}`).toString("base64");
+    const baseUrl =
+      this.configService.get<string>("WEB_URL") || "http://localhost:3000";
     return `${baseUrl}/careers/preview?token=${token}`;
   }
 
   private deepMerge(target: any, source: any): any {
     const result = { ...target };
     for (const key in source) {
-      if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+      if (
+        source[key] &&
+        typeof source[key] === "object" &&
+        !Array.isArray(source[key])
+      ) {
         result[key] = this.deepMerge(target[key] || {}, source[key]);
       } else {
         result[key] = source[key];

@@ -1,6 +1,10 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
-import { EmploymentType } from '@prisma/client';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from "@nestjs/common";
+import { PrismaService } from "../../prisma/prisma.service";
+import { EmploymentType } from "@prisma/client";
 
 interface CreateJobTemplateDto {
   name: string;
@@ -19,7 +23,7 @@ interface UpdateJobTemplateDto extends Partial<CreateJobTemplateDto> {
 
 @Injectable()
 export class JobTemplatesService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   /**
    * Create a new job template
@@ -28,13 +32,15 @@ export class JobTemplatesService {
     // Check for duplicate name
     const existing = await this.prisma.jobTemplate.findFirst({
       where: {
-        name: { equals: dto.name, mode: 'insensitive' },
+        name: { equals: dto.name, mode: "insensitive" },
         tenantId,
       },
     });
 
     if (existing) {
-      throw new ConflictException('A job template with this name already exists');
+      throw new ConflictException(
+        "A job template with this name already exists",
+      );
     }
 
     return this.prisma.jobTemplate.create({
@@ -45,7 +51,7 @@ export class JobTemplatesService {
         requirements: dto.requirements,
         responsibilities: dto.responsibilities,
         benefits: dto.benefits,
-        employmentType: dto.employmentType || 'FULL_TIME',
+        employmentType: dto.employmentType || "FULL_TIME",
         skills: dto.skills || [],
         tenantId,
       },
@@ -61,7 +67,7 @@ export class JobTemplatesService {
         tenantId,
         ...(includeInactive ? {} : { isActive: true }),
       },
-      orderBy: { name: 'asc' },
+      orderBy: { name: "asc" },
     });
   }
 
@@ -74,7 +80,7 @@ export class JobTemplatesService {
     });
 
     if (!template) {
-      throw new NotFoundException('Job template not found');
+      throw new NotFoundException("Job template not found");
     }
 
     return template;
@@ -90,14 +96,16 @@ export class JobTemplatesService {
     if (dto.name) {
       const existing = await this.prisma.jobTemplate.findFirst({
         where: {
-          name: { equals: dto.name, mode: 'insensitive' },
+          name: { equals: dto.name, mode: "insensitive" },
           tenantId,
           id: { not: id },
         },
       });
 
       if (existing) {
-        throw new ConflictException('A job template with this name already exists');
+        throw new ConflictException(
+          "A job template with this name already exists",
+        );
       }
     }
 
@@ -107,8 +115,12 @@ export class JobTemplatesService {
         ...(dto.name && { name: dto.name }),
         ...(dto.title && { title: dto.title }),
         ...(dto.description && { description: dto.description }),
-        ...(dto.requirements !== undefined && { requirements: dto.requirements }),
-        ...(dto.responsibilities !== undefined && { responsibilities: dto.responsibilities }),
+        ...(dto.requirements !== undefined && {
+          requirements: dto.requirements,
+        }),
+        ...(dto.responsibilities !== undefined && {
+          responsibilities: dto.responsibilities,
+        }),
         ...(dto.benefits !== undefined && { benefits: dto.benefits }),
         ...(dto.employmentType && { employmentType: dto.employmentType }),
         ...(dto.skills && { skills: dto.skills }),
@@ -153,14 +165,19 @@ export class JobTemplatesService {
   /**
    * Create a job from a template
    */
-  async createJobFromTemplate(templateId: string, tenantId: string, recruiterId: string, overrides?: {
-    title?: string;
-    description?: string;
-    departmentId?: string;
-    locationId?: string;
-    hiringManagerId?: string;
-    pipelineId?: string;
-  }) {
+  async createJobFromTemplate(
+    templateId: string,
+    tenantId: string,
+    recruiterId: string,
+    overrides?: {
+      title?: string;
+      description?: string;
+      departmentId?: string;
+      locationId?: string;
+      hiringManagerId?: string;
+      pipelineId?: string;
+    },
+  ) {
     const template = await this.findById(templateId, tenantId);
 
     // Generate unique job code
@@ -176,12 +193,18 @@ export class JobTemplatesService {
         benefits: template.benefits,
         employmentType: template.employmentType,
         skills: template.skills,
-        status: 'DRAFT',
+        status: "DRAFT",
         tenantId,
         recruiterId,
-        ...(overrides?.departmentId && { departmentId: overrides.departmentId }),
-        ...(overrides?.locationId && { locations: { connect: { id: overrides.locationId } } }),
-        ...(overrides?.hiringManagerId && { hiringManagerId: overrides.hiringManagerId }),
+        ...(overrides?.departmentId && {
+          departmentId: overrides.departmentId,
+        }),
+        ...(overrides?.locationId && {
+          locations: { connect: { id: overrides.locationId } },
+        }),
+        ...(overrides?.hiringManagerId && {
+          hiringManagerId: overrides.hiringManagerId,
+        }),
         ...(overrides?.pipelineId && { pipelineId: overrides.pipelineId }),
       },
       include: {
@@ -204,8 +227,8 @@ export class JobTemplatesService {
 
     return {
       total: templates.length,
-      active: templates.filter(t => t.isActive).length,
-      inactive: templates.filter(t => !t.isActive).length,
+      active: templates.filter((t) => t.isActive).length,
+      inactive: templates.filter((t) => !t.isActive).length,
     };
   }
 }

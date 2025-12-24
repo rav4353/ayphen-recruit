@@ -1,7 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { PrismaService } from '../../prisma/prisma.service';
-import { Job, JobStatus } from '@prisma/client';
+import { Injectable, Logger } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { PrismaService } from "../../prisma/prisma.service";
+import { Job, JobStatus } from "@prisma/client";
 
 interface IndeedJobXml {
   title: string;
@@ -30,7 +30,7 @@ interface IndeedFeedConfig {
   includeSalary: boolean;
 }
 
-const INDEED_SETTINGS_KEY = 'indeed_feed_settings';
+const INDEED_SETTINGS_KEY = "indeed_feed_settings";
 
 @Injectable()
 export class IndeedFeedService {
@@ -39,22 +39,27 @@ export class IndeedFeedService {
   constructor(
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
-  ) { }
+  ) {}
 
   /**
    * Get Indeed Feed configuration
    */
-  async getConfig(tenantId: string): Promise<{ isConfigured: boolean; feedUrl?: string }> {
+  async getConfig(
+    tenantId: string,
+  ): Promise<{ isConfigured: boolean; feedUrl?: string }> {
     const setting = await this.prisma.setting.findUnique({
       where: { tenantId_key: { tenantId, key: INDEED_SETTINGS_KEY } },
     });
 
     const config = setting?.value as unknown as IndeedFeedConfig;
-    const baseUrl = this.configService.get<string>('API_URL') || 'http://localhost:3001';
+    const baseUrl =
+      this.configService.get<string>("API_URL") || "http://localhost:3001";
 
     return {
       isConfigured: !!config?.publisherId,
-      feedUrl: config?.publisherId ? `${baseUrl}/api/integrations/indeed/feed/${tenantId}` : undefined,
+      feedUrl: config?.publisherId
+        ? `${baseUrl}/api/integrations/indeed/feed/${tenantId}`
+        : undefined,
     };
   }
 
@@ -66,17 +71,18 @@ export class IndeedFeedService {
       where: { tenantId_key: { tenantId, key: INDEED_SETTINGS_KEY } },
     });
 
-    const currentConfig = (existing?.value as unknown as IndeedFeedConfig) || {};
+    const currentConfig =
+      (existing?.value as unknown as IndeedFeedConfig) || {};
     const newConfig = { ...currentConfig, ...config };
 
     await this.prisma.setting.upsert({
       where: { tenantId_key: { tenantId, key: INDEED_SETTINGS_KEY } },
-      update: { value: newConfig as any, category: 'INTEGRATION' },
+      update: { value: newConfig as any, category: "INTEGRATION" },
       create: {
         tenantId,
         key: INDEED_SETTINGS_KEY,
         value: newConfig as any,
-        category: 'INTEGRATION',
+        category: "INTEGRATION",
         isPublic: false,
       },
     });
@@ -92,9 +98,10 @@ export class IndeedFeedService {
       where: { tenantId_key: { tenantId, key: INDEED_SETTINGS_KEY } },
     });
 
-    const config: Partial<IndeedFeedConfig> = (setting?.value as unknown as IndeedFeedConfig) || {};
+    const config: Partial<IndeedFeedConfig> =
+      (setting?.value as unknown as IndeedFeedConfig) || {};
     const feedConfig = {
-      companyName: config.companyName || 'Company',
+      companyName: config.companyName || "Company",
       includeDescription: config.includeDescription ?? true,
       includeSalary: config.includeSalary ?? false,
     };
@@ -115,11 +122,14 @@ export class IndeedFeedService {
       },
     });
 
-    const baseUrl = this.configService.get<string>('WEB_URL') || 'http://localhost:3000';
-    const companyName = config.companyName || tenant?.name || 'Company';
+    const baseUrl =
+      this.configService.get<string>("WEB_URL") || "http://localhost:3000";
+    const companyName = config.companyName || tenant?.name || "Company";
 
     // Generate XML
-    const jobsXml = jobs.map(job => this.jobToXml(job, companyName, baseUrl, feedConfig)).join('\n');
+    const jobsXml = jobs
+      .map((job) => this.jobToXml(job, companyName, baseUrl, feedConfig))
+      .join("\n");
 
     return `<?xml version="1.0" encoding="UTF-8"?>
 <source>
@@ -133,29 +143,35 @@ ${jobsXml}
   /**
    * Convert job to Indeed XML format
    */
-  private jobToXml(job: any, companyName: string, baseUrl: string, config: { includeDescription: boolean; includeSalary: boolean }): string {
+  private jobToXml(
+    job: any,
+    companyName: string,
+    baseUrl: string,
+    config: { includeDescription: boolean; includeSalary: boolean },
+  ): string {
     const location = job.locations?.[0];
     const jobUrl = `${baseUrl}/careers/${job.id}`;
 
     // Map employment type to Indeed job type
     const jobTypeMap: Record<string, string> = {
-      FULL_TIME: 'fulltime',
-      PART_TIME: 'parttime',
-      CONTRACT: 'contract',
-      INTERNSHIP: 'internship',
-      TEMPORARY: 'temporary',
+      FULL_TIME: "fulltime",
+      PART_TIME: "parttime",
+      CONTRACT: "contract",
+      INTERNSHIP: "internship",
+      TEMPORARY: "temporary",
     };
 
     // Map work location to remote type
     const remoteTypeMap: Record<string, string> = {
-      REMOTE: 'fully_remote',
-      HYBRID: 'hybrid_remote',
-      ONSITE: '',
+      REMOTE: "fully_remote",
+      HYBRID: "hybrid_remote",
+      ONSITE: "",
     };
 
-    const salary = config.includeSalary && job.salaryMin && job.salaryMax
-      ? `${job.salaryCurrency} ${job.salaryMin} - ${job.salaryMax}`
-      : '';
+    const salary =
+      config.includeSalary && job.salaryMin && job.salaryMax
+        ? `${job.salaryCurrency} ${job.salaryMin} - ${job.salaryMax}`
+        : "";
 
     return `  <job>
     <title><![CDATA[${job.title}]]></title>
@@ -163,17 +179,17 @@ ${jobsXml}
     <referencenumber><![CDATA[${job.jobCode || job.id}]]></referencenumber>
     <url><![CDATA[${jobUrl}]]></url>
     <company><![CDATA[${companyName}]]></company>
-    <city><![CDATA[${location?.city || ''}]]></city>
-    <state><![CDATA[${location?.state || ''}]]></state>
-    <country><![CDATA[${location?.country || 'US'}]]></country>
-    <postalcode><![CDATA[${location?.postalCode || ''}]]></postalcode>
+    <city><![CDATA[${location?.city || ""}]]></city>
+    <state><![CDATA[${location?.state || ""}]]></state>
+    <country><![CDATA[${location?.country || "US"}]]></country>
+    <postalcode><![CDATA[${location?.postalCode || ""}]]></postalcode>
     <description><![CDATA[${config.includeDescription ? this.formatDescription(job) : job.title}]]></description>
-    ${salary ? `<salary><![CDATA[${salary}]]></salary>` : ''}
-    <education><![CDATA[${job.education || ''}]]></education>
-    <jobtype><![CDATA[${jobTypeMap[job.employmentType] || 'fulltime'}]]></jobtype>
-    <category><![CDATA[${job.department?.name || ''}]]></category>
-    <experience><![CDATA[${job.experience || ''}]]></experience>
-    ${remoteTypeMap[job.workLocation] ? `<remotetype><![CDATA[${remoteTypeMap[job.workLocation]}]]></remotetype>` : ''}
+    ${salary ? `<salary><![CDATA[${salary}]]></salary>` : ""}
+    <education><![CDATA[${job.education || ""}]]></education>
+    <jobtype><![CDATA[${jobTypeMap[job.employmentType] || "fulltime"}]]></jobtype>
+    <category><![CDATA[${job.department?.name || ""}]]></category>
+    <experience><![CDATA[${job.experience || ""}]]></experience>
+    ${remoteTypeMap[job.workLocation] ? `<remotetype><![CDATA[${remoteTypeMap[job.workLocation]}]]></remotetype>` : ""}
   </job>`;
   }
 
@@ -181,7 +197,7 @@ ${jobsXml}
    * Format job description for Indeed
    */
   private formatDescription(job: any): string {
-    let description = job.description || '';
+    let description = job.description || "";
 
     if (job.requirements) {
       description += `\n\nRequirements:\n${job.requirements}`;
@@ -196,7 +212,7 @@ ${jobsXml}
     }
 
     if (job.skills?.length) {
-      description += `\n\nSkills: ${job.skills.join(', ')}`;
+      description += `\n\nSkills: ${job.skills.join(", ")}`;
     }
 
     return description;
@@ -207,11 +223,11 @@ ${jobsXml}
    */
   private escapeXml(str: string): string {
     return str
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&apos;');
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&apos;");
   }
 
   /**
@@ -236,20 +252,37 @@ ${jobsXml}
     // Validate each job
     for (const job of jobs) {
       // Required fields
-      if (!job.title) errors.push(`Job ${job.jobCode || job.id}: Missing title (required)`);
-      if (!job.description) errors.push(`Job ${job.jobCode || job.id}: Missing description (required)`);
+      if (!job.title)
+        errors.push(`Job ${job.jobCode || job.id}: Missing title (required)`);
+      if (!job.description)
+        errors.push(
+          `Job ${job.jobCode || job.id}: Missing description (required)`,
+        );
 
       // Recommended fields
-      if (!job.locations?.[0]?.city) warnings.push(`Job ${job.jobCode || job.id}: Missing city (recommended)`);
-      if (!job.locations?.[0]?.country) warnings.push(`Job ${job.jobCode || job.id}: Missing country (recommended)`);
-      if (!job.employmentType) warnings.push(`Job ${job.jobCode || job.id}: Missing employment type (recommended)`);
+      if (!job.locations?.[0]?.city)
+        warnings.push(
+          `Job ${job.jobCode || job.id}: Missing city (recommended)`,
+        );
+      if (!job.locations?.[0]?.country)
+        warnings.push(
+          `Job ${job.jobCode || job.id}: Missing country (recommended)`,
+        );
+      if (!job.employmentType)
+        warnings.push(
+          `Job ${job.jobCode || job.id}: Missing employment type (recommended)`,
+        );
 
       // Indeed specific validations
       if (job.description && job.description.length < 100) {
-        warnings.push(`Job ${job.jobCode || job.id}: Description too short (min 100 chars recommended)`);
+        warnings.push(
+          `Job ${job.jobCode || job.id}: Description too short (min 100 chars recommended)`,
+        );
       }
       if (job.description && job.description.length > 10000) {
-        warnings.push(`Job ${job.jobCode || job.id}: Description too long (max 10000 chars recommended)`);
+        warnings.push(
+          `Job ${job.jobCode || job.id}: Description too long (max 10000 chars recommended)`,
+        );
       }
     }
 
@@ -259,11 +292,11 @@ ${jobsXml}
       const xml = await this.generateFeed(tenantId);
       // Basic XML validation
       if (!xml.includes('<?xml version="1.0"')) {
-        errors.push('XML declaration missing');
+        errors.push("XML declaration missing");
         xmlValid = false;
       }
-      if (!xml.includes('<source>') || !xml.includes('</source>')) {
-        errors.push('Invalid XML structure');
+      if (!xml.includes("<source>") || !xml.includes("</source>")) {
+        errors.push("Invalid XML structure");
         xmlValid = false;
       }
     } catch (error: any) {
@@ -271,7 +304,8 @@ ${jobsXml}
       xmlValid = false;
     }
 
-    const baseUrl = this.configService.get<string>('API_URL') || 'http://localhost:3001';
+    const baseUrl =
+      this.configService.get<string>("API_URL") || "http://localhost:3001";
 
     return {
       valid: errors.length === 0,
@@ -286,7 +320,9 @@ ${jobsXml}
   /**
    * Test Indeed feed by fetching it
    */
-  async testFeed(tenantId: string): Promise<{ success: boolean; message: string; preview?: string }> {
+  async testFeed(
+    tenantId: string,
+  ): Promise<{ success: boolean; message: string; preview?: string }> {
     try {
       const xml = await this.generateFeed(tenantId);
       const jobCount = (xml.match(/<job>/g) || []).length;
@@ -294,7 +330,7 @@ ${jobsXml}
       return {
         success: true,
         message: `Feed generated successfully with ${jobCount} job(s)`,
-        preview: xml.substring(0, 500) + (xml.length > 500 ? '...' : ''),
+        preview: xml.substring(0, 500) + (xml.length > 500 ? "..." : ""),
       };
     } catch (error: any) {
       return {

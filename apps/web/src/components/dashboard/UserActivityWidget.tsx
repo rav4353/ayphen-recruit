@@ -25,10 +25,10 @@ interface UserActivityData {
 export function UserActivityWidget() {
     const { data: response, isLoading } = useQuery({
         queryKey: ['user-activity'],
-        queryFn: analyticsApi.getUserActivity,
+        queryFn: () => analyticsApi.getUserActivity(),
     });
 
-    const data = response ? extractData<UserActivityData>(response) : null;
+    const data = response?.data ? extractData<UserActivityData>(response.data) : null;
 
     if (isLoading) {
         return (

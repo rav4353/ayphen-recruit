@@ -22,6 +22,7 @@ import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { useQuery } from '@tanstack/react-query';
 import { communicationApi } from '../../lib/api';
+import { SmtpConfigurationWarning } from '../common';
 
 const bulkEmailSchema = z.object({
     subject: z.string().min(1, 'Subject is required'),
@@ -99,6 +100,9 @@ export function BulkEmailModal({ isOpen, onClose, onSend, recipientCount }: Bulk
                         {t('candidates.bulkEmailTitle', 'Send Email to {{count}} Candidates', { count: recipientCount })}
                     </DialogTitle>
                 </DialogHeader>
+                <div className="px-6 pt-4">
+                    <SmtpConfigurationWarning />
+                </div>
                 <form onSubmit={handleSubmit(onFormSubmit)} className="flex flex-col flex-1 overflow-hidden">
                     <div className="px-6 py-5 space-y-5 overflow-y-auto flex-1">
                         <div className="space-y-2">

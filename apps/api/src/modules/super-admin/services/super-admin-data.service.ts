@@ -1,13 +1,13 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../../prisma/prisma.service';
-import { SuperAdminAuditService } from './super-admin-audit.service';
+import { Injectable } from "@nestjs/common";
+import { PrismaService } from "../../../prisma/prisma.service";
+import { SuperAdminAuditService } from "./super-admin-audit.service";
 
 export interface DataExport {
   id: string;
   tenantId: string;
   tenantName: string;
-  type: 'full' | 'candidates' | 'jobs' | 'applications';
-  status: 'pending' | 'processing' | 'completed' | 'failed';
+  type: "full" | "candidates" | "jobs" | "applications";
+  status: "pending" | "processing" | "completed" | "failed";
   requestedBy: string;
   fileUrl?: string;
   createdAt: Date;
@@ -15,11 +15,11 @@ export interface DataExport {
 
 export interface GDPRRequest {
   id: string;
-  type: 'access' | 'deletion' | 'rectification' | 'portability';
+  type: "access" | "deletion" | "rectification" | "portability";
   email: string;
   tenantId?: string;
   tenantName?: string;
-  status: 'pending' | 'processing' | 'completed' | 'rejected';
+  status: "pending" | "processing" | "completed" | "rejected";
   createdAt: Date;
   processedAt?: Date;
   processedBy?: string;
@@ -48,10 +48,12 @@ export class SuperAdminDataService {
           where,
           skip,
           take: limit,
-          orderBy: { createdAt: 'desc' },
+          orderBy: { createdAt: "desc" },
           include: {
             tenant: { select: { id: true, name: true } },
-            requestedByUser: { select: { email: true, firstName: true, lastName: true } },
+            requestedByUser: {
+              select: { email: true, firstName: true, lastName: true },
+            },
           },
         }) || [],
         (this.prisma as any).dataExport?.count({ where }) || 0,
@@ -61,10 +63,10 @@ export class SuperAdminDataService {
         data: exports.map((exp) => ({
           id: exp.id,
           tenantId: exp.tenant?.id,
-          tenantName: exp.tenant?.name || 'Unknown',
+          tenantName: exp.tenant?.name || "Unknown",
           type: exp.type,
           status: exp.status,
-          requestedBy: exp.requestedByUser?.email || 'System',
+          requestedBy: exp.requestedByUser?.email || "System",
           fileUrl: exp.fileUrl,
           createdAt: exp.createdAt,
         })),
@@ -85,26 +87,30 @@ export class SuperAdminDataService {
         data: {
           tenantId: data.tenantId,
           type: data.type as any,
-          status: 'pending',
+          status: "pending",
           requestedById: superAdminId,
         },
       });
 
       await this.auditService.log({
         superAdminId,
-        action: 'CREATE_DATA_EXPORT',
-        entityType: 'DATA_EXPORT',
+        action: "CREATE_DATA_EXPORT",
+        entityType: "DATA_EXPORT",
         entityId: exportRecord.id,
         details: data,
       });
 
       return exportRecord;
     } catch {
-      return { id: 'temp', status: 'pending', message: 'Export queued' };
+      return { id: "temp", status: "pending", message: "Export queued" };
     }
   }
 
-  async getGDPRRequests(params: { page?: number; status?: string; type?: string }) {
+  async getGDPRRequests(params: {
+    page?: number;
+    status?: string;
+    type?: string;
+  }) {
     const page = params.page || 1;
     const limit = 20;
     const skip = (page - 1) * limit;
@@ -119,7 +125,7 @@ export class SuperAdminDataService {
           where,
           skip,
           take: limit,
-          orderBy: { createdAt: 'desc' },
+          orderBy: { createdAt: "desc" },
           include: {
             tenant: { select: { id: true, name: true } },
           },
@@ -148,14 +154,14 @@ export class SuperAdminDataService {
 
   async processGDPRRequest(
     id: string,
-    action: 'complete' | 'reject',
+    action: "complete" | "reject",
     superAdminId: string,
   ) {
     try {
       const request = await (this.prisma as any).gDPRRequest?.update({
         where: { id },
         data: {
-          status: action === 'complete' ? 'completed' : 'rejected',
+          status: action === "complete" ? "completed" : "rejected",
           processedAt: new Date(),
           processedById: superAdminId,
         },
@@ -163,30 +169,33 @@ export class SuperAdminDataService {
 
       await this.auditService.log({
         superAdminId,
-        action: action === 'complete' ? 'COMPLETE_GDPR_REQUEST' : 'REJECT_GDPR_REQUEST',
-        entityType: 'GDPR_REQUEST',
+        action:
+          action === "complete"
+            ? "COMPLETE_GDPR_REQUEST"
+            : "REJECT_GDPR_REQUEST",
+        entityType: "GDPR_REQUEST",
         entityId: id,
       });
 
       return request;
     } catch {
-      return { id, status: action === 'complete' ? 'completed' : 'rejected' };
+      return { id, status: action === "complete" ? "completed" : "rejected" };
     }
   }
 
   async runCleanupTask(
-    task: 'audit_logs' | 'sessions' | 'orphaned_files' | 'deleted_records',
+    task: "audit_logs" | "sessions" | "orphaned_files" | "deleted_records",
     superAdminId: string,
   ) {
-    const results = { task, deletedCount: 0, message: '' };
+    const results = { task, deletedCount: 0, message: "" };
 
     try {
       switch (task) {
-        case 'audit_logs':
+        case "audit_logs":
           // Delete audit logs older than 1 year
           const oneYearAgo = new Date();
           oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-          
+
           const deletedLogs = await this.prisma.superAdminAuditLog.deleteMany({
             where: { createdAt: { lt: oneYearAgo } },
           });
@@ -194,7 +203,7 @@ export class SuperAdminDataService {
           results.message = `Deleted ${deletedLogs.count} audit log entries older than 1 year`;
           break;
 
-        case 'sessions':
+        case "sessions":
           // Delete expired refresh tokens
           const deletedTokens = await this.prisma.refreshToken.deleteMany({
             where: { expiresAt: { lt: new Date() } },
@@ -203,29 +212,34 @@ export class SuperAdminDataService {
           results.message = `Purged ${deletedTokens.count} expired session tokens`;
           break;
 
-        case 'orphaned_files':
+        case "orphaned_files":
           // This would need file storage integration
-          results.message = 'Orphaned file cleanup requires storage provider integration';
+          results.message =
+            "Orphaned file cleanup requires storage provider integration";
           break;
 
-        case 'deleted_records':
+        case "deleted_records":
           // Hard delete soft-deleted records older than 30 days
           // Note: Current models don't support soft deletes, so this operation is not applicable
-          results.message = 'Soft delete cleanup not applicable - models do not support soft deletes';
+          results.message =
+            "Soft delete cleanup not applicable - models do not support soft deletes";
           break;
       }
 
       await this.auditService.log({
         superAdminId,
-        action: 'RUN_CLEANUP_TASK',
-        entityType: 'SYSTEM',
+        action: "RUN_CLEANUP_TASK",
+        entityType: "SYSTEM",
         details: results,
       });
 
       return results;
     } catch (error) {
       console.error(`Cleanup task ${task} failed:`, error);
-      return { ...results, message: `Task failed: ${error.message || 'Unknown error'}` };
+      return {
+        ...results,
+        message: `Task failed: ${error.message || "Unknown error"}`,
+      };
     }
   }
 }

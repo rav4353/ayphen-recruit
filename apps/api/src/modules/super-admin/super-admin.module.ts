@@ -1,26 +1,26 @@
-import { Module, forwardRef } from '@nestjs/common';
-import { JwtModule } from '@nestjs/jwt';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { SuperAdminController } from './super-admin.controller';
-import { SuperAdminService } from './super-admin.service';
-import { SuperAdminAuthService } from './services/super-admin-auth.service';
-import { SuperAdminAuditService } from './services/super-admin-audit.service';
-import { SuperAdminTenantsService } from './services/super-admin-tenants.service';
-import { SuperAdminUsersService } from './services/super-admin-users.service';
-import { SuperAdminSubscriptionsService } from './services/super-admin-subscriptions.service';
-import { SuperAdminAnnouncementsService } from './services/super-admin-announcements.service';
-import { SuperAdminSupportService } from './services/super-admin-support.service';
-import { SuperAdminSecurityService } from './services/super-admin-security.service';
-import { SuperAdminBillingService } from './services/super-admin-billing.service';
-import { SuperAdminMonitoringService } from './services/super-admin-monitoring.service';
-import { SuperAdminApiManagementService } from './services/super-admin-api-management.service';
-import { SuperAdminSettingsService } from './services/super-admin-settings.service';
-import { SuperAdminAnalyticsService } from './services/super-admin-analytics.service';
-import { SuperAdminDataService } from './services/super-admin-data.service';
-import { SuperAdminNotificationService } from './services/super-admin-notification.service';
-import { AuthModule } from '../auth/auth.module';
-import { SuperAdminJwtStrategy } from './strategies/super-admin-jwt.strategy';
-import { SuperAdminGateway } from './super-admin.gateway';
+import { Module, forwardRef } from "@nestjs/common";
+import { JwtModule } from "@nestjs/jwt";
+import { ConfigModule, ConfigService } from "@nestjs/config";
+import { SuperAdminController } from "./super-admin.controller";
+import { SuperAdminService } from "./super-admin.service";
+import { SuperAdminAuthService } from "./services/super-admin-auth.service";
+import { SuperAdminAuditService } from "./services/super-admin-audit.service";
+import { SuperAdminTenantsService } from "./services/super-admin-tenants.service";
+import { SuperAdminUsersService } from "./services/super-admin-users.service";
+import { SuperAdminSubscriptionsService } from "./services/super-admin-subscriptions.service";
+import { SuperAdminAnnouncementsService } from "./services/super-admin-announcements.service";
+import { SuperAdminSupportService } from "./services/super-admin-support.service";
+import { SuperAdminSecurityService } from "./services/super-admin-security.service";
+import { SuperAdminBillingService } from "./services/super-admin-billing.service";
+import { SuperAdminMonitoringService } from "./services/super-admin-monitoring.service";
+import { SuperAdminApiManagementService } from "./services/super-admin-api-management.service";
+import { SuperAdminSettingsService } from "./services/super-admin-settings.service";
+import { SuperAdminAnalyticsService } from "./services/super-admin-analytics.service";
+import { SuperAdminDataService } from "./services/super-admin-data.service";
+import { SuperAdminNotificationService } from "./services/super-admin-notification.service";
+import { AuthModule } from "../auth/auth.module";
+import { SuperAdminJwtStrategy } from "./strategies/super-admin-jwt.strategy";
+import { SuperAdminGateway } from "./super-admin.gateway";
 
 @Module({
   imports: [
@@ -28,9 +28,11 @@ import { SuperAdminGateway } from './super-admin.gateway';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
-        secret: configService.get<string>('SUPER_ADMIN_JWT_SECRET') || configService.get<string>('JWT_SECRET'),
+        secret:
+          configService.get<string>("SUPER_ADMIN_JWT_SECRET") ||
+          configService.get<string>("JWT_SECRET"),
         signOptions: {
-          expiresIn: '30m', // Shorter expiration for super admin
+          expiresIn: "30m", // Shorter expiration for super admin
         },
       }),
       inject: [ConfigService],
@@ -57,6 +59,11 @@ import { SuperAdminGateway } from './super-admin.gateway';
     SuperAdminDataService,
     SuperAdminNotificationService,
   ],
-  exports: [SuperAdminService, SuperAdminSecurityService, SuperAdminSettingsService, SuperAdminNotificationService],
+  exports: [
+    SuperAdminService,
+    SuperAdminSecurityService,
+    SuperAdminSettingsService,
+    SuperAdminNotificationService,
+  ],
 })
-export class SuperAdminModule { }
+export class SuperAdminModule {}

@@ -1,8 +1,8 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { PassportStrategy } from '@nestjs/passport';
-import { ExtractJwt, Strategy } from 'passport-jwt';
-import { ConfigService } from '@nestjs/config';
-import { PrismaService } from '../../../prisma/prisma.service';
+import { Injectable, UnauthorizedException } from "@nestjs/common";
+import { PassportStrategy } from "@nestjs/passport";
+import { ExtractJwt, Strategy } from "passport-jwt";
+import { ConfigService } from "@nestjs/config";
+import { PrismaService } from "../../../prisma/prisma.service";
 
 interface JwtPayload {
   sub: string;
@@ -12,7 +12,10 @@ interface JwtPayload {
 }
 
 @Injectable()
-export class SuperAdminJwtStrategy extends PassportStrategy(Strategy, 'super-admin-jwt') {
+export class SuperAdminJwtStrategy extends PassportStrategy(
+  Strategy,
+  "super-admin-jwt",
+) {
   constructor(
     private configService: ConfigService,
     private prisma: PrismaService,
@@ -20,14 +23,16 @@ export class SuperAdminJwtStrategy extends PassportStrategy(Strategy, 'super-adm
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>('SUPER_ADMIN_JWT_SECRET') || configService.get<string>('JWT_SECRET'),
+      secretOrKey:
+        configService.get<string>("SUPER_ADMIN_JWT_SECRET") ||
+        configService.get<string>("JWT_SECRET"),
     });
   }
 
   async validate(payload: JwtPayload) {
     // Verify this is a super admin token
-    if (payload.type !== 'super_admin' || payload.role !== 'SUPER_ADMIN') {
-      throw new UnauthorizedException('Invalid token type');
+    if (payload.type !== "super_admin" || payload.role !== "SUPER_ADMIN") {
+      throw new UnauthorizedException("Invalid token type");
     }
 
     // Verify super admin still exists and is active
@@ -36,20 +41,20 @@ export class SuperAdminJwtStrategy extends PassportStrategy(Strategy, 'super-adm
     `;
 
     if (!superAdmin || superAdmin.length === 0) {
-      throw new UnauthorizedException('Super admin not found');
+      throw new UnauthorizedException("Super admin not found");
     }
 
     const admin = superAdmin[0];
 
-    if (admin.status !== 'ACTIVE') {
-      throw new UnauthorizedException('Account is not active');
+    if (admin.status !== "ACTIVE") {
+      throw new UnauthorizedException("Account is not active");
     }
 
     return {
       id: admin.id,
       email: admin.email,
       name: admin.name,
-      role: 'SUPER_ADMIN',
+      role: "SUPER_ADMIN",
     };
   }
 }

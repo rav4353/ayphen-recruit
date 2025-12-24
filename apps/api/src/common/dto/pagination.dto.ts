@@ -1,6 +1,6 @@
-import { IsOptional, IsInt, Min, Max, IsString, IsIn } from 'class-validator';
-import { Transform } from 'class-transformer';
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsOptional, IsInt, Min, Max, IsString, IsIn } from "class-validator";
+import { Transform } from "class-transformer";
+import { ApiPropertyOptional } from "@nestjs/swagger";
 
 export class PaginationDto {
   @ApiPropertyOptional({ default: 1, minimum: 1 })
@@ -18,20 +18,20 @@ export class PaginationDto {
   @Max(100)
   limit?: number = 25;
 
-  @ApiPropertyOptional({ description: 'Search query' })
+  @ApiPropertyOptional({ description: "Search query" })
   @IsOptional()
   @IsString()
   search?: string;
 
-  @ApiPropertyOptional({ description: 'Sort field', example: 'createdAt' })
+  @ApiPropertyOptional({ description: "Sort field", example: "createdAt" })
   @IsOptional()
   @IsString()
-  sortBy?: string = 'createdAt';
+  sortBy?: string = "createdAt";
 
-  @ApiPropertyOptional({ enum: ['asc', 'desc'], default: 'desc' })
+  @ApiPropertyOptional({ enum: ["asc", "desc"], default: "desc" })
   @IsOptional()
-  @IsIn(['asc', 'desc'])
-  sortOrder?: 'asc' | 'desc' = 'desc';
+  @IsIn(["asc", "desc"])
+  sortOrder?: "asc" | "desc" = "desc";
 
   get skip(): number {
     return ((this.page || 1) - 1) * (this.limit || 25);

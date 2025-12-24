@@ -11,7 +11,7 @@ interface StatusInfo {
 
 interface StatusBadgeProps {
     status?: string;
-    type?: 'job' | 'application';
+    type?: 'job' | 'application' | 'interview';
     statusInfo?: StatusInfo;
     className?: string;
     children?: React.ReactNode;

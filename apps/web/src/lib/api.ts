@@ -154,10 +154,25 @@ export const jobsApi = {
   delete: (tenantId: string, id: string) => api.delete(`/${tenantId}/jobs/${id}`),
   clone: (tenantId: string, id: string) => api.post(`/${tenantId}/jobs/${id}/clone`),
   export: (tenantId: string, params?: Record<string, unknown>) => api.get(`/${tenantId}/jobs/export`, { params, responseType: 'blob' }),
-  submitApproval: (tenantId: string, id: string, approverIds?: string[]) => api.post(`/${tenantId}/jobs/${id}/submit-approval`, { approverIds }),
-  approve: (tenantId: string, id: string, comment?: string) => api.post(`/${tenantId}/jobs/${id}/approve`, { comment }),
-  reject: (tenantId: string, id: string, reason: string) => api.post(`/${tenantId}/jobs/${id}/reject`, { reason }),
+  submitApproval: (tenantId: string, id: string, data?: { approverIds?: string[]; comment?: string }) =>
+    api.post(`/${tenantId}/jobs/${id}/submit-approval`, data || {}),
+  approve: (tenantId: string, id: string, data: { status: 'APPROVED' | 'REJECTED'; comment?: string; rejectionReason?: string }) =>
+    api.post(`/${tenantId}/jobs/${id}/approve`, data),
   publish: (tenantId: string, id: string, channels: string[]) => api.post(`/${tenantId}/jobs/${id}/publish`, { channels }),
+  // Job Edit Approval
+  getEditApprovalConfig: (tenantId: string) => api.get(`/${tenantId}/jobs/edit-approval/config`),
+  updateEditApprovalConfig: (tenantId: string, config: {
+    enabled?: boolean;
+    fieldsRequiringApproval?: string[];
+  }) => api.put(`/${tenantId}/jobs/edit-approval/config`, config),
+  getPendingEdits: (tenantId: string, jobId: string) => api.get(`/${tenantId}/jobs/${jobId}/pending-edits`),
+  getAllPendingEdits: (tenantId: string, status?: string) => 
+    api.get(`/${tenantId}/jobs/edit-approval/pending`, { params: { status } }),
+  getJobComparison: (tenantId: string, jobId: string) => api.get(`/${tenantId}/jobs/${jobId}/comparison`),
+  approveEdits: (tenantId: string, editIds: string[], comment?: string) => 
+    api.post(`/${tenantId}/jobs/edit-approval/approve`, { editIds, comment }),
+  rejectEdits: (tenantId: string, editIds: string[], rejectionReason: string) => 
+    api.post(`/${tenantId}/jobs/edit-approval/reject`, { editIds, rejectionReason }),
 };
 
 // Candidates API
@@ -291,13 +306,13 @@ export const rolesApi = {
 };
 
 export const analyticsApi = {
-  getSummary: () => api.get('/analytics/summary'),
-  getPipelineHealth: () => api.get('/analytics/pipeline'),
-  getTimeToHire: () => api.get('/analytics/time-to-hire'),
+  getSummary: (params?: { startDate?: string; endDate?: string; jobId?: string }) => api.get('/analytics/summary', { params }),
+  getPipelineHealth: (params?: { startDate?: string; endDate?: string; jobId?: string }) => api.get('/analytics/pipeline', { params }),
+  getTimeToHire: (params?: { startDate?: string; endDate?: string; jobId?: string }) => api.get('/analytics/time-to-hire', { params }),
   getRecentActivity: () => api.get('/analytics/recent-activity'),
-  getHiringFunnel: (jobId?: string) => api.get('/analytics/hiring-funnel', { params: { jobId } }),
-  getSourceEffectiveness: () => api.get('/analytics/source-effectiveness'),
-  getUserActivity: () => api.get('/analytics/user-activity'),
+  getHiringFunnel: (jobId?: string, params?: { startDate?: string; endDate?: string }) => api.get('/analytics/hiring-funnel', { params: { jobId, ...params } }),
+  getSourceEffectiveness: (params?: { startDate?: string; endDate?: string; jobId?: string }) => api.get('/analytics/source-effectiveness', { params }),
+  getUserActivity: (params?: { startDate?: string; endDate?: string }) => api.get('/analytics/user-activity', { params }),
 };
 
 export const reportsApi = {
@@ -344,11 +359,7 @@ export const aiApi = {
   parseResume: (file: File) => {
     const formData = new FormData();
     formData.append('file', file);
-    return api.post('/ai/parse-resume', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    return api.post('/ai/parse-resume', formData);
   },
   generateSubjectLines: (data: { context: string; candidateName?: string; jobTitle?: string; companyName?: string }) =>
     api.post('/ai/generate-subject-lines', data),
@@ -372,6 +383,7 @@ export const settingsApi = {
     api.put(`/settings/${key}`, data),
   getStatusColors: () => api.get('/settings/status-colors'),
   resetStatusColors: () => api.post('/settings/status-colors/reset'),
+  getConfigurationStatus: () => api.get('/settings/configuration-status'),
 };
 // Reference API
 export const referenceApi = {
@@ -391,20 +403,12 @@ export const storageApi = {
   upload: (file: File) => {
     const formData = new FormData();
     formData.append('file', file);
-    return api.post('/storage/upload', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    return api.post('/storage/upload', formData);
   },
   uploadPublic: (file: File) => {
     const formData = new FormData();
     formData.append('file', file);
-    return api.post('/storage/upload/public', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    return api.post('/storage/upload/public', formData);
   },
 };
 
@@ -470,6 +474,7 @@ export const interviewsApi = {
   getInterviewerAnalytics: (interviewerId: string) => api.get(`/interview-analytics/feedback/interviewer/${interviewerId}`),
   getHiringFunnel: (jobId?: string) => api.get('/interview-analytics/hiring-funnel', { params: { jobId } }),
   getFeedbackQuality: () => api.get('/interview-analytics/feedback-quality'),
+  confirm: (token: string) => api.post(`/interviews/public/confirm/${token}`),
 };
 
 // Onboarding API
@@ -776,27 +781,7 @@ export const jobRequisitionApi = {
 };
 
 // Talent Pools API
-export const talentPoolsApi = {
-  create: (data: {
-    name: string;
-    description?: string;
-    criteria?: { skills?: string[]; locations?: string[]; experience?: { min?: number; max?: number }; sources?: string[] };
-    isPublic?: boolean;
-  }) => api.post('/talent-pools', data),
-  getAll: () => api.get('/talent-pools'),
-  getStats: () => api.get('/talent-pools/stats'),
-  getById: (id: string) => api.get(`/talent-pools/${id}`),
-  update: (id: string, data: {
-    name?: string;
-    description?: string;
-    criteria?: { skills?: string[]; locations?: string[]; experience?: { min?: number; max?: number }; sources?: string[] };
-    isPublic?: boolean;
-  }) => api.put(`/talent-pools/${id}`, data),
-  addCandidates: (id: string, candidateIds: string[]) => api.post(`/talent-pools/${id}/candidates`, { candidateIds }),
-  removeCandidates: (id: string, candidateIds: string[]) => api.delete(`/talent-pools/${id}/candidates`, { data: { candidateIds } }),
-  searchCandidates: (id: string, query?: string) => api.get(`/talent-pools/${id}/search-candidates`, { params: { q: query } }),
-  delete: (id: string) => api.delete(`/talent-pools/${id}`),
-};
+
 
 // Interview Questions API
 export const interviewQuestionsApi = {

@@ -17,6 +17,7 @@ import {
   Send,
   ChevronLeft,
   ChevronRight,
+  Shield,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -28,6 +29,7 @@ import { ForcedPasswordChangeModal } from '../components/auth/ForcedPasswordChan
 import { cn } from '../lib/utils';
 import { ErrorBoundary } from '../components/common/ErrorBoundary';
 import { ApiStatusIndicator } from '../components/common/ApiStatusIndicator';
+
 import { preferencesApi, settingsApi } from '../lib/api';
 import { useGlobalShortcuts } from '../hooks/useKeyboardShortcuts';
 import logoLight from '../assets/branding/logo_light_theme.png';
@@ -53,7 +55,7 @@ export function DashboardLayout() {
 
   // Validate tenantId - if it's a route segment like "onboarding", "jobs", etc., redirect to login
   useEffect(() => {
-    const invalidTenantIds = ['onboarding', 'jobs', 'candidates', 'dashboard', 'settings', 'pipeline', 'interviews', 'offers', 'inbox', 'campaigns', 'reports', 'sourcing', 'talent-pools', 'referrals'];
+    const invalidTenantIds = ['onboarding', 'jobs', 'candidates', 'dashboard', 'settings', 'pipeline', 'interviews', 'offers', 'inbox', 'campaigns', 'reports', 'sourcing', 'talent-pools', 'referrals', 'background-checks'];
 
     if (tenantId && invalidTenantIds.includes(tenantId.toLowerCase())) {
       console.error('Invalid tenantId detected:', tenantId);
@@ -69,10 +71,11 @@ export function DashboardLayout() {
     { name: 'candidates.title', href: `/${tenantId}/candidates`, icon: Users, roles: ['ADMIN', 'RECRUITER', 'HIRING_MANAGER'] },
     { name: 'referrals.title', href: `/${tenantId}/referrals`, icon: Share2, roles: ['ADMIN', 'RECRUITER', 'HIRING_MANAGER', 'EMPLOYEE'] },
     { name: 'sourcing.title', href: `/${tenantId}/sourcing`, icon: Search, roles: ['ADMIN', 'RECRUITER'] },
-    { name: 'talentPools.title', href: `/${tenantId}/talent-pools`, icon: Users, roles: ['ADMIN', 'RECRUITER'] },
+
     { name: 'interviews.title', href: `/${tenantId}/interviews`, icon: Calendar, roles: ['ADMIN', 'RECRUITER', 'HIRING_MANAGER'] },
     { name: 'offers.title', href: `/${tenantId}/offers`, icon: FileSignature, roles: ['ADMIN', 'RECRUITER', 'HIRING_MANAGER'] },
     { name: 'onboarding.title', href: `/${tenantId}/onboarding`, icon: Users, roles: ['ADMIN', 'RECRUITER', 'HR'] }, // Story 9.1
+    { name: 'Background Checks', href: `/${tenantId}/background-checks`, icon: Shield, roles: ['ADMIN', 'RECRUITER'] },
     { name: 'inbox.title', href: `/${tenantId}/inbox`, icon: Mail, roles: ['ADMIN', 'RECRUITER'] },
     { name: 'campaigns.title', href: `/${tenantId}/campaigns`, icon: Send, roles: ['ADMIN', 'RECRUITER', 'HR'] },
     { name: 'reports.title', href: `/${tenantId}/reports`, icon: BarChart, roles: ['ADMIN', 'RECRUITER'] },
@@ -306,6 +309,7 @@ export function DashboardLayout() {
 
         {/* Page content */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-auto bg-neutral-50 dark:bg-neutral-950 scroll-smooth-mobile">
+
           <ErrorBoundary>
             <Outlet />
           </ErrorBoundary>

@@ -2,12 +2,17 @@ import {
   Injectable,
   BadRequestException,
   UnauthorizedException,
-} from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import * as bcrypt from 'bcrypt';
-import * as crypto from 'crypto';
-import { PrismaService } from '../../../prisma/prisma.service';
-import { SetupMfaDto, VerifyMfaDto, DisableMfaDto, MfaSetupResponse } from '../dto/mfa.dto';
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import * as bcrypt from "bcrypt";
+import * as crypto from "crypto";
+import { PrismaService } from "../../../prisma/prisma.service";
+import {
+  SetupMfaDto,
+  VerifyMfaDto,
+  DisableMfaDto,
+  MfaSetupResponse,
+} from "../dto/mfa.dto";
 
 // Simple TOTP implementation (in production, use a library like speakeasy or otplib)
 @Injectable()
@@ -19,7 +24,7 @@ export class MfaService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
-  ) { }
+  ) {}
 
   async initiateMfaSetup(userId: string): Promise<MfaSetupResponse> {
     const user = await this.prisma.user.findUnique({
@@ -28,11 +33,11 @@ export class MfaService {
     });
 
     if (!user) {
-      throw new BadRequestException('User not found');
+      throw new BadRequestException("User not found");
     }
 
     if (user.mfaEnabled) {
-      throw new BadRequestException('MFA is already enabled');
+      throw new BadRequestException("MFA is already enabled");
     }
 
     // Generate secret
@@ -45,7 +50,7 @@ export class MfaService {
     });
 
     // Generate OTP auth URL
-    const issuer = 'TalentX';
+    const issuer = "TalentX";
     const otpauthUrl = `otpauth://totp/${issuer}:${user.email}?secret=${secret}&issuer=${issuer}&digits=${this.TOTP_DIGITS}&period=${this.TOTP_STEP}`;
 
     // Generate QR code (base64 data URL)
@@ -58,23 +63,26 @@ export class MfaService {
     };
   }
 
-  async confirmMfaSetup(userId: string, dto: SetupMfaDto): Promise<{ message: string; backupCodes: string[] }> {
+  async confirmMfaSetup(
+    userId: string,
+    dto: SetupMfaDto,
+  ): Promise<{ message: string; backupCodes: string[] }> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
     });
 
     if (!user || !user.mfaSecret) {
-      throw new BadRequestException('MFA setup not initiated');
+      throw new BadRequestException("MFA setup not initiated");
     }
 
     if (user.mfaEnabled) {
-      throw new BadRequestException('MFA is already enabled');
+      throw new BadRequestException("MFA is already enabled");
     }
 
     // Verify the code
     const isValid = this.verifyTotp(user.mfaSecret, dto.code);
     if (!isValid) {
-      throw new UnauthorizedException('Invalid verification code');
+      throw new UnauthorizedException("Invalid verification code");
     }
 
     // Generate backup codes
@@ -94,7 +102,7 @@ export class MfaService {
     });
 
     return {
-      message: 'MFA enabled successfully',
+      message: "MFA enabled successfully",
       backupCodes,
     };
   }
@@ -105,48 +113,54 @@ export class MfaService {
     });
 
     if (!user || !user.mfaEnabled || !user.mfaSecret) {
-      throw new BadRequestException('MFA is not enabled');
+      throw new BadRequestException("MFA is not enabled");
     }
 
     const isValid = this.verifyTotp(user.mfaSecret, dto.code);
     if (!isValid) {
-      throw new UnauthorizedException('Invalid verification code');
+      throw new UnauthorizedException("Invalid verification code");
     }
 
     return true;
   }
 
-  async disableMfa(userId: string, dto: DisableMfaDto): Promise<{ message: string }> {
+  async disableMfa(
+    userId: string,
+    dto: DisableMfaDto,
+  ): Promise<{ message: string }> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
     });
 
     if (!user) {
-      throw new BadRequestException('User not found');
+      throw new BadRequestException("User not found");
     }
 
     if (!user.mfaEnabled) {
-      throw new BadRequestException('MFA is not enabled');
+      throw new BadRequestException("MFA is not enabled");
     }
 
     // Verify password
     if (!user.passwordHash) {
-      throw new BadRequestException('Password not set');
+      throw new BadRequestException("Password not set");
     }
 
-    const isPasswordValid = await bcrypt.compare(dto.password, user.passwordHash);
+    const isPasswordValid = await bcrypt.compare(
+      dto.password,
+      user.passwordHash,
+    );
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid password');
+      throw new UnauthorizedException("Invalid password");
     }
 
     // Verify MFA code
     if (!user.mfaSecret) {
-      throw new BadRequestException('MFA secret not found');
+      throw new BadRequestException("MFA secret not found");
     }
 
     const isCodeValid = this.verifyTotp(user.mfaSecret, dto.code);
     if (!isCodeValid) {
-      throw new UnauthorizedException('Invalid verification code');
+      throw new UnauthorizedException("Invalid verification code");
     }
 
     // Disable MFA
@@ -158,7 +172,7 @@ export class MfaService {
       },
     });
 
-    return { message: 'MFA disabled successfully' };
+    return { message: "MFA disabled successfully" };
   }
 
   async isMfaRequired(userId: string): Promise<boolean> {
@@ -173,12 +187,12 @@ export class MfaService {
 
     // Check global enforcement
     const mfaEnforcedSetting = await this.prisma.globalSetting.findUnique({
-      where: { key: 'global_mfa_enforced' },
+      where: { key: "global_mfa_enforced" },
     });
     const isGlobalEnforced = mfaEnforcedSetting?.value === true;
 
     // MFA is required if globally enforced OR for vendors OR if user enabled it
-    if (isGlobalEnforced || user.role === 'VENDOR' || user.mfaEnabled) {
+    if (isGlobalEnforced || user.role === "VENDOR" || user.mfaEnabled) {
       return true;
     }
 
@@ -197,12 +211,12 @@ export class MfaService {
 
     // Check global enforcement
     const mfaEnforcedSetting = await this.prisma.globalSetting.findUnique({
-      where: { key: 'global_mfa_enforced' },
+      where: { key: "global_mfa_enforced" },
     });
     const isGlobalEnforced = mfaEnforcedSetting?.value === true;
 
     // Setup is required if globally enforced OR for vendors BUT not yet enabled
-    return (isGlobalEnforced || user.role === 'VENDOR');
+    return isGlobalEnforced || user.role === "VENDOR";
   }
 
   private generateSecret(): string {
@@ -212,10 +226,10 @@ export class MfaService {
   }
 
   private base32Encode(buffer: Buffer): string {
-    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
     let bits = 0;
     let value = 0;
-    let output = '';
+    let output = "";
 
     for (let i = 0; i < buffer.length; i++) {
       value = (value << 8) | buffer[i];
@@ -235,8 +249,8 @@ export class MfaService {
   }
 
   private base32Decode(encoded: string): Buffer {
-    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
-    const cleanedInput = encoded.replace(/=+$/, '').toUpperCase();
+    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+    const cleanedInput = encoded.replace(/=+$/, "").toUpperCase();
 
     let bits = 0;
     let value = 0;
@@ -278,7 +292,7 @@ export class MfaService {
     const counterBuffer = Buffer.alloc(8);
     counterBuffer.writeBigInt64BE(BigInt(counter));
 
-    const hmac = crypto.createHmac('sha1', secretBuffer);
+    const hmac = crypto.createHmac("sha1", secretBuffer);
     hmac.update(counterBuffer);
     const hash = hmac.digest();
 
@@ -290,13 +304,13 @@ export class MfaService {
       (hash[offset + 3] & 0xff);
 
     const otp = binary % Math.pow(10, this.TOTP_DIGITS);
-    return otp.toString().padStart(this.TOTP_DIGITS, '0');
+    return otp.toString().padStart(this.TOTP_DIGITS, "0");
   }
 
   private generateBackupCodes(): string[] {
     const codes: string[] = [];
     for (let i = 0; i < 10; i++) {
-      const code = crypto.randomBytes(4).toString('hex').toUpperCase();
+      const code = crypto.randomBytes(4).toString("hex").toUpperCase();
       codes.push(`${code.slice(0, 4)}-${code.slice(4)}`);
     }
     return codes;
@@ -306,6 +320,6 @@ export class MfaService {
     // Simple QR code generation using a public API
     // In production, use a library like qrcode
     // For now, return a placeholder that the frontend can use with a QR library
-    return `data:text/plain;base64,${Buffer.from(data).toString('base64')}`;
+    return `data:text/plain;base64,${Buffer.from(data).toString("base64")}`;
   }
 }

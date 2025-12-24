@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { Card, Button, Input, CardHeader } from '../ui';
 import { CheckCircle2, AlertCircle, Calendar, FileSignature, Loader2, ExternalLink, Trash2, Shield, Briefcase, MessageSquare, Send, Mail, Save, Edit, Video } from 'lucide-react';
@@ -88,6 +89,7 @@ interface JobBoardInfo {
 export function IntegrationSettings() {
     const [searchParams, setSearchParams] = useSearchParams();
     const activeTab = (searchParams.get('view') as TabType) || 'smtp';
+    const { t } = useTranslation();
 
     const setActiveTab = (tab: TabType) => {
         setSearchParams(prev => {
@@ -789,7 +791,7 @@ export function IntegrationSettings() {
                         onClick={() => setActiveTab(tab.id)}
                     >
                         <tab.icon size={16} />
-                        {tab.label}
+                        {t(`settings.integrations.tabs.${tab.id}`)}
                     </button>
                 ))}
             </div>
@@ -798,7 +800,7 @@ export function IntegrationSettings() {
             {activeTab === 'smtp' && (
                 <Card>
                     <CardHeader
-                        title="SMTP Configuration"
+                        title={t('settings.integrations.smtp.title')}
                         icon={<Mail className="text-neutral-500" size={20} />}
                         align="left"
                     />
@@ -806,7 +808,7 @@ export function IntegrationSettings() {
                         {smtpLoading ? (
                             <div className="p-8 text-center text-neutral-500">
                                 <Loader2 size={24} className="animate-spin mx-auto mb-2" />
-                                Loading settings...
+                                {t('settings.integrations.smtp.loading')}
                             </div>
                         ) : (
                             <>

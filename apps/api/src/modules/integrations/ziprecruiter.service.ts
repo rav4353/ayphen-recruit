@@ -1,7 +1,7 @@
-import { Injectable, Logger, BadRequestException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { PrismaService } from '../../prisma/prisma.service';
-import { JobStatus } from '@prisma/client';
+import { Injectable, Logger, BadRequestException } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { PrismaService } from "../../prisma/prisma.service";
+import { JobStatus } from "@prisma/client";
 
 interface ZipRecruiterConfig {
   apiKey: string;
@@ -27,23 +27,26 @@ interface ZipRecruiterJob {
   experience_level?: string;
 }
 
-const ZIPRECRUITER_SETTINGS_KEY = 'ziprecruiter_settings';
+const ZIPRECRUITER_SETTINGS_KEY = "ziprecruiter_settings";
 
 @Injectable()
 export class ZipRecruiterService {
   private readonly logger = new Logger(ZipRecruiterService.name);
-  private readonly apiUrl = 'https://api.ziprecruiter.com/jobs/v1';
-  private readonly sandboxApiUrl = 'https://api.sandbox.ziprecruiter.com/jobs/v1';
+  private readonly apiUrl = "https://api.ziprecruiter.com/jobs/v1";
+  private readonly sandboxApiUrl =
+    "https://api.sandbox.ziprecruiter.com/jobs/v1";
 
   constructor(
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
-  ) { }
+  ) {}
 
   /**
    * Get ZipRecruiter configuration
    */
-  async getConfig(tenantId: string): Promise<{ isConfigured: boolean; sandboxMode?: boolean }> {
+  async getConfig(
+    tenantId: string,
+  ): Promise<{ isConfigured: boolean; sandboxMode?: boolean }> {
     const setting = await this.prisma.setting.findUnique({
       where: { tenantId_key: { tenantId, key: ZIPRECRUITER_SETTINGS_KEY } },
     });
@@ -61,12 +64,12 @@ export class ZipRecruiterService {
   async configure(tenantId: string, config: ZipRecruiterConfig) {
     await this.prisma.setting.upsert({
       where: { tenantId_key: { tenantId, key: ZIPRECRUITER_SETTINGS_KEY } },
-      update: { value: config as any, category: 'INTEGRATION' },
+      update: { value: config as any, category: "INTEGRATION" },
       create: {
         tenantId,
         key: ZIPRECRUITER_SETTINGS_KEY,
         value: config as any,
-        category: 'INTEGRATION',
+        category: "INTEGRATION",
         isPublic: false,
       },
     });
@@ -77,14 +80,22 @@ export class ZipRecruiterService {
   /**
    * Post a job to ZipRecruiter
    */
-  async postJob(tenantId: string, jobId: string): Promise<{ success: boolean; externalId?: string; url?: string; message?: string }> {
+  async postJob(
+    tenantId: string,
+    jobId: string,
+  ): Promise<{
+    success: boolean;
+    externalId?: string;
+    url?: string;
+    message?: string;
+  }> {
     const setting = await this.prisma.setting.findUnique({
       where: { tenantId_key: { tenantId, key: ZIPRECRUITER_SETTINGS_KEY } },
     });
 
     const config = setting?.value as unknown as ZipRecruiterConfig;
     if (!config?.apiKey) {
-      throw new BadRequestException('ZipRecruiter not configured');
+      throw new BadRequestException("ZipRecruiter not configured");
     }
 
     const job = await this.prisma.job.findFirst({
@@ -93,21 +104,23 @@ export class ZipRecruiterService {
     });
 
     if (!job) {
-      throw new BadRequestException('Job not found');
+      throw new BadRequestException("Job not found");
     }
 
     const zipJob = this.mapJobToZipRecruiter(job);
     const apiUrl = config.sandboxMode ? this.sandboxApiUrl : this.apiUrl;
 
-    this.logger.log(`Posting job ${jobId} to ZipRecruiter (${config.sandboxMode ? 'sandbox' : 'production'})`);
+    this.logger.log(
+      `Posting job ${jobId} to ZipRecruiter (${config.sandboxMode ? "sandbox" : "production"})`,
+    );
 
     try {
       const response = await fetch(`${apiUrl}/jobs`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Authorization': `Bearer ${config.apiKey}`,
-          'Content-Type': 'application/json',
-          'X-Publisher-Id': config.publisherId,
+          Authorization: `Bearer ${config.apiKey}`,
+          "Content-Type": "application/json",
+          "X-Publisher-Id": config.publisherId,
         },
         body: JSON.stringify(zipJob),
       });
@@ -119,25 +132,26 @@ export class ZipRecruiterService {
         // Log failed attempt
         await this.prisma.activityLog.create({
           data: {
-            action: 'JOB_POST_FAILED_ZIPRECRUITER',
+            action: "JOB_POST_FAILED_ZIPRECRUITER",
             description: `Failed to post job to ZipRecruiter: ${response.status}`,
-            metadata: { jobId, error: errorText, provider: 'ZIPRECRUITER' },
+            metadata: { jobId, error: errorText, provider: "ZIPRECRUITER" },
           },
         });
 
         return { success: false, message: `API error: ${response.status}` };
       }
 
-      const result = await response.json() as { id: string; url?: string };
+      const result = (await response.json()) as { id: string; url?: string };
       const externalId = result.id || `zr_${Date.now()}`;
-      const url = result.url || `https://www.ziprecruiter.com/jobs/${externalId}`;
+      const url =
+        result.url || `https://www.ziprecruiter.com/jobs/${externalId}`;
 
       // Log success
       await this.prisma.activityLog.create({
         data: {
-          action: 'JOB_POSTED_ZIPRECRUITER',
+          action: "JOB_POSTED_ZIPRECRUITER",
           description: `Job posted to ZipRecruiter`,
-          metadata: { jobId, externalId, url, provider: 'ZIPRECRUITER' },
+          metadata: { jobId, externalId, url, provider: "ZIPRECRUITER" },
         },
       });
 
@@ -151,10 +165,16 @@ export class ZipRecruiterService {
   /**
    * Update a job on ZipRecruiter
    */
-  async updateJob(tenantId: string, jobId: string, externalId: string): Promise<{ success: boolean }> {
+  async updateJob(
+    tenantId: string,
+    jobId: string,
+    externalId: string,
+  ): Promise<{ success: boolean }> {
     const config = await this.getConfigOrThrow(tenantId);
 
-    this.logger.log(`Updating job ${jobId} on ZipRecruiter (externalId: ${externalId})`);
+    this.logger.log(
+      `Updating job ${jobId} on ZipRecruiter (externalId: ${externalId})`,
+    );
 
     return { success: true };
   }
@@ -162,7 +182,10 @@ export class ZipRecruiterService {
   /**
    * Remove a job from ZipRecruiter
    */
-  async removeJob(tenantId: string, externalId: string): Promise<{ success: boolean }> {
+  async removeJob(
+    tenantId: string,
+    externalId: string,
+  ): Promise<{ success: boolean }> {
     const config = await this.getConfigOrThrow(tenantId);
 
     this.logger.log(`Removing job ${externalId} from ZipRecruiter`);
@@ -173,7 +196,10 @@ export class ZipRecruiterService {
   /**
    * Get job performance stats from ZipRecruiter
    */
-  async getJobStats(tenantId: string, externalId: string): Promise<{
+  async getJobStats(
+    tenantId: string,
+    externalId: string,
+  ): Promise<{
     views: number;
     applies: number;
     clicks: number;
@@ -184,18 +210,24 @@ export class ZipRecruiterService {
     try {
       const response = await fetch(`${apiUrl}/jobs/${externalId}/stats`, {
         headers: {
-          'Authorization': `Bearer ${config.apiKey}`,
-          'X-Publisher-Id': config.publisherId,
+          Authorization: `Bearer ${config.apiKey}`,
+          "X-Publisher-Id": config.publisherId,
         },
       });
 
       if (!response.ok) {
-        this.logger.warn(`Failed to fetch ZipRecruiter stats for ${externalId}: ${response.status}`);
+        this.logger.warn(
+          `Failed to fetch ZipRecruiter stats for ${externalId}: ${response.status}`,
+        );
         // Return zeros if API call fails
         return { views: 0, applies: 0, clicks: 0 };
       }
 
-      const data = await response.json() as { views?: number; applications?: number; clicks?: number };
+      const data = (await response.json()) as {
+        views?: number;
+        applications?: number;
+        clicks?: number;
+      };
       return {
         views: data.views || 0,
         applies: data.applications || 0,
@@ -210,7 +242,9 @@ export class ZipRecruiterService {
   /**
    * Sync all open jobs to ZipRecruiter
    */
-  async syncAllJobs(tenantId: string): Promise<{ synced: number; failed: number }> {
+  async syncAllJobs(
+    tenantId: string,
+  ): Promise<{ synced: number; failed: number }> {
     const jobs = await this.prisma.job.findMany({
       where: { tenantId, status: JobStatus.OPEN },
     });
@@ -231,49 +265,53 @@ export class ZipRecruiterService {
     return { synced, failed };
   }
 
-  private async getConfigOrThrow(tenantId: string): Promise<ZipRecruiterConfig> {
+  private async getConfigOrThrow(
+    tenantId: string,
+  ): Promise<ZipRecruiterConfig> {
     const setting = await this.prisma.setting.findUnique({
       where: { tenantId_key: { tenantId, key: ZIPRECRUITER_SETTINGS_KEY } },
     });
 
     const config = setting?.value as unknown as ZipRecruiterConfig;
     if (!config?.apiKey) {
-      throw new BadRequestException('ZipRecruiter not configured');
+      throw new BadRequestException("ZipRecruiter not configured");
     }
     return config;
   }
 
   private mapJobToZipRecruiter(job: any): ZipRecruiterJob {
     const jobTypeMap: Record<string, string> = {
-      FULL_TIME: 'full_time',
-      PART_TIME: 'part_time',
-      CONTRACT: 'contract',
-      INTERNSHIP: 'internship',
-      TEMPORARY: 'temporary',
+      FULL_TIME: "full_time",
+      PART_TIME: "part_time",
+      CONTRACT: "contract",
+      INTERNSHIP: "internship",
+      TEMPORARY: "temporary",
     };
 
     const remoteMap: Record<string, string> = {
-      REMOTE: 'remote',
-      HYBRID: 'hybrid',
-      ONSITE: 'onsite',
+      REMOTE: "remote",
+      HYBRID: "hybrid",
+      ONSITE: "onsite",
     };
 
-    const baseUrl = this.configService.get<string>('WEB_URL') || 'http://localhost:3000';
+    const baseUrl =
+      this.configService.get<string>("WEB_URL") || "http://localhost:3000";
 
     return {
       job_title: job.title,
       job_description: job.description,
-      company_name: job.tenant?.name || 'Company',
+      company_name: job.tenant?.name || "Company",
       job_url: `${baseUrl}/careers/${job.id}`,
-      city: job.locations?.[0]?.city || '',
-      state: job.locations?.[0]?.state || '',
-      country: job.locations?.[0]?.country || 'US',
+      city: job.locations?.[0]?.city || "",
+      state: job.locations?.[0]?.state || "",
+      country: job.locations?.[0]?.country || "US",
       zip_code: job.locations?.[0]?.postalCode,
-      posted_date: job.publishedAt?.toISOString() || job.createdAt.toISOString(),
-      job_type: jobTypeMap[job.employmentType] || 'full_time',
+      posted_date:
+        job.publishedAt?.toISOString() || job.createdAt.toISOString(),
+      job_type: jobTypeMap[job.employmentType] || "full_time",
       salary_min: job.salaryMin ? Number(job.salaryMin) : undefined,
       salary_max: job.salaryMax ? Number(job.salaryMax) : undefined,
-      salary_type: 'yearly',
+      salary_type: "yearly",
       remote_type: remoteMap[job.workLocation],
       experience_level: job.experience,
     };

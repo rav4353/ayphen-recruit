@@ -1,9 +1,13 @@
-import { Injectable, UnauthorizedException, ForbiddenException } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
-import * as bcrypt from 'bcrypt';
-import { PrismaService } from '../../../prisma/prisma.service';
-import { SuperAdminAuditService } from './super-admin-audit.service';
+import {
+  Injectable,
+  UnauthorizedException,
+  ForbiddenException,
+} from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
+import { ConfigService } from "@nestjs/config";
+import * as bcrypt from "bcrypt";
+import { PrismaService } from "../../../prisma/prisma.service";
+import { SuperAdminAuditService } from "./super-admin-audit.service";
 
 @Injectable()
 export class SuperAdminAuthService {
@@ -14,22 +18,29 @@ export class SuperAdminAuthService {
     private auditService: SuperAdminAuditService,
   ) {}
 
-  async login(email: string, password: string, ip?: string, userAgent?: string) {
+  async login(
+    email: string,
+    password: string,
+    ip?: string,
+    userAgent?: string,
+  ) {
     // Find super admin
     const superAdmin = await this.prisma.$queryRaw<any[]>`
       SELECT * FROM super_admins WHERE email = ${email} LIMIT 1
     `;
 
     if (!superAdmin || superAdmin.length === 0) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException("Invalid credentials");
     }
 
     const admin = superAdmin[0];
 
     // Check if locked
-    if (admin.status === 'LOCKED' && admin.lockedUntil) {
+    if (admin.status === "LOCKED" && admin.lockedUntil) {
       if (new Date(admin.lockedUntil) > new Date()) {
-        throw new ForbiddenException('Account is locked. Please try again later.');
+        throw new ForbiddenException(
+          "Account is locked. Please try again later.",
+        );
       }
       // Unlock if lock period has passed
       await this.prisma.$executeRaw`
@@ -39,8 +50,8 @@ export class SuperAdminAuthService {
       `;
     }
 
-    if (admin.status === 'DISABLED') {
-      throw new ForbiddenException('Account is disabled');
+    if (admin.status === "DISABLED") {
+      throw new ForbiddenException("Account is disabled");
     }
 
     // Verify password
@@ -49,7 +60,7 @@ export class SuperAdminAuthService {
     if (!isValid) {
       // Increment failed attempts
       const newAttempts = (admin.failedAttempts || 0) + 1;
-      
+
       if (newAttempts >= 5) {
         // Lock account for 15 minutes
         const lockedUntil = new Date(Date.now() + 15 * 60 * 1000);
@@ -64,7 +75,7 @@ export class SuperAdminAuthService {
         `;
       }
 
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException("Invalid credentials");
     }
 
     if (admin.requirePasswordChange) {
@@ -74,7 +85,7 @@ export class SuperAdminAuthService {
           id: admin.id,
           email: admin.email,
           name: admin.name,
-          role: 'SUPER_ADMIN',
+          role: "SUPER_ADMIN",
           lastLogin: admin.lastLoginAt,
           createdAt: admin.createdAt,
         },
@@ -92,12 +103,12 @@ export class SuperAdminAuthService {
     const payload = {
       sub: admin.id,
       email: admin.email,
-      role: 'SUPER_ADMIN',
-      type: 'super_admin',
+      role: "SUPER_ADMIN",
+      type: "super_admin",
     };
 
     const accessToken = this.jwtService.sign(payload);
-    const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
+    const refreshToken = this.jwtService.sign(payload, { expiresIn: "7d" });
 
     // Store refresh token
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
@@ -109,7 +120,7 @@ export class SuperAdminAuthService {
     // Log audit
     await this.auditService.log({
       superAdminId: admin.id,
-      action: 'LOGIN',
+      action: "LOGIN",
       ipAddress: ip,
       userAgent,
     });
@@ -119,7 +130,7 @@ export class SuperAdminAuthService {
         id: admin.id,
         email: admin.email,
         name: admin.name,
-        role: 'SUPER_ADMIN',
+        role: "SUPER_ADMIN",
         lastLogin: admin.lastLoginAt,
         createdAt: admin.createdAt,
       },
@@ -140,22 +151,22 @@ export class SuperAdminAuthService {
     `;
 
     if (!superAdmin || superAdmin.length === 0) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException("Invalid credentials");
     }
 
     const admin = superAdmin[0];
 
-    if (admin.status === 'DISABLED') {
-      throw new ForbiddenException('Account is disabled');
+    if (admin.status === "DISABLED") {
+      throw new ForbiddenException("Account is disabled");
     }
 
     if (!admin.requirePasswordChange) {
-      throw new ForbiddenException('Password change not required');
+      throw new ForbiddenException("Password change not required");
     }
 
     const isValid = await bcrypt.compare(currentPassword, admin.passwordHash);
     if (!isValid) {
-      throw new UnauthorizedException('Current password is incorrect');
+      throw new UnauthorizedException("Current password is incorrect");
     }
 
     this.validatePasswordStrength(newPassword);
@@ -174,12 +185,12 @@ export class SuperAdminAuthService {
     const payload = {
       sub: admin.id,
       email: admin.email,
-      role: 'SUPER_ADMIN',
-      type: 'super_admin',
+      role: "SUPER_ADMIN",
+      type: "super_admin",
     };
 
     const accessToken = this.jwtService.sign(payload);
-    const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
+    const refreshToken = this.jwtService.sign(payload, { expiresIn: "7d" });
 
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     await this.prisma.$executeRaw`
@@ -189,7 +200,7 @@ export class SuperAdminAuthService {
 
     await this.auditService.log({
       superAdminId: admin.id,
-      action: 'PASSWORD_CHANGED',
+      action: "PASSWORD_CHANGED",
       ipAddress: ip,
       userAgent,
     });
@@ -199,7 +210,7 @@ export class SuperAdminAuthService {
         id: admin.id,
         email: admin.email,
         name: admin.name,
-        role: 'SUPER_ADMIN',
+        role: "SUPER_ADMIN",
         lastLogin: admin.lastLoginAt,
         createdAt: admin.createdAt,
       },
@@ -208,7 +219,12 @@ export class SuperAdminAuthService {
     };
   }
 
-  async logout(superAdminId: string, token?: string, ip?: string, userAgent?: string) {
+  async logout(
+    superAdminId: string,
+    token?: string,
+    ip?: string,
+    userAgent?: string,
+  ) {
     // Invalidate refresh token
     if (token) {
       await this.prisma.$executeRaw`
@@ -219,7 +235,7 @@ export class SuperAdminAuthService {
     // Log audit
     await this.auditService.log({
       superAdminId,
-      action: 'LOGOUT',
+      action: "LOGOUT",
       ipAddress: ip,
       userAgent,
     });
@@ -239,7 +255,7 @@ export class SuperAdminAuthService {
     `;
 
     if (!superAdmin || superAdmin.length === 0) {
-      throw new UnauthorizedException('Invalid super admin');
+      throw new UnauthorizedException("Invalid super admin");
     }
 
     const admin = superAdmin[0];
@@ -247,7 +263,7 @@ export class SuperAdminAuthService {
     // Verify current password
     const isValid = await bcrypt.compare(currentPassword, admin.passwordHash);
     if (!isValid) {
-      throw new UnauthorizedException('Current password is incorrect');
+      throw new UnauthorizedException("Current password is incorrect");
     }
 
     // Validate new password strength
@@ -270,7 +286,7 @@ export class SuperAdminAuthService {
     // Log audit
     await this.auditService.log({
       superAdminId,
-      action: 'PASSWORD_CHANGED',
+      action: "PASSWORD_CHANGED",
       ipAddress: ip,
       userAgent,
     });
@@ -285,9 +301,11 @@ export class SuperAdminAuthService {
     setupKey: string,
   ) {
     // Verify setup key
-    const validSetupKey = this.configService.get<string>('SUPER_ADMIN_SETUP_KEY');
+    const validSetupKey = this.configService.get<string>(
+      "SUPER_ADMIN_SETUP_KEY",
+    );
     if (!validSetupKey || setupKey !== validSetupKey) {
-      throw new ForbiddenException('Invalid setup key');
+      throw new ForbiddenException("Invalid setup key");
     }
 
     // Check if super admin already exists
@@ -296,7 +314,7 @@ export class SuperAdminAuthService {
     `;
 
     if (existing && existing.length > 0) {
-      throw new ForbiddenException('Super admin already exists');
+      throw new ForbiddenException("Super admin already exists");
     }
 
     // Validate password strength
@@ -304,30 +322,30 @@ export class SuperAdminAuthService {
 
     // Create super admin
     const passwordHash = await bcrypt.hash(password, 12);
-    
+
     await this.prisma.$executeRaw`
       INSERT INTO super_admins (id, email, "passwordHash", name, status, "createdAt", "updatedAt")
       VALUES (gen_random_uuid(), ${email}, ${passwordHash}, ${name}, 'ACTIVE', NOW(), NOW())
     `;
 
-    return { success: true, message: 'Super admin created successfully' };
+    return { success: true, message: "Super admin created successfully" };
   }
 
   private validatePasswordStrength(password: string) {
     if (password.length < 16) {
-      throw new ForbiddenException('Password must be at least 16 characters');
+      throw new ForbiddenException("Password must be at least 16 characters");
     }
     if (!/[A-Z]/.test(password)) {
-      throw new ForbiddenException('Password must contain uppercase letters');
+      throw new ForbiddenException("Password must contain uppercase letters");
     }
     if (!/[a-z]/.test(password)) {
-      throw new ForbiddenException('Password must contain lowercase letters');
+      throw new ForbiddenException("Password must contain lowercase letters");
     }
     if (!/[0-9]/.test(password)) {
-      throw new ForbiddenException('Password must contain numbers');
+      throw new ForbiddenException("Password must contain numbers");
     }
     if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
-      throw new ForbiddenException('Password must contain special characters');
+      throw new ForbiddenException("Password must contain special characters");
     }
   }
 
@@ -338,7 +356,7 @@ export class SuperAdminAuthService {
     `;
 
     if (!superAdmin || superAdmin.length === 0) {
-      throw new UnauthorizedException('Super admin not found');
+      throw new UnauthorizedException("Super admin not found");
     }
 
     return {

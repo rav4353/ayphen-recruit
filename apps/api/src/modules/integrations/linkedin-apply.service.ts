@@ -1,6 +1,6 @@
-import { Injectable, Logger, BadRequestException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { PrismaService } from '../../prisma/prisma.service';
+import { Injectable, Logger, BadRequestException } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { PrismaService } from "../../prisma/prisma.service";
 
 interface LinkedInProfile {
   id: string;
@@ -35,14 +35,16 @@ interface LinkedInApplyConfig {
   companyId?: string;
 }
 
-const LINKEDIN_SETTINGS_KEY = 'linkedin_apply_settings';
+const LINKEDIN_SETTINGS_KEY = "linkedin_apply_settings";
 
 @Injectable()
 export class LinkedInApplyService {
   private readonly logger = new Logger(LinkedInApplyService.name);
-  private readonly linkedInAuthUrl = 'https://www.linkedin.com/oauth/v2/authorization';
-  private readonly linkedInTokenUrl = 'https://www.linkedin.com/oauth/v2/accessToken';
-  private readonly linkedInApiUrl = 'https://api.linkedin.com/v2';
+  private readonly linkedInAuthUrl =
+    "https://www.linkedin.com/oauth/v2/authorization";
+  private readonly linkedInTokenUrl =
+    "https://www.linkedin.com/oauth/v2/accessToken";
+  private readonly linkedInApiUrl = "https://api.linkedin.com/v2";
 
   constructor(
     private readonly configService: ConfigService,
@@ -52,7 +54,9 @@ export class LinkedInApplyService {
   /**
    * Get LinkedIn OAuth configuration
    */
-  async getConfig(tenantId: string): Promise<{ isConfigured: boolean; clientId?: string }> {
+  async getConfig(
+    tenantId: string,
+  ): Promise<{ isConfigured: boolean; clientId?: string }> {
     const setting = await this.prisma.setting.findUnique({
       where: { tenantId_key: { tenantId, key: LINKEDIN_SETTINGS_KEY } },
     });
@@ -70,12 +74,12 @@ export class LinkedInApplyService {
   async configure(tenantId: string, config: LinkedInApplyConfig) {
     await this.prisma.setting.upsert({
       where: { tenantId_key: { tenantId, key: LINKEDIN_SETTINGS_KEY } },
-      update: { value: config as any, category: 'INTEGRATION' },
+      update: { value: config as any, category: "INTEGRATION" },
       create: {
         tenantId,
         key: LINKEDIN_SETTINGS_KEY,
         value: config as any,
-        category: 'INTEGRATION',
+        category: "INTEGRATION",
         isPublic: false,
       },
     });
@@ -86,25 +90,29 @@ export class LinkedInApplyService {
   /**
    * Generate OAuth URL for LinkedIn Apply button
    */
-  async getOAuthUrl(tenantId: string, jobId: string, state?: string): Promise<string> {
+  async getOAuthUrl(
+    tenantId: string,
+    jobId: string,
+    state?: string,
+  ): Promise<string> {
     const setting = await this.prisma.setting.findUnique({
       where: { tenantId_key: { tenantId, key: LINKEDIN_SETTINGS_KEY } },
     });
 
     const config = setting?.value as unknown as LinkedInApplyConfig;
     if (!config?.clientId) {
-      throw new BadRequestException('LinkedIn Apply not configured');
+      throw new BadRequestException("LinkedIn Apply not configured");
     }
 
-    const scopes = ['r_liteprofile', 'r_emailaddress', 'w_member_social'];
+    const scopes = ["r_liteprofile", "r_emailaddress", "w_member_social"];
     const stateParam = state || `${tenantId}:${jobId}:${Date.now()}`;
 
     const params = new URLSearchParams({
-      response_type: 'code',
+      response_type: "code",
       client_id: config.clientId,
       redirect_uri: config.redirectUri,
       state: stateParam,
-      scope: scopes.join(' '),
+      scope: scopes.join(" "),
     });
 
     return `${this.linkedInAuthUrl}?${params.toString()}`;
@@ -120,17 +128,17 @@ export class LinkedInApplyService {
 
     const config = setting?.value as unknown as LinkedInApplyConfig;
     if (!config?.clientId || !config?.clientSecret) {
-      throw new BadRequestException('LinkedIn Apply not configured');
+      throw new BadRequestException("LinkedIn Apply not configured");
     }
 
-    this.logger.log('Exchanging LinkedIn auth code for token');
+    this.logger.log("Exchanging LinkedIn auth code for token");
 
     try {
       const response = await fetch(this.linkedInTokenUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: new URLSearchParams({
-          grant_type: 'authorization_code',
+          grant_type: "authorization_code",
           code,
           redirect_uri: config.redirectUri,
           client_id: config.clientId,
@@ -140,15 +148,15 @@ export class LinkedInApplyService {
 
       if (!response.ok) {
         const error = await response.text();
-        this.logger.error('LinkedIn token exchange failed:', error);
-        throw new BadRequestException('Failed to exchange authorization code');
+        this.logger.error("LinkedIn token exchange failed:", error);
+        throw new BadRequestException("Failed to exchange authorization code");
       }
 
-      const data = await response.json() as { access_token: string };
+      const data = (await response.json()) as { access_token: string };
       return data.access_token;
     } catch (error: any) {
-      this.logger.error('LinkedIn token exchange error:', error.message);
-      throw new BadRequestException('LinkedIn authentication failed');
+      this.logger.error("LinkedIn token exchange error:", error.message);
+      throw new BadRequestException("LinkedIn authentication failed");
     }
   }
 
@@ -156,48 +164,65 @@ export class LinkedInApplyService {
    * Get LinkedIn profile using access token
    */
   async getProfile(accessToken: string): Promise<LinkedInProfile> {
-    this.logger.log('Fetching LinkedIn profile');
+    this.logger.log("Fetching LinkedIn profile");
 
     try {
       // Fetch basic profile
-      const profileResponse = await fetch(`${this.linkedInApiUrl}/me?projection=(id,firstName,lastName,profilePicture,headline)`, {
-        headers: { 'Authorization': `Bearer ${accessToken}` },
-      });
+      const profileResponse = await fetch(
+        `${this.linkedInApiUrl}/me?projection=(id,firstName,lastName,profilePicture,headline)`,
+        {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        },
+      );
 
       if (!profileResponse.ok) {
-        throw new Error('Failed to fetch LinkedIn profile');
+        throw new Error("Failed to fetch LinkedIn profile");
       }
 
-      const profileData = await profileResponse.json() as any;
+      const profileData = (await profileResponse.json()) as any;
 
       // Fetch email address
-      const emailResponse = await fetch(`${this.linkedInApiUrl}/emailAddress?q=members&projection=(elements*(handle~))`, {
-        headers: { 'Authorization': `Bearer ${accessToken}` },
-      });
+      const emailResponse = await fetch(
+        `${this.linkedInApiUrl}/emailAddress?q=members&projection=(elements*(handle~))`,
+        {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        },
+      );
 
-      let email = '';
+      let email = "";
       if (emailResponse.ok) {
-        const emailData = await emailResponse.json() as any;
-        email = emailData.elements?.[0]?.['handle~']?.emailAddress || '';
+        const emailData = (await emailResponse.json()) as any;
+        email = emailData.elements?.[0]?.["handle~"]?.emailAddress || "";
       }
 
       // Extract localized names
-      const firstName = profileData.firstName?.localized?.en_US || 
-                       profileData.firstName?.localized?.[Object.keys(profileData.firstName?.localized || {})[0]] || '';
-      const lastName = profileData.lastName?.localized?.en_US || 
-                      profileData.lastName?.localized?.[Object.keys(profileData.lastName?.localized || {})[0]] || '';
+      const firstName =
+        profileData.firstName?.localized?.en_US ||
+        profileData.firstName?.localized?.[
+          Object.keys(profileData.firstName?.localized || {})[0]
+        ] ||
+        "";
+      const lastName =
+        profileData.lastName?.localized?.en_US ||
+        profileData.lastName?.localized?.[
+          Object.keys(profileData.lastName?.localized || {})[0]
+        ] ||
+        "";
 
       return {
         id: profileData.id,
         firstName,
         lastName,
         email,
-        headline: profileData.headline?.localized?.en_US || profileData.headline,
-        profilePictureUrl: profileData.profilePicture?.['displayImage~']?.elements?.[0]?.identifiers?.[0]?.identifier,
+        headline:
+          profileData.headline?.localized?.en_US || profileData.headline,
+        profilePictureUrl:
+          profileData.profilePicture?.["displayImage~"]?.elements?.[0]
+            ?.identifiers?.[0]?.identifier,
       };
     } catch (error: any) {
-      this.logger.error('LinkedIn profile fetch error:', error.message);
-      throw new BadRequestException('Failed to fetch LinkedIn profile');
+      this.logger.error("LinkedIn profile fetch error:", error.message);
+      throw new BadRequestException("Failed to fetch LinkedIn profile");
     }
   }
 
@@ -236,7 +261,7 @@ export class LinkedInApplyService {
           summary: profile.summary,
           experience: profile.positions as any,
           education: profile.educations as any,
-          source: 'LINKEDIN_APPLY',
+          source: "LINKEDIN_APPLY",
           sourceDetails: `Applied via LinkedIn for job ${jobId}`,
         },
       });
@@ -256,19 +281,19 @@ export class LinkedInApplyService {
       data: {
         candidateId: candidate.id,
         jobId,
-        status: 'APPLIED',
+        status: "APPLIED",
       },
     });
 
     // Log activity
     await this.prisma.activityLog.create({
       data: {
-        action: 'LINKEDIN_APPLY',
+        action: "LINKEDIN_APPLY",
         description: `Candidate applied via LinkedIn Apply`,
         candidateId: candidate.id,
         applicationId: application.id,
         metadata: {
-          source: 'LINKEDIN_APPLY',
+          source: "LINKEDIN_APPLY",
           linkedInId: profile.id,
         },
       },
@@ -282,17 +307,17 @@ export class LinkedInApplyService {
    */
   getApplyButtonConfig(jobId: string, tenantId: string) {
     return {
-      buttonType: 'LINKEDIN_APPLY',
+      buttonType: "LINKEDIN_APPLY",
       jobId,
       tenantId,
-      buttonText: 'Apply with LinkedIn',
+      buttonText: "Apply with LinkedIn",
       buttonStyle: {
-        backgroundColor: '#0077B5',
-        color: '#ffffff',
-        borderRadius: '4px',
-        padding: '10px 20px',
-        fontSize: '14px',
-        fontWeight: '600',
+        backgroundColor: "#0077B5",
+        color: "#ffffff",
+        borderRadius: "4px",
+        padding: "10px 20px",
+        fontSize: "14px",
+        fontWeight: "600",
       },
     };
   }

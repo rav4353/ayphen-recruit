@@ -1,25 +1,30 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { PrismaService } from '../../prisma/prisma.service';
-import * as crypto from 'crypto';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  BadRequestException,
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { PrismaService } from "../../prisma/prisma.service";
+import * as crypto from "crypto";
 
-export type WebhookEvent = 
-  | 'candidate.created'
-  | 'candidate.updated'
-  | 'application.created'
-  | 'application.stage_changed'
-  | 'application.status_changed'
-  | 'interview.scheduled'
-  | 'interview.completed'
-  | 'interview.cancelled'
-  | 'offer.created'
-  | 'offer.sent'
-  | 'offer.accepted'
-  | 'offer.declined'
-  | 'job.created'
-  | 'job.published'
-  | 'job.closed'
-  | 'hire.completed';
+export type WebhookEvent =
+  | "candidate.created"
+  | "candidate.updated"
+  | "application.created"
+  | "application.stage_changed"
+  | "application.status_changed"
+  | "interview.scheduled"
+  | "interview.completed"
+  | "interview.cancelled"
+  | "offer.created"
+  | "offer.sent"
+  | "offer.accepted"
+  | "offer.declined"
+  | "job.created"
+  | "job.published"
+  | "job.closed"
+  | "hire.completed";
 
 export interface WebhookConfig {
   id: string;
@@ -39,7 +44,7 @@ interface WebhookDelivery {
   webhookId: string;
   event: WebhookEvent;
   payload: any;
-  status: 'PENDING' | 'SUCCESS' | 'FAILED';
+  status: "PENDING" | "SUCCESS" | "FAILED";
   statusCode?: number;
   response?: string;
   attempts: number;
@@ -47,7 +52,7 @@ interface WebhookDelivery {
   deliveredAt?: Date;
 }
 
-const WEBHOOKS_SETTINGS_KEY = 'webhooks_config';
+const WEBHOOKS_SETTINGS_KEY = "webhooks_config";
 
 @Injectable()
 export class WebhookManagementService {
@@ -61,13 +66,15 @@ export class WebhookManagementService {
   /**
    * Get all webhooks for a tenant
    */
-  async getWebhooks(tenantId: string): Promise<Omit<WebhookConfig, 'secret'>[]> {
+  async getWebhooks(
+    tenantId: string,
+  ): Promise<Omit<WebhookConfig, "secret">[]> {
     const setting = await this.prisma.setting.findUnique({
       where: { tenantId_key: { tenantId, key: WEBHOOKS_SETTINGS_KEY } },
     });
 
     const webhooks = (setting?.value as unknown as WebhookConfig[]) || [];
-    
+
     // Remove secrets from response
     return webhooks.map(({ secret, ...rest }) => rest);
   }
@@ -75,29 +82,35 @@ export class WebhookManagementService {
   /**
    * Get a specific webhook
    */
-  async getWebhook(tenantId: string, webhookId: string): Promise<Omit<WebhookConfig, 'secret'> | null> {
+  async getWebhook(
+    tenantId: string,
+    webhookId: string,
+  ): Promise<Omit<WebhookConfig, "secret"> | null> {
     const webhooks = await this.getWebhooks(tenantId);
-    return webhooks.find(w => w.id === webhookId) || null;
+    return webhooks.find((w) => w.id === webhookId) || null;
   }
 
   /**
    * Create a new webhook
    */
-  async createWebhook(tenantId: string, data: {
-    name: string;
-    url: string;
-    events: WebhookEvent[];
-    headers?: Record<string, string>;
-  }): Promise<{ id: string; secret: string }> {
+  async createWebhook(
+    tenantId: string,
+    data: {
+      name: string;
+      url: string;
+      events: WebhookEvent[];
+      headers?: Record<string, string>;
+    },
+  ): Promise<{ id: string; secret: string }> {
     // Validate URL
     try {
       new URL(data.url);
     } catch {
-      throw new BadRequestException('Invalid webhook URL');
+      throw new BadRequestException("Invalid webhook URL");
     }
 
     // Validate events
-    const validEvents = this.getAvailableEvents().map(e => e.id);
+    const validEvents = this.getAvailableEvents().map((e) => e.id);
     for (const event of data.events) {
       if (!validEvents.includes(event)) {
         throw new BadRequestException(`Invalid event: ${event}`);
@@ -112,12 +125,12 @@ export class WebhookManagementService {
 
     // Check limit
     if (webhooks.length >= 10) {
-      throw new BadRequestException('Maximum 10 webhooks allowed per tenant');
+      throw new BadRequestException("Maximum 10 webhooks allowed per tenant");
     }
 
     // Generate webhook ID and secret
-    const id = `wh_${crypto.randomBytes(12).toString('hex')}`;
-    const secret = `whsec_${crypto.randomBytes(24).toString('hex')}`;
+    const id = `wh_${crypto.randomBytes(12).toString("hex")}`;
+    const secret = `whsec_${crypto.randomBytes(24).toString("hex")}`;
 
     const newWebhook: WebhookConfig = {
       id,
@@ -140,7 +153,7 @@ export class WebhookManagementService {
         tenantId,
         key: WEBHOOKS_SETTINGS_KEY,
         value: webhooks as any,
-        category: 'INTEGRATION',
+        category: "INTEGRATION",
         isPublic: false,
       },
     });
@@ -151,22 +164,26 @@ export class WebhookManagementService {
   /**
    * Update a webhook
    */
-  async updateWebhook(tenantId: string, webhookId: string, data: {
-    name?: string;
-    url?: string;
-    events?: WebhookEvent[];
-    headers?: Record<string, string>;
-    isActive?: boolean;
-  }): Promise<{ success: boolean }> {
+  async updateWebhook(
+    tenantId: string,
+    webhookId: string,
+    data: {
+      name?: string;
+      url?: string;
+      events?: WebhookEvent[];
+      headers?: Record<string, string>;
+      isActive?: boolean;
+    },
+  ): Promise<{ success: boolean }> {
     const setting = await this.prisma.setting.findUnique({
       where: { tenantId_key: { tenantId, key: WEBHOOKS_SETTINGS_KEY } },
     });
 
     const webhooks = (setting?.value as unknown as WebhookConfig[]) || [];
-    const index = webhooks.findIndex(w => w.id === webhookId);
+    const index = webhooks.findIndex((w) => w.id === webhookId);
 
     if (index === -1) {
-      throw new NotFoundException('Webhook not found');
+      throw new NotFoundException("Webhook not found");
     }
 
     webhooks[index] = {
@@ -185,16 +202,19 @@ export class WebhookManagementService {
   /**
    * Delete a webhook
    */
-  async deleteWebhook(tenantId: string, webhookId: string): Promise<{ success: boolean }> {
+  async deleteWebhook(
+    tenantId: string,
+    webhookId: string,
+  ): Promise<{ success: boolean }> {
     const setting = await this.prisma.setting.findUnique({
       where: { tenantId_key: { tenantId, key: WEBHOOKS_SETTINGS_KEY } },
     });
 
     const webhooks = (setting?.value as unknown as WebhookConfig[]) || [];
-    const filtered = webhooks.filter(w => w.id !== webhookId);
+    const filtered = webhooks.filter((w) => w.id !== webhookId);
 
     if (filtered.length === webhooks.length) {
-      throw new NotFoundException('Webhook not found');
+      throw new NotFoundException("Webhook not found");
     }
 
     await this.prisma.setting.update({
@@ -208,19 +228,22 @@ export class WebhookManagementService {
   /**
    * Regenerate webhook secret
    */
-  async regenerateSecret(tenantId: string, webhookId: string): Promise<{ secret: string }> {
+  async regenerateSecret(
+    tenantId: string,
+    webhookId: string,
+  ): Promise<{ secret: string }> {
     const setting = await this.prisma.setting.findUnique({
       where: { tenantId_key: { tenantId, key: WEBHOOKS_SETTINGS_KEY } },
     });
 
     const webhooks = (setting?.value as unknown as WebhookConfig[]) || [];
-    const index = webhooks.findIndex(w => w.id === webhookId);
+    const index = webhooks.findIndex((w) => w.id === webhookId);
 
     if (index === -1) {
-      throw new NotFoundException('Webhook not found');
+      throw new NotFoundException("Webhook not found");
     }
 
-    const newSecret = `whsec_${crypto.randomBytes(24).toString('hex')}`;
+    const newSecret = `whsec_${crypto.randomBytes(24).toString("hex")}`;
     webhooks[index].secret = newSecret;
 
     await this.prisma.setting.update({
@@ -234,13 +257,19 @@ export class WebhookManagementService {
   /**
    * Trigger webhook for an event
    */
-  async triggerWebhooks(tenantId: string, event: WebhookEvent, payload: any): Promise<{ triggered: number; failed: number }> {
+  async triggerWebhooks(
+    tenantId: string,
+    event: WebhookEvent,
+    payload: any,
+  ): Promise<{ triggered: number; failed: number }> {
     const setting = await this.prisma.setting.findUnique({
       where: { tenantId_key: { tenantId, key: WEBHOOKS_SETTINGS_KEY } },
     });
 
     const webhooks = (setting?.value as unknown as WebhookConfig[]) || [];
-    const matchingWebhooks = webhooks.filter(w => w.isActive && w.events.includes(event));
+    const matchingWebhooks = webhooks.filter(
+      (w) => w.isActive && w.events.includes(event),
+    );
 
     let triggered = 0;
     let failed = 0;
@@ -261,10 +290,14 @@ export class WebhookManagementService {
   /**
    * Deliver a single webhook
    */
-  private async deliverWebhook(webhook: WebhookConfig, event: WebhookEvent, payload: any): Promise<void> {
+  private async deliverWebhook(
+    webhook: WebhookConfig,
+    event: WebhookEvent,
+    payload: any,
+  ): Promise<void> {
     const timestamp = Math.floor(Date.now() / 1000);
     const body = JSON.stringify({
-      id: `evt_${crypto.randomBytes(12).toString('hex')}`,
+      id: `evt_${crypto.randomBytes(12).toString("hex")}`,
       event,
       timestamp,
       data: payload,
@@ -274,16 +307,18 @@ export class WebhookManagementService {
     const signature = this.generateSignature(body, webhook.secret, timestamp);
 
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      'X-Webhook-Signature': signature,
-      'X-Webhook-Timestamp': timestamp.toString(),
-      'X-Webhook-Event': event,
+      "Content-Type": "application/json",
+      "X-Webhook-Signature": signature,
+      "X-Webhook-Timestamp": timestamp.toString(),
+      "X-Webhook-Event": event,
       ...webhook.headers,
     };
 
-    this.logger.log(`Delivering webhook ${webhook.id} for event ${event} to ${webhook.url}`);
+    this.logger.log(
+      `Delivering webhook ${webhook.id} for event ${event} to ${webhook.url}`,
+    );
 
-    let status: 'SUCCESS' | 'FAILED' = 'SUCCESS';
+    let status: "SUCCESS" | "FAILED" = "SUCCESS";
     let statusCode: number | undefined;
     let errorMessage: string | undefined;
 
@@ -291,7 +326,7 @@ export class WebhookManagementService {
     for (let attempt = 1; attempt <= webhook.retryCount; attempt++) {
       try {
         const response = await fetch(webhook.url, {
-          method: 'POST',
+          method: "POST",
           headers,
           body,
         });
@@ -299,28 +334,38 @@ export class WebhookManagementService {
         statusCode = response.status;
 
         if (response.ok) {
-          this.logger.log(`Webhook ${webhook.id} delivered successfully (attempt ${attempt})`);
+          this.logger.log(
+            `Webhook ${webhook.id} delivered successfully (attempt ${attempt})`,
+          );
           break;
         } else {
           errorMessage = `HTTP ${response.status}: ${response.statusText}`;
-          this.logger.warn(`Webhook ${webhook.id} failed attempt ${attempt}: ${errorMessage}`);
-          
+          this.logger.warn(
+            `Webhook ${webhook.id} failed attempt ${attempt}: ${errorMessage}`,
+          );
+
           if (attempt === webhook.retryCount) {
-            status = 'FAILED';
+            status = "FAILED";
           } else {
             // Wait before retry (exponential backoff)
-            await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+            await new Promise((resolve) =>
+              setTimeout(resolve, Math.pow(2, attempt) * 1000),
+            );
           }
         }
       } catch (error: any) {
         errorMessage = error.message;
-        this.logger.warn(`Webhook ${webhook.id} failed attempt ${attempt}: ${errorMessage}`);
-        
+        this.logger.warn(
+          `Webhook ${webhook.id} failed attempt ${attempt}: ${errorMessage}`,
+        );
+
         if (attempt === webhook.retryCount) {
-          status = 'FAILED';
+          status = "FAILED";
         } else {
           // Wait before retry (exponential backoff)
-          await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+          await new Promise((resolve) =>
+            setTimeout(resolve, Math.pow(2, attempt) * 1000),
+          );
         }
       }
     }
@@ -328,8 +373,8 @@ export class WebhookManagementService {
     // Log delivery
     await this.prisma.activityLog.create({
       data: {
-        action: 'WEBHOOK_DELIVERED',
-        description: `Webhook ${status === 'SUCCESS' ? 'delivered' : 'failed'}: ${event}`,
+        action: "WEBHOOK_DELIVERED",
+        description: `Webhook ${status === "SUCCESS" ? "delivered" : "failed"}: ${event}`,
         metadata: {
           webhookId: webhook.id,
           event,
@@ -341,28 +386,43 @@ export class WebhookManagementService {
       },
     });
 
-    if (status === 'FAILED') {
-      throw new Error(`Webhook delivery failed after ${webhook.retryCount} attempts: ${errorMessage}`);
+    if (status === "FAILED") {
+      throw new Error(
+        `Webhook delivery failed after ${webhook.retryCount} attempts: ${errorMessage}`,
+      );
     }
   }
 
   /**
    * Generate webhook signature
    */
-  private generateSignature(payload: string, secret: string, timestamp: number): string {
+  private generateSignature(
+    payload: string,
+    secret: string,
+    timestamp: number,
+  ): string {
     const signedPayload = `${timestamp}.${payload}`;
     const signature = crypto
-      .createHmac('sha256', secret)
+      .createHmac("sha256", secret)
       .update(signedPayload)
-      .digest('hex');
+      .digest("hex");
     return `v1=${signature}`;
   }
 
   /**
    * Verify webhook signature (for incoming webhooks)
    */
-  verifySignature(payload: string, signature: string, secret: string, timestamp: number): boolean {
-    const expectedSignature = this.generateSignature(payload, secret, timestamp);
+  verifySignature(
+    payload: string,
+    signature: string,
+    secret: string,
+    timestamp: number,
+  ): boolean {
+    const expectedSignature = this.generateSignature(
+      payload,
+      secret,
+      timestamp,
+    );
     return crypto.timingSafeEqual(
       Buffer.from(signature),
       Buffer.from(expectedSignature),
@@ -372,38 +432,45 @@ export class WebhookManagementService {
   /**
    * Test webhook endpoint
    */
-  async testWebhook(tenantId: string, webhookId: string): Promise<{ success: boolean; statusCode?: number; message: string }> {
+  async testWebhook(
+    tenantId: string,
+    webhookId: string,
+  ): Promise<{ success: boolean; statusCode?: number; message: string }> {
     const setting = await this.prisma.setting.findUnique({
       where: { tenantId_key: { tenantId, key: WEBHOOKS_SETTINGS_KEY } },
     });
 
     const webhooks = (setting?.value as unknown as WebhookConfig[]) || [];
-    const webhook = webhooks.find(w => w.id === webhookId);
+    const webhook = webhooks.find((w) => w.id === webhookId);
 
     if (!webhook) {
-      throw new NotFoundException('Webhook not found');
+      throw new NotFoundException("Webhook not found");
     }
 
     try {
       const timestamp = Math.floor(Date.now() / 1000);
       const testPayload = JSON.stringify({
         id: `evt_test_${Date.now()}`,
-        event: 'test.ping',
+        event: "test.ping",
         timestamp,
-        data: { message: 'This is a test webhook delivery from TalentX' },
+        data: { message: "This is a test webhook delivery from TalentX" },
       });
 
-      const signature = this.generateSignature(testPayload, webhook.secret, timestamp);
+      const signature = this.generateSignature(
+        testPayload,
+        webhook.secret,
+        timestamp,
+      );
 
       this.logger.log(`Testing webhook ${webhookId} at ${webhook.url}`);
 
       const response = await fetch(webhook.url, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'X-Webhook-Signature': signature,
-          'X-Webhook-Timestamp': timestamp.toString(),
-          'X-Webhook-Event': 'test.ping',
+          "Content-Type": "application/json",
+          "X-Webhook-Signature": signature,
+          "X-Webhook-Timestamp": timestamp.toString(),
+          "X-Webhook-Event": "test.ping",
           ...webhook.headers,
         },
         body: testPayload,
@@ -413,7 +480,7 @@ export class WebhookManagementService {
         return {
           success: true,
           statusCode: response.status,
-          message: 'Webhook endpoint responded successfully',
+          message: "Webhook endpoint responded successfully",
         };
       } else {
         return {
@@ -433,22 +500,26 @@ export class WebhookManagementService {
   /**
    * Get webhook delivery history
    */
-  async getDeliveryHistory(tenantId: string, webhookId?: string, limit = 50): Promise<any[]> {
+  async getDeliveryHistory(
+    tenantId: string,
+    webhookId?: string,
+    limit = 50,
+  ): Promise<any[]> {
     const logs = await this.prisma.activityLog.findMany({
       where: {
-        action: 'WEBHOOK_DELIVERED',
+        action: "WEBHOOK_DELIVERED",
         ...(webhookId && {
           metadata: {
-            path: ['webhookId'],
+            path: ["webhookId"],
             equals: webhookId,
           },
         }),
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
       take: limit,
     });
 
-    return logs.map(log => ({
+    return logs.map((log) => ({
       id: log.id,
       webhookId: (log.metadata as any)?.webhookId,
       event: (log.metadata as any)?.event,
@@ -461,24 +532,92 @@ export class WebhookManagementService {
   /**
    * Get available webhook events
    */
-  getAvailableEvents(): { id: WebhookEvent; name: string; description: string }[] {
+  getAvailableEvents(): {
+    id: WebhookEvent;
+    name: string;
+    description: string;
+  }[] {
     return [
-      { id: 'candidate.created', name: 'Candidate Created', description: 'Triggered when a new candidate is added' },
-      { id: 'candidate.updated', name: 'Candidate Updated', description: 'Triggered when candidate info is updated' },
-      { id: 'application.created', name: 'Application Created', description: 'Triggered when a candidate applies for a job' },
-      { id: 'application.stage_changed', name: 'Application Stage Changed', description: 'Triggered when application moves to a new stage' },
-      { id: 'application.status_changed', name: 'Application Status Changed', description: 'Triggered when application status changes' },
-      { id: 'interview.scheduled', name: 'Interview Scheduled', description: 'Triggered when an interview is scheduled' },
-      { id: 'interview.completed', name: 'Interview Completed', description: 'Triggered when an interview is marked complete' },
-      { id: 'interview.cancelled', name: 'Interview Cancelled', description: 'Triggered when an interview is cancelled' },
-      { id: 'offer.created', name: 'Offer Created', description: 'Triggered when a new offer is created' },
-      { id: 'offer.sent', name: 'Offer Sent', description: 'Triggered when an offer is sent to candidate' },
-      { id: 'offer.accepted', name: 'Offer Accepted', description: 'Triggered when candidate accepts an offer' },
-      { id: 'offer.declined', name: 'Offer Declined', description: 'Triggered when candidate declines an offer' },
-      { id: 'job.created', name: 'Job Created', description: 'Triggered when a new job is created' },
-      { id: 'job.published', name: 'Job Published', description: 'Triggered when a job is published' },
-      { id: 'job.closed', name: 'Job Closed', description: 'Triggered when a job is closed' },
-      { id: 'hire.completed', name: 'Hire Completed', description: 'Triggered when hiring process is complete' },
+      {
+        id: "candidate.created",
+        name: "Candidate Created",
+        description: "Triggered when a new candidate is added",
+      },
+      {
+        id: "candidate.updated",
+        name: "Candidate Updated",
+        description: "Triggered when candidate info is updated",
+      },
+      {
+        id: "application.created",
+        name: "Application Created",
+        description: "Triggered when a candidate applies for a job",
+      },
+      {
+        id: "application.stage_changed",
+        name: "Application Stage Changed",
+        description: "Triggered when application moves to a new stage",
+      },
+      {
+        id: "application.status_changed",
+        name: "Application Status Changed",
+        description: "Triggered when application status changes",
+      },
+      {
+        id: "interview.scheduled",
+        name: "Interview Scheduled",
+        description: "Triggered when an interview is scheduled",
+      },
+      {
+        id: "interview.completed",
+        name: "Interview Completed",
+        description: "Triggered when an interview is marked complete",
+      },
+      {
+        id: "interview.cancelled",
+        name: "Interview Cancelled",
+        description: "Triggered when an interview is cancelled",
+      },
+      {
+        id: "offer.created",
+        name: "Offer Created",
+        description: "Triggered when a new offer is created",
+      },
+      {
+        id: "offer.sent",
+        name: "Offer Sent",
+        description: "Triggered when an offer is sent to candidate",
+      },
+      {
+        id: "offer.accepted",
+        name: "Offer Accepted",
+        description: "Triggered when candidate accepts an offer",
+      },
+      {
+        id: "offer.declined",
+        name: "Offer Declined",
+        description: "Triggered when candidate declines an offer",
+      },
+      {
+        id: "job.created",
+        name: "Job Created",
+        description: "Triggered when a new job is created",
+      },
+      {
+        id: "job.published",
+        name: "Job Published",
+        description: "Triggered when a job is published",
+      },
+      {
+        id: "job.closed",
+        name: "Job Closed",
+        description: "Triggered when a job is closed",
+      },
+      {
+        id: "hire.completed",
+        name: "Hire Completed",
+        description: "Triggered when hiring process is complete",
+      },
     ];
   }
 }

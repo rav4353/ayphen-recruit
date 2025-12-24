@@ -1,25 +1,34 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsOptional, IsArray, IsEnum, IsNumber, IsUUID, Min, Max } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import {
+  IsString,
+  IsOptional,
+  IsArray,
+  IsEnum,
+  IsNumber,
+  IsUUID,
+  Min,
+  Max,
+} from "class-validator";
 
 export enum SourcingStatus {
-  NEW = 'NEW',
-  CONTACTED = 'CONTACTED',
-  RESPONDED = 'RESPONDED',
-  INTERESTED = 'INTERESTED',
-  NOT_INTERESTED = 'NOT_INTERESTED',
-  ADDED_TO_PIPELINE = 'ADDED_TO_PIPELINE',
+  NEW = "NEW",
+  CONTACTED = "CONTACTED",
+  RESPONDED = "RESPONDED",
+  INTERESTED = "INTERESTED",
+  NOT_INTERESTED = "NOT_INTERESTED",
+  ADDED_TO_PIPELINE = "ADDED_TO_PIPELINE",
 }
 
 export enum SourcingChannel {
-  LINKEDIN = 'LINKEDIN',
-  INDEED = 'INDEED',
-  GLASSDOOR = 'GLASSDOOR',
-  GITHUB = 'GITHUB',
-  PORTFOLIO = 'PORTFOLIO',
-  REFERRAL = 'REFERRAL',
-  INTERNAL_DB = 'INTERNAL_DB',
-  JOB_BOARD = 'JOB_BOARD',
-  OTHER = 'OTHER',
+  LINKEDIN = "LINKEDIN",
+  INDEED = "INDEED",
+  GLASSDOOR = "GLASSDOOR",
+  GITHUB = "GITHUB",
+  PORTFOLIO = "PORTFOLIO",
+  REFERRAL = "REFERRAL",
+  INTERNAL_DB = "INTERNAL_DB",
+  JOB_BOARD = "JOB_BOARD",
+  OTHER = "OTHER",
 }
 
 export class CreateSourcedCandidateDto {
@@ -239,7 +248,7 @@ export class SearchSourcedCandidatesDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  sortOrder?: 'asc' | 'desc';
+  sortOrder?: "asc" | "desc";
 }
 
 export class RecordOutreachDto {
@@ -249,7 +258,7 @@ export class RecordOutreachDto {
 
   @ApiProperty()
   @IsString()
-  type: 'EMAIL' | 'LINKEDIN' | 'PHONE' | 'OTHER';
+  type: "EMAIL" | "LINKEDIN" | "PHONE" | "OTHER";
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -285,7 +294,7 @@ export class AddToPipelineDto {
 export class BulkOutreachDto {
   @ApiProperty()
   @IsArray()
-  @IsUUID('4', { each: true })
+  @IsUUID("4", { each: true })
   sourcedCandidateIds: string[];
 
   @ApiProperty()

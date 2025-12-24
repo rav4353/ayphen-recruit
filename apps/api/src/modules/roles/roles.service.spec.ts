@@ -1,8 +1,8 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { RolesService } from './roles.service';
-import { PrismaService } from '../../prisma/prisma.service';
+import { Test, TestingModule } from "@nestjs/testing";
+import { RolesService } from "./roles.service";
+import { PrismaService } from "../../prisma/prisma.service";
 
-describe('RolesService', () => {
+describe("RolesService", () => {
   let service: RolesService;
 
   const mockPrismaService = {
@@ -37,7 +37,7 @@ describe('RolesService', () => {
     jest.clearAllMocks();
   });
 
-  it('should be defined', () => {
+  it("should be defined", () => {
     expect(service).toBeDefined();
   });
 });

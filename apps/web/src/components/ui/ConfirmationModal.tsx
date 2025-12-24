@@ -1,4 +1,5 @@
 import { useEffect, useState, ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { X, AlertTriangle, Trash2, Info, CheckCircle } from 'lucide-react';
 import { Button } from './Button';
 import { cn } from '../../lib/utils';
@@ -77,7 +78,7 @@ export function ConfirmationModal({
     const config = variantConfig[variant];
     const Icon = config.icon;
 
-    return (
+    return createPortal(
         <div
             className={cn(
                 "fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 transition-opacity duration-200",
@@ -146,6 +147,7 @@ export function ConfirmationModal({
                     </div>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }

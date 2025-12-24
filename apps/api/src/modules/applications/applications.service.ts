@@ -1,11 +1,17 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
-import { CreateApplicationDto } from './dto/create-application.dto';
-import { CreatePublicApplicationDto } from './dto/create-public-application.dto';
-import { WorkflowsService } from '../workflows/workflows.service';
-import { SlaService } from '../sla/sla.service';
-import { AiService } from '../ai/ai.service';
-import { NotificationsService } from '../notifications/notifications.service';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from "@nestjs/common";
+import * as crypto from "crypto";
+import { PrismaService } from "../../prisma/prisma.service";
+import { CreateApplicationDto } from "./dto/create-application.dto";
+import { CreatePublicApplicationDto } from "./dto/create-public-application.dto";
+import { WorkflowsService } from "../workflows/workflows.service";
+import { SlaService } from "../sla/sla.service";
+import { AiService } from "../ai/ai.service";
+import { NotificationsService } from "../notifications/notifications.service";
+import { SettingsService } from "../settings/settings.service";
 
 @Injectable()
 export class ApplicationsService {
@@ -15,7 +21,66 @@ export class ApplicationsService {
     private readonly slaService: SlaService,
     private readonly aiService: AiService,
     private readonly notificationsService: NotificationsService,
-  ) { }
+    private readonly settingsService: SettingsService,
+  ) {}
+
+  /**
+   * Generate a custom application ID based on tenant settings
+   */
+  private async generateApplicationId(tenantId: string): Promise<string> {
+    try {
+      const setting = await this.settingsService
+        .getSettingByKey(tenantId, "application_id_settings")
+        .catch(() => null);
+
+      if (setting && setting.value) {
+        const config = setting.value as any;
+        const prefix = config.prefix || "APP";
+        const minDigits = config.minDigits || 6;
+
+        if (config.type === "sequential") {
+          return await this.prisma.$transaction(async (tx) => {
+            const currentSetting = await tx.setting.findUnique({
+              where: {
+                tenantId_key: { tenantId, key: "application_id_settings" },
+              },
+            });
+
+            const currentConfig = currentSetting?.value as any;
+            const nextNumber = currentConfig?.nextNumber || 1;
+
+            await tx.setting.update({
+              where: {
+                tenantId_key: { tenantId, key: "application_id_settings" },
+              },
+              data: {
+                value: {
+                  ...currentConfig,
+                  nextNumber: nextNumber + 1,
+                },
+              },
+            });
+
+            const numberStr = nextNumber.toString().padStart(minDigits, "0");
+            return `${prefix}-${numberStr}`;
+          });
+        } else {
+          // Custom prefix with random number
+          const randomNum = crypto.randomInt(
+            Math.pow(10, minDigits - 1),
+            Math.pow(10, minDigits) - 1,
+          );
+          return `${prefix}-${randomNum}`;
+        }
+      }
+    } catch (error) {
+      console.error("Error generating custom application ID:", error);
+    }
+
+    // Default fallback
+    const randomNum = crypto.randomInt(100000, 999999);
+    return `APP-${randomNum}`;
+  }
 
   private uniqueIds(ids: Array<string | null | undefined>) {
     return Array.from(new Set(ids.filter(Boolean) as string[]));
@@ -33,7 +98,7 @@ export class ApplicationsService {
     });
 
     if (existing) {
-      throw new ConflictException('Candidate has already applied to this job');
+      throw new ConflictException("Candidate has already applied to this job");
     }
 
     // Get the first stage of the job's pipeline
@@ -42,7 +107,7 @@ export class ApplicationsService {
       include: {
         pipeline: {
           include: {
-            stages: { orderBy: { order: 'asc' }, take: 1 },
+            stages: { orderBy: { order: "asc" }, take: 1 },
           },
         },
       },
@@ -64,8 +129,8 @@ export class ApplicationsService {
           experience: true,
           education: true,
           firstName: true,
-          lastName: true
-        }
+          lastName: true,
+        },
       });
 
       let textToMatch = candidate?.resumeText;
@@ -73,30 +138,40 @@ export class ApplicationsService {
         // Construct text from profile if resume unavailable
         textToMatch = `Candidate: ${candidate.firstName} ${candidate.lastName}\n`;
         if (candidate.summary) textToMatch += `Summary: ${candidate.summary}\n`;
-        if (candidate.skills?.length) textToMatch += `Skills: ${candidate.skills.join(', ')}\n`;
+        if (candidate.skills?.length)
+          textToMatch += `Skills: ${candidate.skills.join(", ")}\n`;
         // Use JSON stringify for complex objects, or simple extraction could be better but this is sufficient for LLM
-        if (candidate.experience) textToMatch += `Experience: ${JSON.stringify(candidate.experience)}\n`;
-        if (candidate.education) textToMatch += `Education: ${JSON.stringify(candidate.education)}\n`;
+        if (candidate.experience)
+          textToMatch += `Experience: ${JSON.stringify(candidate.experience)}\n`;
+        if (candidate.education)
+          textToMatch += `Education: ${JSON.stringify(candidate.education)}\n`;
       }
 
       if (textToMatch && job?.description) {
-        const matchResult = await this.aiService.matchCandidate(textToMatch, job.description);
+        const matchResult = await this.aiService.matchCandidate(
+          textToMatch,
+          job.description,
+        );
         matchScore = matchResult.score;
         matchSummary = matchResult.summary;
       }
     } catch (error) {
-      console.error('Failed to calculate match score:', error);
+      console.error("Failed to calculate match score:", error);
       // Continue application creation without score
     }
+
+    // Generate custom application ID
+    const applicationId = await this.generateApplicationId(job?.tenantId || "");
 
     const application = await this.prisma.application.create({
       data: {
         candidateId: dto.candidateId,
         jobId: dto.jobId,
+        applicationId,
         coverLetter: dto.coverLetter,
         answers: dto.answers as object,
         currentStageId: firstStageId,
-        status: 'APPLIED',
+        status: "APPLIED",
         matchScore,
         matchSummary,
       },
@@ -130,7 +205,7 @@ export class ApplicationsService {
         );
       }
     } catch (error) {
-      console.error('Failed to send new application notification:', error);
+      console.error("Failed to send new application notification:", error);
     }
   }
 
@@ -141,14 +216,14 @@ export class ApplicationsService {
       include: {
         pipeline: {
           include: {
-            stages: { orderBy: { order: 'asc' }, take: 1 },
+            stages: { orderBy: { order: "asc" }, take: 1 },
           },
         },
       },
     });
 
     if (!job) {
-      throw new NotFoundException('Job not found');
+      throw new NotFoundException("Job not found");
     }
 
     // 2. Find or create candidate
@@ -163,7 +238,12 @@ export class ApplicationsService {
 
     if (!candidate) {
       // Parse skills if provided as comma-separated string
-      const skillsArray = dto.skills ? dto.skills.split(',').map(s => s.trim()).filter(Boolean) : [];
+      const skillsArray = dto.skills
+        ? dto.skills
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean)
+        : [];
 
       candidate = await this.prisma.candidate.create({
         data: {
@@ -184,12 +264,17 @@ export class ApplicationsService {
           customFieldValues: dto.customFields as any,
           gdprConsent: dto.gdprConsent || false,
           tenantId: job.tenantId,
-          source: 'Career Page',
+          source: "Career Page",
         },
       });
     } else {
       // Update candidate with new information if provided
-      const skillsArray = dto.skills ? dto.skills.split(',').map(s => s.trim()).filter(Boolean) : undefined;
+      const skillsArray = dto.skills
+        ? dto.skills
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean)
+        : undefined;
 
       const updateData: any = {};
       if (dto.resumeUrl) updateData.resumeUrl = dto.resumeUrl;
@@ -221,7 +306,7 @@ export class ApplicationsService {
     });
 
     if (existingApplication) {
-      throw new ConflictException('You have already applied to this position.');
+      throw new ConflictException("You have already applied to this position.");
     }
 
     const firstStageId = job.pipeline?.stages[0]?.id;
@@ -233,34 +318,45 @@ export class ApplicationsService {
     try {
       // Re-fetch full candidate details to ensure we have latest data
       const candidateFull = await this.prisma.candidate.findUnique({
-        where: { id: candidate.id }
+        where: { id: candidate.id },
       });
 
       let textToMatch = candidateFull?.resumeText;
       if (!textToMatch && candidateFull) {
         textToMatch = `Candidate: ${candidateFull.firstName} ${candidateFull.lastName}\n`;
-        if (candidateFull.summary) textToMatch += `Summary: ${candidateFull.summary}\n`;
-        if (candidateFull.skills?.length) textToMatch += `Skills: ${candidateFull.skills.join(', ')}\n`;
-        if (candidateFull.experience) textToMatch += `Experience: ${JSON.stringify(candidateFull.experience)}\n`;
-        if (candidateFull.education) textToMatch += `Education: ${JSON.stringify(candidateFull.education)}\n`;
+        if (candidateFull.summary)
+          textToMatch += `Summary: ${candidateFull.summary}\n`;
+        if (candidateFull.skills?.length)
+          textToMatch += `Skills: ${candidateFull.skills.join(", ")}\n`;
+        if (candidateFull.experience)
+          textToMatch += `Experience: ${JSON.stringify(candidateFull.experience)}\n`;
+        if (candidateFull.education)
+          textToMatch += `Education: ${JSON.stringify(candidateFull.education)}\n`;
       }
 
       if (textToMatch && job.description) {
-        const matchResult = await this.aiService.matchCandidate(textToMatch, job.description);
+        const matchResult = await this.aiService.matchCandidate(
+          textToMatch,
+          job.description,
+        );
         matchScore = matchResult.score;
         matchSummary = matchResult.summary;
       }
     } catch (error) {
-      console.error('Failed to calculate match score for public app:', error);
+      console.error("Failed to calculate match score for public app:", error);
     }
+
+    // Generate custom application ID
+    const applicationId = await this.generateApplicationId(job.tenantId);
 
     const application = await this.prisma.application.create({
       data: {
         candidateId: candidate.id,
         jobId: dto.jobId,
+        applicationId,
         coverLetter: dto.coverLetter,
         currentStageId: firstStageId,
-        status: 'APPLIED',
+        status: "APPLIED",
         matchScore,
         matchSummary,
       },
@@ -274,11 +370,11 @@ export class ApplicationsService {
     // Log activity
     await this.prisma.activityLog.create({
       data: {
-        action: 'APPLICATION_CREATED',
+        action: "APPLICATION_CREATED",
         description: `Applied to ${job.title}`,
         candidateId: candidate.id,
         applicationId: application.id,
-        metadata: { source: 'Career Page' },
+        metadata: { source: "Career Page" },
       },
     });
 
@@ -286,7 +382,9 @@ export class ApplicationsService {
     await this.sendNewApplicationNotification(application);
 
     // Trigger AI Matching asynchronously
-    this.calculateMatch(application.id).catch(err => console.error('AI Match failed', err));
+    this.calculateMatch(application.id).catch((err) =>
+      console.error("AI Match failed", err),
+    );
 
     return application;
   }
@@ -300,16 +398,19 @@ export class ApplicationsService {
           include: {
             hiringManager: { select: { firstName: true, lastName: true } },
             department: true,
-            locations: true
-          }
+            locations: true,
+          },
         },
         currentStage: true,
       },
-      orderBy: { appliedAt: 'desc' },
+      orderBy: { appliedAt: "desc" },
     });
   }
 
-  async findByJob(jobId: string, options?: { status?: string; stageId?: string }) {
+  async findByJob(
+    jobId: string,
+    options?: { status?: string; stageId?: string },
+  ) {
     const where: Record<string, unknown> = { jobId };
 
     if (options?.status) {
@@ -327,12 +428,12 @@ export class ApplicationsService {
         job: { select: { title: true } },
         assignedTo: { select: { id: true, firstName: true, lastName: true } },
         activities: {
-          where: { action: 'STAGE_CHANGED' },
-          orderBy: { createdAt: 'desc' },
+          where: { action: "STAGE_CHANGED" },
+          orderBy: { createdAt: "desc" },
           take: 1,
         },
       },
-      orderBy: { appliedAt: 'desc' },
+      orderBy: { appliedAt: "desc" },
     });
 
     // Calculate SLA status for each application
@@ -340,7 +441,7 @@ export class ApplicationsService {
       applications.map(async (app) => {
         const slaStatus = await this.slaService.calculateSlaStatus(app.id);
         return { ...app, slaStatus };
-      })
+      }),
     );
 
     return applicationsWithSla;
@@ -353,23 +454,25 @@ export class ApplicationsService {
         candidate: true,
         job: {
           include: {
-            pipeline: { include: { stages: { orderBy: { order: 'asc' } } } },
+            pipeline: { include: { stages: { orderBy: { order: "asc" } } } },
           },
         },
         currentStage: true,
         interviews: {
           include: {
-            interviewer: { select: { id: true, firstName: true, lastName: true } },
+            interviewer: {
+              select: { id: true, firstName: true, lastName: true },
+            },
             feedbacks: true,
           },
         },
         offers: true,
-        activities: { orderBy: { createdAt: 'desc' }, take: 20 },
+        activities: { orderBy: { createdAt: "desc" }, take: 20 },
       },
     });
 
     if (!application) {
-      throw new NotFoundException('Application not found');
+      throw new NotFoundException("Application not found");
     }
     return application;
   }
@@ -389,7 +492,7 @@ export class ApplicationsService {
     // Log activity
     await this.prisma.activityLog.create({
       data: {
-        action: 'STAGE_CHANGED',
+        action: "STAGE_CHANGED",
         description: `Moved to ${updated.currentStage?.name}`,
         applicationId: id,
         userId,
@@ -402,9 +505,13 @@ export class ApplicationsService {
 
     // Trigger workflow automations
     try {
-      await this.workflowsService.executeStageWorkflows(id, stageId, oldStageId || undefined);
+      await this.workflowsService.executeStageWorkflows(
+        id,
+        stageId,
+        oldStageId || undefined,
+      );
     } catch (error) {
-      console.error('Failed to execute workflows:', error);
+      console.error("Failed to execute workflows:", error);
       // Don't fail the stage move if workflows fail
     }
 
@@ -419,34 +526,43 @@ export class ApplicationsService {
       if (recipientIds.length > 0) {
         await this.notificationsService.createMany(
           recipientIds.map((rid) => ({
-            type: 'APPLICATION',
-            title: 'Stage Changed',
-            message: `${application.candidate?.firstName || 'Candidate'} moved from ${fromStageName || 'a stage'} to ${toStageName || 'a stage'} for ${application.job?.title || 'a job'}`,
+            type: "APPLICATION",
+            title: "Stage Changed",
+            message: `${application.candidate?.firstName || "Candidate"} moved from ${fromStageName || "a stage"} to ${toStageName || "a stage"} for ${application.job?.title || "a job"}`,
             link: `/candidates/${application.candidateId}`,
-            metadata: { applicationId: id, fromStageId: oldStageId, toStageId: stageId },
+            metadata: {
+              applicationId: id,
+              fromStageId: oldStageId,
+              toStageId: stageId,
+            },
             userId: rid,
             tenantId: application.job?.tenantId,
           })) as any,
         );
       }
     } catch (error) {
-      console.error('Failed to send stage change notification:', error);
+      console.error("Failed to send stage change notification:", error);
     }
 
     return updated;
   }
 
-  async updateStatus(id: string, status: string, reason?: string, userId?: string) {
+  async updateStatus(
+    id: string,
+    status: string,
+    reason?: string,
+    userId?: string,
+  ) {
     const application = await this.findById(id);
     const previousStatus = application.status;
 
     const data: Record<string, unknown> = { status };
 
-    if (status === 'REJECTED') {
+    if (status === "REJECTED") {
       data.rejectionReason = reason;
-    } else if (status === 'WITHDRAWN') {
+    } else if (status === "WITHDRAWN") {
       data.withdrawalReason = reason;
-    } else if (status === 'HIRED') {
+    } else if (status === "HIRED") {
       data.hiredAt = new Date();
     }
 
@@ -458,8 +574,8 @@ export class ApplicationsService {
     try {
       await this.prisma.activityLog.create({
         data: {
-          action: 'APPLICATION_STATUS_CHANGED',
-          description: `Status changed to ${status}${reason ? `: ${reason}` : ''}`,
+          action: "APPLICATION_STATUS_CHANGED",
+          description: `Status changed to ${status}${reason ? `: ${reason}` : ""}`,
           applicationId: id,
           candidateId: application.candidateId,
           userId,
@@ -471,7 +587,7 @@ export class ApplicationsService {
         },
       });
     } catch (error) {
-      console.error('Failed to log application status change:', error);
+      console.error("Failed to log application status change:", error);
     }
 
     try {
@@ -484,18 +600,23 @@ export class ApplicationsService {
       if (recipientIds.length > 0) {
         await this.notificationsService.createMany(
           recipientIds.map((rid) => ({
-            type: 'APPLICATION',
-            title: 'Application Status Updated',
-            message: `${application.candidate?.firstName || 'Candidate'} status changed from ${previousStatus} to ${status} for ${application.job?.title || 'a job'}`,
+            type: "APPLICATION",
+            title: "Application Status Updated",
+            message: `${application.candidate?.firstName || "Candidate"} status changed from ${previousStatus} to ${status} for ${application.job?.title || "a job"}`,
             link: `/candidates/${application.candidateId}`,
-            metadata: { applicationId: id, previousStatus, newStatus: status, reason },
+            metadata: {
+              applicationId: id,
+              previousStatus,
+              newStatus: status,
+              reason,
+            },
             userId: rid,
             tenantId: application.job?.tenantId,
           })) as any,
         );
       }
     } catch (error) {
-      console.error('Failed to send application status notification:', error);
+      console.error("Failed to send application status notification:", error);
     }
 
     return updated;
@@ -513,7 +634,7 @@ export class ApplicationsService {
     try {
       await this.prisma.activityLog.create({
         data: {
-          action: 'APPLICATION_ASSIGNED',
+          action: "APPLICATION_ASSIGNED",
           description: `Assigned to user ${assigneeId}`,
           applicationId: id,
           candidateId: application.candidateId,
@@ -525,13 +646,15 @@ export class ApplicationsService {
         },
       });
     } catch (error) {
-      console.error('Failed to log application assignment:', error);
+      console.error("Failed to log application assignment:", error);
     }
 
     try {
       const notifyAssigneeIds = this.uniqueIds([
         assigneeId,
-        previousAssigneeId && previousAssigneeId !== assigneeId ? previousAssigneeId : undefined,
+        previousAssigneeId && previousAssigneeId !== assigneeId
+          ? previousAssigneeId
+          : undefined,
         application.job?.recruiterId,
         application.job?.hiringManagerId,
       ]).filter((rid) => (userId ? rid !== userId : true));
@@ -539,18 +662,22 @@ export class ApplicationsService {
       if (notifyAssigneeIds.length > 0) {
         await this.notificationsService.createMany(
           notifyAssigneeIds.map((rid) => ({
-            type: 'APPLICATION',
-            title: 'Assignment Updated',
-            message: `${application.candidate?.firstName || 'Candidate'} assignment updated for ${application.job?.title || 'a job'}`,
+            type: "APPLICATION",
+            title: "Assignment Updated",
+            message: `${application.candidate?.firstName || "Candidate"} assignment updated for ${application.job?.title || "a job"}`,
             link: `/candidates/${application.candidateId}`,
-            metadata: { applicationId: id, previousAssigneeId, newAssigneeId: assigneeId },
+            metadata: {
+              applicationId: id,
+              previousAssigneeId,
+              newAssigneeId: assigneeId,
+            },
             userId: rid,
             tenantId: application.job?.tenantId,
           })) as any,
         );
       }
     } catch (error) {
-      console.error('Failed to send assignment notification:', error);
+      console.error("Failed to send assignment notification:", error);
     }
 
     return updated;
@@ -562,7 +689,7 @@ export class ApplicationsService {
       include: {
         candidate: true,
         job: true,
-      }
+      },
     });
 
     if (!app || !app.candidate.resumeText || !app.job.description) {
@@ -572,7 +699,7 @@ export class ApplicationsService {
     try {
       const result = await this.aiService.matchCandidate(
         app.candidate.resumeText,
-        app.job.description
+        app.job.description,
       );
 
       await this.prisma.application.update({
@@ -580,13 +707,17 @@ export class ApplicationsService {
         data: {
           matchScore: result.score,
           matchSummary: result.summary,
-        }
+        },
       });
     } catch (error) {
       console.error(`Match calculation failed for ${applicationId}`, error);
     }
   }
-  async copyToJob(applicationIds: string[], targetJobId: string, userId: string) {
+  async copyToJob(
+    applicationIds: string[],
+    targetJobId: string,
+    userId: string,
+  ) {
     const results = [];
 
     // Get target job first
@@ -595,14 +726,14 @@ export class ApplicationsService {
       include: {
         pipeline: {
           include: {
-            stages: { orderBy: { order: 'asc' }, take: 1 },
+            stages: { orderBy: { order: "asc" }, take: 1 },
           },
         },
       },
     });
 
     if (!targetJob) {
-      throw new NotFoundException('Target job not found');
+      throw new NotFoundException("Target job not found");
     }
 
     const firstStageId = targetJob.pipeline?.stages[0]?.id;
@@ -626,7 +757,11 @@ export class ApplicationsService {
         });
 
         if (existing) {
-          results.push({ id: appId, status: 'SKIPPED', message: 'Candidate already applied to target job' });
+          results.push({
+            id: appId,
+            status: "SKIPPED",
+            message: "Candidate already applied to target job",
+          });
           continue;
         }
 
@@ -636,7 +771,7 @@ export class ApplicationsService {
             candidateId: sourceApp.candidateId,
             jobId: targetJobId,
             currentStageId: firstStageId,
-            status: 'APPLIED',
+            status: "APPLIED",
             // source: 'Internal Transfer' - Application model doesn't have source
           },
         });
@@ -644,7 +779,7 @@ export class ApplicationsService {
         // Log activity
         await this.prisma.activityLog.create({
           data: {
-            action: 'APPLICATION_COPIED',
+            action: "APPLICATION_COPIED",
             description: `Copied from job ${sourceApp.jobId} to ${targetJob.title}`,
             applicationId: newApp.id,
             userId,
@@ -652,14 +787,17 @@ export class ApplicationsService {
           },
         });
 
-        results.push({ id: appId, status: 'SUCCESS', newApplicationId: newApp.id });
+        results.push({
+          id: appId,
+          status: "SUCCESS",
+          newApplicationId: newApp.id,
+        });
 
         // Trigger match calc asynchronously
         this.calculateMatch(newApp.id).catch(console.error);
-
       } catch (error) {
         console.error(`Failed to copy application ${appId}`, error);
-        results.push({ id: appId, status: 'ERROR', message: error.message });
+        results.push({ id: appId, status: "ERROR", message: error.message });
       }
     }
 
@@ -684,7 +822,7 @@ export class ApplicationsService {
     });
 
     if (!stage) {
-      throw new NotFoundException('Target stage not found');
+      throw new NotFoundException("Target stage not found");
     }
 
     for (const appId of applicationIds) {
@@ -695,7 +833,11 @@ export class ApplicationsService {
         });
 
         if (!application) {
-          results.push({ id: appId, success: false, error: 'Application not found' });
+          results.push({
+            id: appId,
+            success: false,
+            error: "Application not found",
+          });
           continue;
         }
 
@@ -710,8 +852,8 @@ export class ApplicationsService {
         // Log activity
         await this.prisma.activityLog.create({
           data: {
-            action: 'STAGE_CHANGED',
-            description: `Moved from ${application.currentStage?.name || 'Unknown'} to ${stage.name} (bulk action)`,
+            action: "STAGE_CHANGED",
+            description: `Moved from ${application.currentStage?.name || "Unknown"} to ${stage.name} (bulk action)`,
             applicationId: appId,
             candidateId: application.candidateId,
             userId,
@@ -725,7 +867,9 @@ export class ApplicationsService {
 
         // Trigger stage workflows
         if (oldStageId) {
-          this.workflowsService.executeStageWorkflows(appId, targetStageId, oldStageId).catch(console.error);
+          this.workflowsService
+            .executeStageWorkflows(appId, targetStageId, oldStageId)
+            .catch(console.error);
         }
 
         results.push({ id: appId, success: true });
@@ -736,8 +880,8 @@ export class ApplicationsService {
 
     return {
       processed: results.length,
-      successful: results.filter(r => r.success).length,
-      failed: results.filter(r => !r.success).length,
+      successful: results.filter((r) => r.success).length,
+      failed: results.filter((r) => !r.success).length,
       results,
     };
   }
@@ -762,12 +906,20 @@ export class ApplicationsService {
         });
 
         if (!application) {
-          results.push({ id: appId, success: false, error: 'Application not found' });
+          results.push({
+            id: appId,
+            success: false,
+            error: "Application not found",
+          });
           continue;
         }
 
-        if (application.status === 'REJECTED') {
-          results.push({ id: appId, success: false, error: 'Already rejected' });
+        if (application.status === "REJECTED") {
+          results.push({
+            id: appId,
+            success: false,
+            error: "Already rejected",
+          });
           continue;
         }
 
@@ -775,14 +927,14 @@ export class ApplicationsService {
         await this.prisma.application.update({
           where: { id: appId },
           data: {
-            status: 'REJECTED',
+            status: "REJECTED",
           },
         });
 
         // Log activity
         await this.prisma.activityLog.create({
           data: {
-            action: 'APPLICATION_REJECTED',
+            action: "APPLICATION_REJECTED",
             description: `Application rejected: ${reason} (bulk action)`,
             applicationId: appId,
             candidateId: application.candidateId,
@@ -799,8 +951,8 @@ export class ApplicationsService {
 
     return {
       processed: results.length,
-      successful: results.filter(r => r.success).length,
-      failed: results.filter(r => !r.success).length,
+      successful: results.filter((r) => r.success).length,
+      failed: results.filter((r) => !r.success).length,
       results,
     };
   }
@@ -822,7 +974,7 @@ export class ApplicationsService {
     });
 
     if (!assignee) {
-      throw new NotFoundException('Assignee not found');
+      throw new NotFoundException("Assignee not found");
     }
 
     for (const appId of applicationIds) {
@@ -832,7 +984,11 @@ export class ApplicationsService {
         });
 
         if (!application) {
-          results.push({ id: appId, success: false, error: 'Application not found' });
+          results.push({
+            id: appId,
+            success: false,
+            error: "Application not found",
+          });
           continue;
         }
 
@@ -844,7 +1000,7 @@ export class ApplicationsService {
         // Log activity
         await this.prisma.activityLog.create({
           data: {
-            action: 'APPLICATION_ASSIGNED',
+            action: "APPLICATION_ASSIGNED",
             description: `Assigned to ${assignee.firstName} ${assignee.lastName} (bulk action)`,
             applicationId: appId,
             candidateId: application.candidateId,
@@ -861,8 +1017,8 @@ export class ApplicationsService {
 
     return {
       processed: results.length,
-      successful: results.filter(r => r.success).length,
-      failed: results.filter(r => !r.success).length,
+      successful: results.filter((r) => r.success).length,
+      failed: results.filter((r) => !r.success).length,
       results,
     };
   }
@@ -886,7 +1042,11 @@ export class ApplicationsService {
         });
 
         if (!application) {
-          results.push({ id: appId, success: false, error: 'Application not found' });
+          results.push({
+            id: appId,
+            success: false,
+            error: "Application not found",
+          });
           continue;
         }
 
@@ -906,8 +1066,8 @@ export class ApplicationsService {
 
     return {
       processed: results.length,
-      successful: results.filter(r => r.success).length,
-      failed: results.filter(r => !r.success).length,
+      successful: results.filter((r) => r.success).length,
+      failed: results.filter((r) => !r.success).length,
       results,
     };
   }
@@ -931,19 +1091,19 @@ export class ApplicationsService {
     });
 
     if (!application) {
-      throw new NotFoundException('Application not found');
+      throw new NotFoundException("Application not found");
     }
 
     // Create the note as an activity log entry
     const note = await this.prisma.activityLog.create({
       data: {
-        action: 'NOTE_ADDED',
+        action: "NOTE_ADDED",
         description: data.content,
         applicationId,
         candidateId: application.candidateId,
         userId,
         metadata: {
-          noteType: 'COMMENT',
+          noteType: "COMMENT",
           isPrivate: data.isPrivate || false,
           mentionedUserIds: data.mentionedUserIds || [],
           createdAt: new Date().toISOString(),
@@ -963,14 +1123,14 @@ export class ApplicationsService {
           await this.notificationsService.create({
             userId: mentionedUserId,
             tenantId,
-            type: 'APPLICATION',
-            title: 'You were mentioned in a note',
+            type: "APPLICATION",
+            title: "You were mentioned in a note",
             message: `You were mentioned in a note on ${application.candidate.firstName} ${application.candidate.lastName}'s application`,
             link: `/applications/${applicationId}`,
           });
         }
       } catch (error) {
-        console.error('Failed to send mention notifications:', error);
+        console.error("Failed to send mention notifications:", error);
       }
     }
 
@@ -987,42 +1147,38 @@ export class ApplicationsService {
   /**
    * Get all notes for an application
    */
-  async getNotes(
-    applicationId: string,
-    userId: string,
-    tenantId: string,
-  ) {
+  async getNotes(applicationId: string, userId: string, tenantId: string) {
     const application = await this.prisma.application.findFirst({
       where: { id: applicationId, job: { tenantId } },
     });
 
     if (!application) {
-      throw new NotFoundException('Application not found');
+      throw new NotFoundException("Application not found");
     }
 
     const notes = await this.prisma.activityLog.findMany({
       where: {
         applicationId,
-        action: 'NOTE_ADDED',
+        action: "NOTE_ADDED",
       },
       include: {
         user: {
           select: { id: true, firstName: true, lastName: true, avatar: true },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
     // Filter private notes (only show if user is the author)
     return notes
-      .filter(note => {
+      .filter((note) => {
         const metadata = note.metadata as any;
         if (metadata?.isPrivate && note.userId !== userId) {
           return false;
         }
         return true;
       })
-      .map(note => ({
+      .map((note) => ({
         id: note.id,
         content: note.description,
         createdAt: note.createdAt,
@@ -1044,18 +1200,18 @@ export class ApplicationsService {
     const note = await this.prisma.activityLog.findFirst({
       where: {
         id: noteId,
-        action: 'NOTE_ADDED',
+        action: "NOTE_ADDED",
         application: { job: { tenantId } },
       },
     });
 
     if (!note) {
-      throw new NotFoundException('Note not found');
+      throw new NotFoundException("Note not found");
     }
 
     // Only the author can edit their note
     if (note.userId !== userId) {
-      throw new NotFoundException('You can only edit your own notes');
+      throw new NotFoundException("You can only edit your own notes");
     }
 
     const updated = await this.prisma.activityLog.update({
@@ -1086,26 +1242,22 @@ export class ApplicationsService {
   /**
    * Delete a note
    */
-  async deleteNote(
-    noteId: string,
-    userId: string,
-    tenantId: string,
-  ) {
+  async deleteNote(noteId: string, userId: string, tenantId: string) {
     const note = await this.prisma.activityLog.findFirst({
       where: {
         id: noteId,
-        action: 'NOTE_ADDED',
+        action: "NOTE_ADDED",
         application: { job: { tenantId } },
       },
     });
 
     if (!note) {
-      throw new NotFoundException('Note not found');
+      throw new NotFoundException("Note not found");
     }
 
     // Only the author can delete their note
     if (note.userId !== userId) {
-      throw new NotFoundException('You can only delete your own notes');
+      throw new NotFoundException("You can only delete your own notes");
     }
 
     await this.prisma.activityLog.delete({
@@ -1127,13 +1279,13 @@ export class ApplicationsService {
     const note = await this.prisma.activityLog.findFirst({
       where: {
         id: noteId,
-        action: 'NOTE_ADDED',
+        action: "NOTE_ADDED",
         application: { job: { tenantId } },
       },
     });
 
     if (!note) {
-      throw new NotFoundException('Note not found');
+      throw new NotFoundException("Note not found");
     }
 
     await this.prisma.activityLog.update({
@@ -1161,7 +1313,7 @@ export class ApplicationsService {
     });
 
     if (!application) {
-      throw new NotFoundException('Application not found');
+      throw new NotFoundException("Application not found");
     }
 
     // Get all activities for this application
@@ -1172,21 +1324,24 @@ export class ApplicationsService {
           select: { id: true, firstName: true, lastName: true, avatar: true },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
     // Group activities by type for summary
     const summary = {
       totalActivities: activities.length,
-      stageChanges: activities.filter(a => a.action === 'STAGE_CHANGED').length,
-      statusChanges: activities.filter(a => a.action.includes('STATUS')).length,
-      interviews: activities.filter(a => a.action.includes('INTERVIEW')).length,
-      notes: activities.filter(a => a.action === 'NOTE_ADDED').length,
-      emails: activities.filter(a => a.action.includes('EMAIL')).length,
+      stageChanges: activities.filter((a) => a.action === "STAGE_CHANGED")
+        .length,
+      statusChanges: activities.filter((a) => a.action.includes("STATUS"))
+        .length,
+      interviews: activities.filter((a) => a.action.includes("INTERVIEW"))
+        .length,
+      notes: activities.filter((a) => a.action === "NOTE_ADDED").length,
+      emails: activities.filter((a) => a.action.includes("EMAIL")).length,
     };
 
     // Format timeline entries
-    const timeline = activities.map(activity => ({
+    const timeline = activities.map((activity) => ({
       id: activity.id,
       action: activity.action,
       description: activity.description,
@@ -1219,20 +1374,20 @@ export class ApplicationsService {
     });
 
     if (!application) {
-      throw new NotFoundException('Application not found');
+      throw new NotFoundException("Application not found");
     }
 
     const stageChanges = await this.prisma.activityLog.findMany({
       where: {
         applicationId,
-        action: 'STAGE_CHANGED',
+        action: "STAGE_CHANGED",
       },
       include: {
         user: {
           select: { firstName: true, lastName: true },
         },
       },
-      orderBy: { createdAt: 'asc' },
+      orderBy: { createdAt: "asc" },
     });
 
     // Calculate time in each stage
@@ -1240,15 +1395,21 @@ export class ApplicationsService {
       const metadata = change.metadata as any;
       const nextChange = stageChanges[index + 1];
       const timeInStage = nextChange
-        ? Math.round((new Date(nextChange.createdAt).getTime() - new Date(change.createdAt).getTime()) / (1000 * 60 * 60 * 24))
+        ? Math.round(
+            (new Date(nextChange.createdAt).getTime() -
+              new Date(change.createdAt).getTime()) /
+              (1000 * 60 * 60 * 24),
+          )
         : null; // Still in this stage
 
       return {
         id: change.id,
-        fromStage: metadata?.fromStageName || 'Applied',
-        toStage: metadata?.toStageName || 'Unknown',
+        fromStage: metadata?.fromStageName || "Applied",
+        toStage: metadata?.toStageName || "Unknown",
         changedAt: change.createdAt,
-        changedBy: change.user ? `${change.user.firstName} ${change.user.lastName}` : 'System',
+        changedBy: change.user
+          ? `${change.user.firstName} ${change.user.lastName}`
+          : "System",
         daysInStage: timeInStage,
         metadata: metadata,
       };
@@ -1257,14 +1418,19 @@ export class ApplicationsService {
     // Add initial application entry
     const fullHistory = [
       {
-        id: 'initial',
+        id: "initial",
         fromStage: null,
-        toStage: 'Applied',
+        toStage: "Applied",
         changedAt: application.appliedAt,
-        changedBy: 'Candidate',
-        daysInStage: stageChanges.length > 0
-          ? Math.round((new Date(stageChanges[0].createdAt).getTime() - new Date(application.appliedAt).getTime()) / (1000 * 60 * 60 * 24))
-          : null,
+        changedBy: "Candidate",
+        daysInStage:
+          stageChanges.length > 0
+            ? Math.round(
+                (new Date(stageChanges[0].createdAt).getTime() -
+                  new Date(application.appliedAt).getTime()) /
+                  (1000 * 60 * 60 * 24),
+              )
+            : null,
         metadata: null,
       },
       ...transitions,
@@ -1296,7 +1462,7 @@ export class ApplicationsService {
     });
 
     if (!application) {
-      throw new NotFoundException('Application not found');
+      throw new NotFoundException("Application not found");
     }
 
     const where: any = { applicationId };
@@ -1315,18 +1481,18 @@ export class ApplicationsService {
           select: { id: true, firstName: true, lastName: true, avatar: true },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
       take: filters?.limit || 100,
     });
 
     let filteredActivities = activities;
     if (filters?.categories && filters.categories.length > 0) {
-      filteredActivities = activities.filter(a =>
-        filters.categories!.includes(this.categorizeActivity(a.action))
+      filteredActivities = activities.filter((a) =>
+        filters.categories!.includes(this.categorizeActivity(a.action)),
       );
     }
 
-    return filteredActivities.map(activity => ({
+    return filteredActivities.map((activity) => ({
       id: activity.id,
       action: activity.action,
       description: activity.description,
@@ -1341,15 +1507,17 @@ export class ApplicationsService {
    * Categorize activity action into a category
    */
   private categorizeActivity(action: string): string {
-    if (action.includes('STAGE') || action.includes('STATUS')) return 'status';
-    if (action.includes('INTERVIEW')) return 'interview';
-    if (action.includes('OFFER')) return 'offer';
-    if (action.includes('EMAIL') || action.includes('SMS')) return 'communication';
-    if (action.includes('NOTE') || action.includes('COMMENT')) return 'note';
-    if (action.includes('FEEDBACK')) return 'feedback';
-    if (action.includes('TASK')) return 'task';
-    if (action.includes('BGV') || action.includes('BACKGROUND')) return 'verification';
-    return 'other';
+    if (action.includes("STAGE") || action.includes("STATUS")) return "status";
+    if (action.includes("INTERVIEW")) return "interview";
+    if (action.includes("OFFER")) return "offer";
+    if (action.includes("EMAIL") || action.includes("SMS"))
+      return "communication";
+    if (action.includes("NOTE") || action.includes("COMMENT")) return "note";
+    if (action.includes("FEEDBACK")) return "feedback";
+    if (action.includes("TASK")) return "task";
+    if (action.includes("BGV") || action.includes("BACKGROUND"))
+      return "verification";
+    return "other";
   }
 
   /**
@@ -1361,11 +1529,15 @@ export class ApplicationsService {
     applicationIds: string[],
   ) {
     if (applicationIds.length < 2) {
-      throw new NotFoundException('At least 2 applications required for comparison');
+      throw new NotFoundException(
+        "At least 2 applications required for comparison",
+      );
     }
 
     if (applicationIds.length > 5) {
-      throw new NotFoundException('Maximum 5 applications can be compared at once');
+      throw new NotFoundException(
+        "Maximum 5 applications can be compared at once",
+      );
     }
 
     // Get applications with full details
@@ -1401,7 +1573,7 @@ export class ApplicationsService {
     });
 
     if (applications.length !== applicationIds.length) {
-      throw new NotFoundException('Some applications not found');
+      throw new NotFoundException("Some applications not found");
     }
 
     // Get interviews and feedback for each application
@@ -1418,43 +1590,54 @@ export class ApplicationsService {
 
     // Group by application
     const interviewsByApp = new Map<string, typeof interviewData>();
-    interviewData.forEach(i => {
+    interviewData.forEach((i) => {
       const existing = interviewsByApp.get(i.applicationId) || [];
       existing.push(i);
       interviewsByApp.set(i.applicationId, existing);
     });
 
     // Build comparison data
-    const comparison = applications.map(app => {
+    const comparison = applications.map((app) => {
       const interviews = interviewsByApp.get(app.id) || [];
-      const allFeedback = interviews.flatMap(i => i.feedbacks);
-      const ratings = allFeedback.map(f => f.rating).filter(r => r !== null) as number[];
-      const avgRating = ratings.length > 0
-        ? Math.round((ratings.reduce((a, b) => a + b, 0) / ratings.length) * 10) / 10
-        : null;
+      const allFeedback = interviews.flatMap((i) => i.feedbacks);
+      const ratings = allFeedback
+        .map((f) => f.rating)
+        .filter((r) => r !== null) as number[];
+      const avgRating =
+        ratings.length > 0
+          ? Math.round(
+              (ratings.reduce((a, b) => a + b, 0) / ratings.length) * 10,
+            ) / 10
+          : null;
 
       // Count recommendations
       const recommendations: Record<string, number> = {};
-      allFeedback.forEach(f => {
+      allFeedback.forEach((f) => {
         if (f.recommendation) {
-          recommendations[f.recommendation] = (recommendations[f.recommendation] || 0) + 1;
+          recommendations[f.recommendation] =
+            (recommendations[f.recommendation] || 0) + 1;
         }
       });
 
       // Calculate skill match
       const jobSkills = (app.job.skills as string[]) || [];
       const candidateSkills = (app.candidate.skills as string[]) || [];
-      const matchedSkills = jobSkills.filter(s =>
-        candidateSkills.some(cs => cs.toLowerCase().includes(s.toLowerCase()) || s.toLowerCase().includes(cs.toLowerCase()))
+      const matchedSkills = jobSkills.filter((s) =>
+        candidateSkills.some(
+          (cs) =>
+            cs.toLowerCase().includes(s.toLowerCase()) ||
+            s.toLowerCase().includes(cs.toLowerCase()),
+        ),
       );
-      const skillMatchPercent = jobSkills.length > 0
-        ? Math.round((matchedSkills.length / jobSkills.length) * 100)
-        : null;
+      const skillMatchPercent =
+        jobSkills.length > 0
+          ? Math.round((matchedSkills.length / jobSkills.length) * 100)
+          : null;
 
       return {
         applicationId: app.id,
         candidate: app.candidate,
-        currentStage: app.currentStage?.name || 'Applied',
+        currentStage: app.currentStage?.name || "Applied",
         status: app.status,
         appliedAt: app.appliedAt,
         matchScore: app.matchScore,
@@ -1465,16 +1648,29 @@ export class ApplicationsService {
           recommendations,
           skillMatchPercent,
           matchedSkills,
-          missingSkills: jobSkills.filter(s => !matchedSkills.includes(s)),
+          missingSkills: jobSkills.filter((s) => !matchedSkills.includes(s)),
         },
       };
     });
 
     // Calculate rankings for each metric
     const rankings = {
-      byMatchScore: [...comparison].sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0)).map(c => c.applicationId),
-      byAverageRating: [...comparison].sort((a, b) => (b.metrics.averageRating || 0) - (a.metrics.averageRating || 0)).map(c => c.applicationId),
-      bySkillMatch: [...comparison].sort((a, b) => (b.metrics.skillMatchPercent || 0) - (a.metrics.skillMatchPercent || 0)).map(c => c.applicationId),
+      byMatchScore: [...comparison]
+        .sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0))
+        .map((c) => c.applicationId),
+      byAverageRating: [...comparison]
+        .sort(
+          (a, b) =>
+            (b.metrics.averageRating || 0) - (a.metrics.averageRating || 0),
+        )
+        .map((c) => c.applicationId),
+      bySkillMatch: [...comparison]
+        .sort(
+          (a, b) =>
+            (b.metrics.skillMatchPercent || 0) -
+            (a.metrics.skillMatchPercent || 0),
+        )
+        .map((c) => c.applicationId),
     };
 
     return {
@@ -1485,10 +1681,17 @@ export class ApplicationsService {
       rankings,
       summary: {
         totalCandidates: comparison.length,
-        highestMatchScore: Math.max(...comparison.map(c => c.matchScore || 0)),
-        highestRating: Math.max(...comparison.map(c => c.metrics.averageRating || 0)),
+        highestMatchScore: Math.max(
+          ...comparison.map((c) => c.matchScore || 0),
+        ),
+        highestRating: Math.max(
+          ...comparison.map((c) => c.metrics.averageRating || 0),
+        ),
         averageSkillMatch: Math.round(
-          comparison.reduce((sum, c) => sum + (c.metrics.skillMatchPercent || 0), 0) / comparison.length
+          comparison.reduce(
+            (sum, c) => sum + (c.metrics.skillMatchPercent || 0),
+            0,
+          ) / comparison.length,
         ),
       },
     };
@@ -1499,14 +1702,18 @@ export class ApplicationsService {
    */
   async getComparisonStats(jobId: string, tenantId: string) {
     const applications = await this.prisma.application.findMany({
-      where: { jobId, job: { tenantId }, status: { notIn: ['REJECTED', 'WITHDRAWN'] } },
+      where: {
+        jobId,
+        job: { tenantId },
+        status: { notIn: ["REJECTED", "WITHDRAWN"] },
+      },
       include: {
         candidate: {
           select: { id: true, firstName: true, lastName: true, skills: true },
         },
         currentStage: true,
       },
-      orderBy: { matchScore: 'desc' },
+      orderBy: { matchScore: "desc" },
       take: 20,
     });
 
@@ -1517,10 +1724,12 @@ export class ApplicationsService {
 
     const jobSkills = (job?.skills as string[]) || [];
 
-    return applications.map(app => {
+    return applications.map((app) => {
       const candidateSkills = (app.candidate.skills as string[]) || [];
-      const matchedSkills = jobSkills.filter(s =>
-        candidateSkills.some(cs => cs.toLowerCase().includes(s.toLowerCase()))
+      const matchedSkills = jobSkills.filter((s) =>
+        candidateSkills.some((cs) =>
+          cs.toLowerCase().includes(s.toLowerCase()),
+        ),
       );
 
       return {
@@ -1533,7 +1742,10 @@ export class ApplicationsService {
         skillMatch: {
           matched: matchedSkills.length,
           total: jobSkills.length,
-          percent: jobSkills.length > 0 ? Math.round((matchedSkills.length / jobSkills.length) * 100) : null,
+          percent:
+            jobSkills.length > 0
+              ? Math.round((matchedSkills.length / jobSkills.length) * 100)
+              : null,
         },
       };
     });
@@ -1546,19 +1758,26 @@ export class ApplicationsService {
     jobId: string,
     tenantId: string,
     options?: {
-      sortBy?: 'composite' | 'matchScore' | 'rating' | 'skillMatch' | 'stageProgress';
+      sortBy?:
+        | "composite"
+        | "matchScore"
+        | "rating"
+        | "skillMatch"
+        | "stageProgress";
       limit?: number;
       includeRejected?: boolean;
     },
   ) {
-    const sortBy = options?.sortBy || 'composite';
+    const sortBy = options?.sortBy || "composite";
     const limit = options?.limit || 25;
 
     const applications = await this.prisma.application.findMany({
       where: {
         jobId,
         job: { tenantId },
-        ...(options?.includeRejected ? {} : { status: { notIn: ['REJECTED', 'WITHDRAWN'] as any } }),
+        ...(options?.includeRejected
+          ? {}
+          : { status: { notIn: ["REJECTED", "WITHDRAWN"] as any } }),
       },
       include: {
         candidate: {
@@ -1579,12 +1798,12 @@ export class ApplicationsService {
     const job = await this.prisma.job.findFirst({
       where: { id: jobId, tenantId },
       include: {
-        pipeline: { include: { stages: { orderBy: { order: 'asc' } } } },
+        pipeline: { include: { stages: { orderBy: { order: "asc" } } } },
       },
     });
 
     if (!job) {
-      throw new NotFoundException('Job not found');
+      throw new NotFoundException("Job not found");
     }
 
     const jobSkills = (job.skills as string[]) || [];
@@ -1592,59 +1811,66 @@ export class ApplicationsService {
     const totalStages = stages.length;
 
     // Get interviews and feedback
-    const applicationIds = applications.map(a => a.id);
+    const applicationIds = applications.map((a) => a.id);
     const interviews = await this.prisma.interview.findMany({
       where: { applicationId: { in: applicationIds } },
       include: { feedbacks: true },
     });
 
     const interviewsByApp = new Map<string, typeof interviews>();
-    interviews.forEach(i => {
+    interviews.forEach((i) => {
       const existing = interviewsByApp.get(i.applicationId) || [];
       existing.push(i);
       interviewsByApp.set(i.applicationId, existing);
     });
 
     // Calculate scores for each candidate
-    const rankedCandidates = applications.map(app => {
+    const rankedCandidates = applications.map((app) => {
       const appInterviews = interviewsByApp.get(app.id) || [];
-      const allFeedback = appInterviews.flatMap(i => i.feedbacks);
-      const ratings = allFeedback.map(f => f.rating).filter(r => r !== null) as number[];
+      const allFeedback = appInterviews.flatMap((i) => i.feedbacks);
+      const ratings = allFeedback
+        .map((f) => f.rating)
+        .filter((r) => r !== null) as number[];
 
       // Calculate individual scores (normalized to 0-100)
       const matchScore = app.matchScore || 0;
 
-      const avgRating = ratings.length > 0
-        ? (ratings.reduce((a, b) => a + b, 0) / ratings.length) * 20 // Convert 5-star to 100
-        : 0;
+      const avgRating =
+        ratings.length > 0
+          ? (ratings.reduce((a, b) => a + b, 0) / ratings.length) * 20 // Convert 5-star to 100
+          : 0;
 
       const candidateSkills = (app.candidate.skills as string[]) || [];
-      const matchedSkills = jobSkills.filter(s =>
-        candidateSkills.some(cs => cs.toLowerCase().includes(s.toLowerCase()))
+      const matchedSkills = jobSkills.filter((s) =>
+        candidateSkills.some((cs) =>
+          cs.toLowerCase().includes(s.toLowerCase()),
+        ),
       );
-      const skillMatchScore = jobSkills.length > 0
-        ? (matchedSkills.length / jobSkills.length) * 100
-        : 0;
+      const skillMatchScore =
+        jobSkills.length > 0
+          ? (matchedSkills.length / jobSkills.length) * 100
+          : 0;
 
       // Stage progress score
-      const currentStageIndex = stages.findIndex(s => s.id === app.currentStageId);
-      const stageProgress = totalStages > 0
-        ? ((currentStageIndex + 1) / totalStages) * 100
-        : 0;
+      const currentStageIndex = stages.findIndex(
+        (s) => s.id === app.currentStageId,
+      );
+      const stageProgress =
+        totalStages > 0 ? ((currentStageIndex + 1) / totalStages) * 100 : 0;
 
       // Calculate composite score (weighted average)
       const compositeScore = Math.round(
-        (matchScore * 0.3) +
-        (avgRating * 0.3) +
-        (skillMatchScore * 0.25) +
-        (stageProgress * 0.15)
+        matchScore * 0.3 +
+          avgRating * 0.3 +
+          skillMatchScore * 0.25 +
+          stageProgress * 0.15,
       );
 
       return {
         rank: 0, // Will be set after sorting
         applicationId: app.id,
         candidate: app.candidate,
-        currentStage: app.currentStage?.name || 'Applied',
+        currentStage: app.currentStage?.name || "Applied",
         status: app.status,
         appliedAt: app.appliedAt,
         scores: {
@@ -1657,7 +1883,12 @@ export class ApplicationsService {
         metrics: {
           interviewCount: appInterviews.length,
           feedbackCount: allFeedback.length,
-          avgRating: ratings.length > 0 ? Math.round((ratings.reduce((a, b) => a + b, 0) / ratings.length) * 10) / 10 : null,
+          avgRating:
+            ratings.length > 0
+              ? Math.round(
+                  (ratings.reduce((a, b) => a + b, 0) / ratings.length) * 10,
+                ) / 10
+              : null,
           matchedSkillsCount: matchedSkills.length,
           totalRequiredSkills: jobSkills.length,
         },
@@ -1665,10 +1896,16 @@ export class ApplicationsService {
     });
 
     // Sort based on selected criteria
-    const sortKey = sortBy === 'composite' ? 'composite' :
-      sortBy === 'matchScore' ? 'matchScore' :
-        sortBy === 'rating' ? 'rating' :
-          sortBy === 'skillMatch' ? 'skillMatch' : 'stageProgress';
+    const sortKey =
+      sortBy === "composite"
+        ? "composite"
+        : sortBy === "matchScore"
+          ? "matchScore"
+          : sortBy === "rating"
+            ? "rating"
+            : sortBy === "skillMatch"
+              ? "skillMatch"
+              : "stageProgress";
 
     rankedCandidates.sort((a, b) => b.scores[sortKey] - a.scores[sortKey]);
 
@@ -1678,10 +1915,11 @@ export class ApplicationsService {
     });
 
     // Calculate distribution stats
-    const scores = rankedCandidates.map(c => c.scores.composite);
-    const avgScore = scores.length > 0
-      ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
-      : 0;
+    const scores = rankedCandidates.map((c) => c.scores.composite);
+    const avgScore =
+      scores.length > 0
+        ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
+        : 0;
 
     return {
       jobId,
@@ -1693,10 +1931,16 @@ export class ApplicationsService {
         highestScore: scores.length > 0 ? Math.max(...scores) : 0,
         lowestScore: scores.length > 0 ? Math.min(...scores) : 0,
         distribution: {
-          excellent: rankedCandidates.filter(c => c.scores.composite >= 80).length,
-          good: rankedCandidates.filter(c => c.scores.composite >= 60 && c.scores.composite < 80).length,
-          average: rankedCandidates.filter(c => c.scores.composite >= 40 && c.scores.composite < 60).length,
-          belowAverage: rankedCandidates.filter(c => c.scores.composite < 40).length,
+          excellent: rankedCandidates.filter((c) => c.scores.composite >= 80)
+            .length,
+          good: rankedCandidates.filter(
+            (c) => c.scores.composite >= 60 && c.scores.composite < 80,
+          ).length,
+          average: rankedCandidates.filter(
+            (c) => c.scores.composite >= 40 && c.scores.composite < 60,
+          ).length,
+          belowAverage: rankedCandidates.filter((c) => c.scores.composite < 40)
+            .length,
         },
       },
       leaderboard: rankedCandidates.slice(0, limit),
@@ -1709,8 +1953,8 @@ export class ApplicationsService {
   async getTopCandidatesAcrossJobs(tenantId: string, limit: number = 10) {
     const applications = await this.prisma.application.findMany({
       where: {
-        job: { tenantId, status: 'PUBLISHED' as any },
-        status: { notIn: ['REJECTED', 'WITHDRAWN'] as any },
+        job: { tenantId, status: "PUBLISHED" as any },
+        status: { notIn: ["REJECTED", "WITHDRAWN"] as any },
       },
       include: {
         candidate: {
@@ -1721,31 +1965,36 @@ export class ApplicationsService {
         },
         currentStage: true,
       },
-      orderBy: { matchScore: 'desc' },
+      orderBy: { matchScore: "desc" },
       take: limit * 2,
     });
 
     // Get interviews and feedback
-    const applicationIds = applications.map(a => a.id);
+    const applicationIds = applications.map((a) => a.id);
     const interviews = await this.prisma.interview.findMany({
       where: { applicationId: { in: applicationIds } },
       include: { feedbacks: true },
     });
 
     const interviewsByApp = new Map<string, typeof interviews>();
-    interviews.forEach(i => {
+    interviews.forEach((i) => {
       const existing = interviewsByApp.get(i.applicationId) || [];
       existing.push(i);
       interviewsByApp.set(i.applicationId, existing);
     });
 
-    const candidates = applications.map(app => {
+    const candidates = applications.map((app) => {
       const appInterviews = interviewsByApp.get(app.id) || [];
-      const allFeedback = appInterviews.flatMap(i => i.feedbacks);
-      const ratings = allFeedback.map(f => f.rating).filter(r => r !== null) as number[];
-      const avgRating = ratings.length > 0
-        ? Math.round((ratings.reduce((a, b) => a + b, 0) / ratings.length) * 10) / 10
-        : null;
+      const allFeedback = appInterviews.flatMap((i) => i.feedbacks);
+      const ratings = allFeedback
+        .map((f) => f.rating)
+        .filter((r) => r !== null) as number[];
+      const avgRating =
+        ratings.length > 0
+          ? Math.round(
+              (ratings.reduce((a, b) => a + b, 0) / ratings.length) * 10,
+            ) / 10
+          : null;
 
       return {
         applicationId: app.id,
@@ -1761,8 +2010,8 @@ export class ApplicationsService {
 
     // Sort by composite of matchScore and rating
     candidates.sort((a, b) => {
-      const scoreA = (a.matchScore || 0) + ((a.avgRating || 0) * 20);
-      const scoreB = (b.matchScore || 0) + ((b.avgRating || 0) * 20);
+      const scoreA = (a.matchScore || 0) + (a.avgRating || 0) * 20;
+      const scoreB = (b.matchScore || 0) + (b.avgRating || 0) * 20;
       return scoreB - scoreA;
     });
 

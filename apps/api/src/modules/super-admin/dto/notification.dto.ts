@@ -1,20 +1,27 @@
-import { IsEnum, IsNotEmpty, IsOptional, IsString, IsBoolean, IsArray } from 'class-validator';
+import {
+  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsBoolean,
+  IsArray,
+} from "class-validator";
 
 export enum NotificationType {
-  SYSTEM = 'SYSTEM',
-  SECURITY = 'SECURITY',
-  TENANT = 'TENANT',
-  SUBSCRIPTION = 'SUBSCRIPTION',
-  SUPPORT = 'SUPPORT',
-  ANNOUNCEMENT = 'ANNOUNCEMENT',
-  USER = 'USER',
+  SYSTEM = "SYSTEM",
+  SECURITY = "SECURITY",
+  TENANT = "TENANT",
+  SUBSCRIPTION = "SUBSCRIPTION",
+  SUPPORT = "SUPPORT",
+  ANNOUNCEMENT = "ANNOUNCEMENT",
+  USER = "USER",
 }
 
 export enum NotificationPriority {
-  LOW = 'LOW',
-  MEDIUM = 'MEDIUM',
-  HIGH = 'HIGH',
-  CRITICAL = 'CRITICAL',
+  LOW = "LOW",
+  MEDIUM = "MEDIUM",
+  HIGH = "HIGH",
+  CRITICAL = "CRITICAL",
 }
 
 export class CreateNotificationDto {

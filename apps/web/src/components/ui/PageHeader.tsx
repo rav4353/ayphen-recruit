@@ -47,11 +47,13 @@ export function PageHeader({
         <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="relative overflow-hidden"
+            className="relative"
         >
-            {/* Background gradient */}
-            <div className={`absolute inset-0 bg-gradient-to-br ${gradientClasses[iconColor]} rounded-2xl`} />
-            <div className="absolute top-0 right-0 w-72 h-72 bg-gradient-to-br from-white/40 to-transparent dark:from-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+            {/* Background gradient container */}
+            <div className="absolute inset-0 overflow-hidden rounded-2xl">
+                <div className={`absolute inset-0 bg-gradient-to-br ${gradientClasses[iconColor]}`} />
+                <div className="absolute top-0 right-0 w-72 h-72 bg-gradient-to-br from-white/40 to-transparent dark:from-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+            </div>
 
             <div className="relative py-6 sm:py-8 px-4 sm:px-6">
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 sm:gap-6">

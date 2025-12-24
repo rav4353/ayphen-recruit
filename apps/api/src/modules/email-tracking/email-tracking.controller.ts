@@ -1,14 +1,14 @@
-import { Controller, Get, Param, Req, Res, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { Response, Request } from 'express';
-import { EmailTrackingService } from './email-tracking.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { JwtPayload } from '../auth/auth.service';
-import { Public } from '../auth/decorators/public.decorator';
+import { Controller, Get, Param, Req, Res, UseGuards } from "@nestjs/common";
+import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
+import { Response, Request } from "express";
+import { EmailTrackingService } from "./email-tracking.service";
+import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import { CurrentUser } from "../auth/decorators/current-user.decorator";
+import { JwtPayload } from "../auth/auth.service";
+import { Public } from "../auth/decorators/public.decorator";
 
-@ApiTags('email-tracking')
-@Controller('email-tracking')
+@ApiTags("email-tracking")
+@Controller("email-tracking")
 export class EmailTrackingController {
   constructor(private readonly trackingService: EmailTrackingService) {}
 
@@ -17,16 +17,16 @@ export class EmailTrackingController {
    * Public endpoint - no auth required
    */
   @Public()
-  @Get('pixel/:token.png')
+  @Get("pixel/:token.png")
   async trackOpen(
-    @Param('token') token: string,
+    @Param("token") token: string,
     @Req() req: Request,
     @Res() res: Response,
   ) {
     try {
       // Decode token to get campaignId and candidateId
       const decoded = JSON.parse(
-        Buffer.from(token, 'base64url').toString('utf-8'),
+        Buffer.from(token, "base64url").toString("utf-8"),
       );
       const { campaignId, candidateId } = decoded;
 
@@ -34,27 +34,27 @@ export class EmailTrackingController {
       await this.trackingService.recordEvent(
         campaignId,
         candidateId,
-        'OPEN',
+        "OPEN",
         {},
         req.ip,
-        req.get('user-agent'),
+        req.get("user-agent"),
       );
     } catch (error) {
       // Silently fail - don't break email rendering
-      console.error('Failed to track email open:', error);
+      console.error("Failed to track email open:", error);
     }
 
     // Return a 1x1 transparent PNG
     const pixel = Buffer.from(
-      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
-      'base64',
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+      "base64",
     );
 
-    res.setHeader('Content-Type', 'image/png');
-    res.setHeader('Content-Length', pixel.length);
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
+    res.setHeader("Content-Type", "image/png");
+    res.setHeader("Content-Length", pixel.length);
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
     res.send(pixel);
   }
 
@@ -63,9 +63,9 @@ export class EmailTrackingController {
    * Public endpoint - no auth required
    */
   @Public()
-  @Get('click/:token')
+  @Get("click/:token")
   async trackClick(
-    @Param('token') token: string,
+    @Param("token") token: string,
     @Req() req: Request,
     @Res() res: Response,
   ) {
@@ -74,7 +74,7 @@ export class EmailTrackingController {
       const trackingLink = await this.trackingService.getTrackingLink(token);
 
       if (!trackingLink) {
-        return res.status(404).send('Link not found');
+        return res.status(404).send("Link not found");
       }
 
       // Extract campaignId and candidateId from query params or referer
@@ -86,18 +86,18 @@ export class EmailTrackingController {
         await this.trackingService.recordEvent(
           trackingLink.campaignId,
           candidateId,
-          'CLICK',
+          "CLICK",
           { url: trackingLink.originalUrl },
           req.ip,
-          req.get('user-agent'),
+          req.get("user-agent"),
         );
       }
 
       // Redirect to the original URL
       return res.redirect(302, trackingLink.originalUrl);
     } catch (error) {
-      console.error('Failed to track click:', error);
-      return res.status(500).send('Error processing click');
+      console.error("Failed to track click:", error);
+      return res.status(500).send("Error processing click");
     }
   }
 
@@ -106,10 +106,10 @@ export class EmailTrackingController {
    * Public endpoint - no auth required
    */
   @Public()
-  @Get('unsubscribe/:campaignId/:candidateId')
+  @Get("unsubscribe/:campaignId/:candidateId")
   async trackUnsubscribe(
-    @Param('campaignId') campaignId: string,
-    @Param('candidateId') candidateId: string,
+    @Param("campaignId") campaignId: string,
+    @Param("candidateId") candidateId: string,
     @Req() req: Request,
     @Res() res: Response,
   ) {
@@ -117,10 +117,10 @@ export class EmailTrackingController {
       await this.trackingService.recordEvent(
         campaignId,
         candidateId,
-        'UNSUBSCRIBE',
+        "UNSUBSCRIBE",
         {},
         req.ip,
-        req.get('user-agent'),
+        req.get("user-agent"),
       );
 
       // Return a simple unsubscribe confirmation page
@@ -161,8 +161,8 @@ export class EmailTrackingController {
         </html>
       `);
     } catch (error) {
-      console.error('Failed to track unsubscribe:', error);
-      res.status(500).send('Error processing unsubscribe');
+      console.error("Failed to track unsubscribe:", error);
+      res.status(500).send("Error processing unsubscribe");
     }
   }
 
@@ -171,10 +171,10 @@ export class EmailTrackingController {
    */
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
-  @Get('analytics/:campaignId')
-  @ApiOperation({ summary: 'Get campaign tracking analytics' })
+  @Get("analytics/:campaignId")
+  @ApiOperation({ summary: "Get campaign tracking analytics" })
   async getCampaignAnalytics(
-    @Param('campaignId') campaignId: string,
+    @Param("campaignId") campaignId: string,
     @CurrentUser() user: JwtPayload,
   ) {
     return this.trackingService.getCampaignAnalytics(campaignId, user.tenantId);
@@ -185,13 +185,16 @@ export class EmailTrackingController {
    */
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
-  @Get('analytics/:campaignId/recipients')
-  @ApiOperation({ summary: 'Get recipient-level analytics' })
+  @Get("analytics/:campaignId/recipients")
+  @ApiOperation({ summary: "Get recipient-level analytics" })
   async getRecipientAnalytics(
-    @Param('campaignId') campaignId: string,
+    @Param("campaignId") campaignId: string,
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.trackingService.getRecipientAnalytics(campaignId, user.tenantId);
+    return this.trackingService.getRecipientAnalytics(
+      campaignId,
+      user.tenantId,
+    );
   }
 
   /**
@@ -199,10 +202,10 @@ export class EmailTrackingController {
    */
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
-  @Get('analytics/:campaignId/clicks')
-  @ApiOperation({ summary: 'Get click details for campaign' })
+  @Get("analytics/:campaignId/clicks")
+  @ApiOperation({ summary: "Get click details for campaign" })
   async getClickDetails(
-    @Param('campaignId') campaignId: string,
+    @Param("campaignId") campaignId: string,
     @CurrentUser() user: JwtPayload,
   ) {
     return this.trackingService.getClickDetails(campaignId, user.tenantId);

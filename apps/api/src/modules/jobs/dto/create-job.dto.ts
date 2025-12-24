@@ -7,15 +7,15 @@ import {
   IsArray,
   IsDateString,
   IsObject,
-} from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+} from "class-validator";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 export class CreateJobDto {
-  @ApiProperty({ example: 'Senior Software Engineer' })
+  @ApiProperty({ example: "Senior Software Engineer" })
   @IsString()
   title: string;
 
-  @ApiProperty({ example: 'We are looking for a talented engineer...' })
+  @ApiProperty({ example: "We are looking for a talented engineer..." })
   @IsString()
   description: string;
 
@@ -34,15 +34,22 @@ export class CreateJobDto {
   @IsString()
   benefits?: string;
 
-  @ApiPropertyOptional({ enum: ['FULL_TIME', 'PART_TIME', 'CONTRACT', 'INTERNSHIP', 'TEMPORARY'] })
+  @ApiPropertyOptional({
+    enum: ["FULL_TIME", "PART_TIME", "CONTRACT", "INTERNSHIP", "TEMPORARY"],
+  })
   @IsOptional()
-  @IsIn(['FULL_TIME', 'PART_TIME', 'CONTRACT', 'INTERNSHIP', 'TEMPORARY'])
-  employmentType?: 'FULL_TIME' | 'PART_TIME' | 'CONTRACT' | 'INTERNSHIP' | 'TEMPORARY';
+  @IsIn(["FULL_TIME", "PART_TIME", "CONTRACT", "INTERNSHIP", "TEMPORARY"])
+  employmentType?:
+    | "FULL_TIME"
+    | "PART_TIME"
+    | "CONTRACT"
+    | "INTERNSHIP"
+    | "TEMPORARY";
 
-  @ApiPropertyOptional({ enum: ['ONSITE', 'REMOTE', 'HYBRID'] })
+  @ApiPropertyOptional({ enum: ["ONSITE", "REMOTE", "HYBRID"] })
   @IsOptional()
-  @IsIn(['ONSITE', 'REMOTE', 'HYBRID'])
-  workLocation?: 'ONSITE' | 'REMOTE' | 'HYBRID';
+  @IsIn(["ONSITE", "REMOTE", "HYBRID"])
+  workLocation?: "ONSITE" | "REMOTE" | "HYBRID";
 
   @ApiPropertyOptional({ example: 100000 })
   @IsOptional()
@@ -54,7 +61,7 @@ export class CreateJobDto {
   @IsNumber()
   salaryMax?: number;
 
-  @ApiPropertyOptional({ example: 'USD' })
+  @ApiPropertyOptional({ example: "USD" })
   @IsOptional()
   @IsString()
   salaryCurrency?: string;
@@ -69,13 +76,13 @@ export class CreateJobDto {
   @IsNumber()
   openings?: number;
 
-  @ApiPropertyOptional({ example: ['TypeScript', 'React', 'Node.js'] })
+  @ApiPropertyOptional({ example: ["TypeScript", "React", "Node.js"] })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
   skills?: string[];
 
-  @ApiPropertyOptional({ example: '5+ years' })
+  @ApiPropertyOptional({ example: "5+ years" })
   @IsOptional()
   @IsString()
   experience?: string;
@@ -90,7 +97,7 @@ export class CreateJobDto {
   @IsString()
   departmentId?: string;
 
-  @ApiPropertyOptional({ example: ['location-uuid-1', 'location-uuid-2'] })
+  @ApiPropertyOptional({ example: ["location-uuid-1", "location-uuid-2"] })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
@@ -116,10 +123,10 @@ export class CreateJobDto {
   @IsDateString()
   closesAt?: string;
 
-  @ApiPropertyOptional({ enum: ['DRAFT', 'OPEN'] })
+  @ApiPropertyOptional({ enum: ["DRAFT", "OPEN"] })
   @IsOptional()
-  @IsIn(['DRAFT', 'OPEN'])
-  status?: 'DRAFT' | 'OPEN';
+  @IsIn(["DRAFT", "OPEN"])
+  status?: "DRAFT" | "OPEN";
 
   @ApiPropertyOptional()
   @IsOptional()

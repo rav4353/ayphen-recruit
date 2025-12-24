@@ -1,8 +1,13 @@
-import { Injectable, Logger, BadRequestException, ConflictException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { PrismaService } from '../../prisma/prisma.service';
-import * as dns from 'dns';
-import { promisify } from 'util';
+import {
+  Injectable,
+  Logger,
+  BadRequestException,
+  ConflictException,
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { PrismaService } from "../../prisma/prisma.service";
+import * as dns from "dns";
+import { promisify } from "util";
 
 const resolveTxt = promisify(dns.resolveTxt);
 const resolveCname = promisify(dns.resolveCname);
@@ -10,20 +15,20 @@ const resolveCname = promisify(dns.resolveCname);
 interface DomainConfig {
   subdomain?: string;
   customDomain?: string;
-  customDomainStatus: 'pending' | 'verifying' | 'verified' | 'failed';
+  customDomainStatus: "pending" | "verifying" | "verified" | "failed";
   verificationToken?: string;
-  verificationMethod: 'cname' | 'txt';
-  sslStatus: 'pending' | 'provisioning' | 'active' | 'failed';
+  verificationMethod: "cname" | "txt";
+  sslStatus: "pending" | "provisioning" | "active" | "failed";
   lastVerificationAttempt?: Date;
   verifiedAt?: Date;
 }
 
-const DOMAIN_CONFIG_KEY = 'custom_domain_config';
+const DOMAIN_CONFIG_KEY = "custom_domain_config";
 
 @Injectable()
 export class CustomDomainService {
   private readonly logger = new Logger(CustomDomainService.name);
-  private readonly targetCname = 'careers.ayphen.com';
+  private readonly targetCname = "careers.ayphen.com";
 
   constructor(
     private readonly configService: ConfigService,
@@ -44,20 +49,37 @@ export class CustomDomainService {
   /**
    * Set subdomain for career site
    */
-  async setSubdomain(tenantId: string, subdomain: string): Promise<{ subdomain: string; url: string }> {
+  async setSubdomain(
+    tenantId: string,
+    subdomain: string,
+  ): Promise<{ subdomain: string; url: string }> {
     // Validate subdomain format
     if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(subdomain)) {
-      throw new BadRequestException('Invalid subdomain format. Use lowercase letters, numbers, and hyphens only.');
+      throw new BadRequestException(
+        "Invalid subdomain format. Use lowercase letters, numbers, and hyphens only.",
+      );
     }
 
     if (subdomain.length < 3 || subdomain.length > 63) {
-      throw new BadRequestException('Subdomain must be between 3 and 63 characters');
+      throw new BadRequestException(
+        "Subdomain must be between 3 and 63 characters",
+      );
     }
 
     // Check reserved subdomains
-    const reserved = ['www', 'api', 'app', 'admin', 'mail', 'careers', 'jobs', 'support', 'help'];
+    const reserved = [
+      "www",
+      "api",
+      "app",
+      "admin",
+      "mail",
+      "careers",
+      "jobs",
+      "support",
+      "help",
+    ];
     if (reserved.includes(subdomain)) {
-      throw new BadRequestException('This subdomain is reserved');
+      throw new BadRequestException("This subdomain is reserved");
     }
 
     // Check if subdomain is already taken
@@ -71,14 +93,14 @@ export class CustomDomainService {
     if (existing) {
       const existingConfig = existing.value as unknown as DomainConfig;
       if (existingConfig?.subdomain === subdomain) {
-        throw new ConflictException('This subdomain is already taken');
+        throw new ConflictException("This subdomain is already taken");
       }
     }
 
-    const config = await this.getDomainConfig(tenantId) || {
-      customDomainStatus: 'pending' as const,
-      verificationMethod: 'cname' as const,
-      sslStatus: 'pending' as const,
+    const config = (await this.getDomainConfig(tenantId)) || {
+      customDomainStatus: "pending" as const,
+      verificationMethod: "cname" as const,
+      sslStatus: "pending" as const,
     };
 
     config.subdomain = subdomain;
@@ -90,7 +112,7 @@ export class CustomDomainService {
         tenantId,
         key: DOMAIN_CONFIG_KEY,
         value: config as any,
-        category: 'DOMAIN',
+        category: "DOMAIN",
         isPublic: false,
       },
     });
@@ -104,16 +126,20 @@ export class CustomDomainService {
   /**
    * Add custom domain
    */
-  async addCustomDomain(tenantId: string, domain: string): Promise<{
+  async addCustomDomain(
+    tenantId: string,
+    domain: string,
+  ): Promise<{
     domain: string;
     verificationMethod: string;
     verificationToken: string;
     instructions: string[];
   }> {
     // Validate domain format
-    const domainRegex = /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/i;
+    const domainRegex =
+      /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/i;
     if (!domainRegex.test(domain)) {
-      throw new BadRequestException('Invalid domain format');
+      throw new BadRequestException("Invalid domain format");
     }
 
     // Check if domain is already used by another tenant
@@ -124,20 +150,20 @@ export class CustomDomainService {
     for (const setting of existingSettings) {
       const config = setting.value as unknown as DomainConfig;
       if (config?.customDomain === domain && setting.tenantId !== tenantId) {
-        throw new ConflictException('This domain is already registered');
+        throw new ConflictException("This domain is already registered");
       }
     }
 
     // Generate verification token
-    const verificationToken = `ayphen-verify-${Buffer.from(`${tenantId}:${Date.now()}`).toString('base64').slice(0, 32)}`;
+    const verificationToken = `ayphen-verify-${Buffer.from(`${tenantId}:${Date.now()}`).toString("base64").slice(0, 32)}`;
 
     const config: DomainConfig = {
       ...(await this.getDomainConfig(tenantId)),
       customDomain: domain,
-      customDomainStatus: 'pending',
+      customDomainStatus: "pending",
       verificationToken,
-      verificationMethod: 'cname',
-      sslStatus: 'pending',
+      verificationMethod: "cname",
+      sslStatus: "pending",
     };
 
     await this.prisma.setting.upsert({
@@ -147,19 +173,19 @@ export class CustomDomainService {
         tenantId,
         key: DOMAIN_CONFIG_KEY,
         value: config as any,
-        category: 'DOMAIN',
+        category: "DOMAIN",
         isPublic: false,
       },
     });
 
     return {
       domain,
-      verificationMethod: 'cname',
+      verificationMethod: "cname",
       verificationToken,
       instructions: [
         `Add a CNAME record for "${domain}" pointing to "${this.targetCname}"`,
         `OR add a TXT record "_ayphen-verification.${domain}" with value "${verificationToken}"`,
-        'DNS changes may take up to 48 hours to propagate',
+        "DNS changes may take up to 48 hours to propagate",
         'Click "Verify Domain" once you have configured the DNS records',
       ],
     };
@@ -176,11 +202,11 @@ export class CustomDomainService {
     const config = await this.getDomainConfig(tenantId);
 
     if (!config?.customDomain) {
-      throw new BadRequestException('No custom domain configured');
+      throw new BadRequestException("No custom domain configured");
     }
 
     config.lastVerificationAttempt = new Date();
-    config.customDomainStatus = 'verifying';
+    config.customDomainStatus = "verifying";
 
     // Update status to verifying
     await this.updateDomainConfig(tenantId, config);
@@ -189,9 +215,9 @@ export class CustomDomainService {
       // Try CNAME verification first
       const cnameVerified = await this.verifyCname(config.customDomain);
       if (cnameVerified) {
-        config.customDomainStatus = 'verified';
+        config.customDomainStatus = "verified";
         config.verifiedAt = new Date();
-        config.sslStatus = 'provisioning';
+        config.sslStatus = "provisioning";
         await this.updateDomainConfig(tenantId, config);
 
         // In production, trigger SSL certificate provisioning here
@@ -199,45 +225,54 @@ export class CustomDomainService {
 
         return {
           verified: true,
-          method: 'cname',
-          message: 'Domain verified successfully! SSL certificate is being provisioned.',
+          method: "cname",
+          message:
+            "Domain verified successfully! SSL certificate is being provisioned.",
         };
       }
 
       // Try TXT verification
-      const txtVerified = await this.verifyTxt(config.customDomain, config.verificationToken!);
+      const txtVerified = await this.verifyTxt(
+        config.customDomain,
+        config.verificationToken!,
+      );
       if (txtVerified) {
-        config.customDomainStatus = 'verified';
+        config.customDomainStatus = "verified";
         config.verifiedAt = new Date();
-        config.sslStatus = 'provisioning';
+        config.sslStatus = "provisioning";
         await this.updateDomainConfig(tenantId, config);
 
         this.logger.log(`Domain ${config.customDomain} verified via TXT`);
 
         return {
           verified: true,
-          method: 'txt',
-          message: 'Domain verified successfully! SSL certificate is being provisioned.',
+          method: "txt",
+          message:
+            "Domain verified successfully! SSL certificate is being provisioned.",
         };
       }
 
       // Verification failed
-      config.customDomainStatus = 'failed';
+      config.customDomainStatus = "failed";
       await this.updateDomainConfig(tenantId, config);
 
       return {
         verified: false,
-        message: 'Domain verification failed. Please check your DNS configuration and try again.',
+        message:
+          "Domain verification failed. Please check your DNS configuration and try again.",
       };
     } catch (error) {
-      this.logger.error(`Domain verification error for ${config.customDomain}:`, error);
-      
-      config.customDomainStatus = 'failed';
+      this.logger.error(
+        `Domain verification error for ${config.customDomain}:`,
+        error,
+      );
+
+      config.customDomainStatus = "failed";
       await this.updateDomainConfig(tenantId, config);
 
       return {
         verified: false,
-        message: 'Domain verification failed. DNS lookup error.',
+        message: "Domain verification failed. DNS lookup error.",
       };
     }
   }
@@ -250,11 +285,11 @@ export class CustomDomainService {
 
     if (config) {
       config.customDomain = undefined;
-      config.customDomainStatus = 'pending';
+      config.customDomainStatus = "pending";
       config.verificationToken = undefined;
-      config.sslStatus = 'pending';
+      config.sslStatus = "pending";
       config.verifiedAt = undefined;
-      
+
       await this.updateDomainConfig(tenantId, config);
     }
 
@@ -267,18 +302,18 @@ export class CustomDomainService {
   getDnsInstructions(domain: string, verificationToken: string) {
     return {
       cname: {
-        type: 'CNAME',
+        type: "CNAME",
         host: domain,
         value: this.targetCname,
-        description: 'Point your domain to our career site servers',
+        description: "Point your domain to our career site servers",
       },
       txt: {
-        type: 'TXT',
+        type: "TXT",
         host: `_ayphen-verification.${domain}`,
         value: verificationToken,
-        description: 'Alternative verification method',
+        description: "Alternative verification method",
       },
-      note: 'DNS changes typically propagate within 24-48 hours',
+      note: "DNS changes typically propagate within 24-48 hours",
     };
   }
 
@@ -313,7 +348,10 @@ export class CustomDomainService {
         status: config.customDomainStatus,
         sslStatus: config.sslStatus,
         verifiedAt: config.verifiedAt,
-        url: config.customDomainStatus === 'verified' ? `https://${config.customDomain}` : undefined,
+        url:
+          config.customDomainStatus === "verified"
+            ? `https://${config.customDomain}`
+            : undefined,
       };
     }
 
@@ -347,7 +385,10 @@ export class CustomDomainService {
 
     for (const setting of settings) {
       const config = setting.value as unknown as DomainConfig;
-      if (config?.customDomain === domain && config.customDomainStatus === 'verified') {
+      if (
+        config?.customDomain === domain &&
+        config.customDomainStatus === "verified"
+      ) {
         return setting.tenantId;
       }
     }
@@ -358,9 +399,10 @@ export class CustomDomainService {
   private async verifyCname(domain: string): Promise<boolean> {
     try {
       const records = await resolveCname(domain);
-      return records.some(record => 
-        record.toLowerCase() === this.targetCname.toLowerCase() ||
-        record.toLowerCase().endsWith(`.${this.targetCname.toLowerCase()}`)
+      return records.some(
+        (record) =>
+          record.toLowerCase() === this.targetCname.toLowerCase() ||
+          record.toLowerCase().endsWith(`.${this.targetCname.toLowerCase()}`),
       );
     } catch {
       return false;
@@ -370,15 +412,16 @@ export class CustomDomainService {
   private async verifyTxt(domain: string, token: string): Promise<boolean> {
     try {
       const records = await resolveTxt(`_ayphen-verification.${domain}`);
-      return records.some(record => 
-        record.join('').includes(token)
-      );
+      return records.some((record) => record.join("").includes(token));
     } catch {
       return false;
     }
   }
 
-  private async updateDomainConfig(tenantId: string, config: DomainConfig): Promise<void> {
+  private async updateDomainConfig(
+    tenantId: string,
+    config: DomainConfig,
+  ): Promise<void> {
     await this.prisma.setting.update({
       where: { tenantId_key: { tenantId, key: DOMAIN_CONFIG_KEY } },
       data: { value: config as any },

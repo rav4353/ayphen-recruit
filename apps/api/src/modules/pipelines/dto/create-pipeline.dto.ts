@@ -1,9 +1,16 @@
-import { IsString, IsOptional, IsArray, ValidateNested, IsNumber, IsBoolean } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import {
+  IsString,
+  IsOptional,
+  IsArray,
+  ValidateNested,
+  IsNumber,
+  IsBoolean,
+} from "class-validator";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { Type } from "class-transformer";
 
 class StageDto {
-  @ApiProperty({ example: 'Screening' })
+  @ApiProperty({ example: "Screening" })
   @IsString()
   name: string;
 
@@ -12,7 +19,7 @@ class StageDto {
   @IsString()
   description?: string;
 
-  @ApiPropertyOptional({ example: '#3B82F6' })
+  @ApiPropertyOptional({ example: "#3B82F6" })
   @IsOptional()
   @IsString()
   color?: string;
@@ -29,7 +36,7 @@ class StageDto {
 }
 
 export class CreatePipelineDto {
-  @ApiProperty({ example: 'Engineering Pipeline' })
+  @ApiProperty({ example: "Engineering Pipeline" })
   @IsString()
   name: string;
 

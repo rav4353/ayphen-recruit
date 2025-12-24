@@ -1,9 +1,14 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
-import { ConfigService } from '@nestjs/config';
-import * as crypto from 'crypto';
+import { Injectable, Logger } from "@nestjs/common";
+import { PrismaService } from "../../prisma/prisma.service";
+import { ConfigService } from "@nestjs/config";
+import * as crypto from "crypto";
 
-export type EmailEventType = 'OPEN' | 'CLICK' | 'REPLY' | 'BOUNCE' | 'UNSUBSCRIBE';
+export type EmailEventType =
+  | "OPEN"
+  | "CLICK"
+  | "REPLY"
+  | "BOUNCE"
+  | "UNSUBSCRIBE";
 
 @Injectable()
 export class EmailTrackingService {
@@ -14,28 +19,34 @@ export class EmailTrackingService {
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
   ) {
-    this.baseUrl = this.configService.get<string>('API_URL') || 'http://localhost:3001';
+    this.baseUrl =
+      this.configService.get<string>("API_URL") || "http://localhost:3001";
   }
 
   /**
    * Generate a unique tracking token
    */
   private generateToken(): string {
-    return `${Date.now()}-${crypto.randomBytes(12).toString('hex')}`;
+    return `${Date.now()}-${crypto.randomBytes(12).toString("hex")}`;
   }
 
   /**
    * Create a tracking pixel URL for email opens
    */
   createTrackingPixel(campaignId: string, candidateId: string): string {
-    const token = Buffer.from(JSON.stringify({ campaignId, candidateId })).toString('base64url');
+    const token = Buffer.from(
+      JSON.stringify({ campaignId, candidateId }),
+    ).toString("base64url");
     return `${this.baseUrl}/api/v1/email-tracking/pixel/${token}.png`;
   }
 
   /**
    * Wrap links in email with tracking URLs
    */
-  async wrapLinksWithTracking(html: string, campaignId: string): Promise<string> {
+  async wrapLinksWithTracking(
+    html: string,
+    campaignId: string,
+  ): Promise<string> {
     // Match all href attributes
     const linkRegex = /href=["']([^"']+)["']/gi;
     const links: string[] = [];
@@ -45,7 +56,7 @@ export class EmailTrackingService {
     while ((match = linkRegex.exec(html)) !== null) {
       const url = match[1];
       // Skip tracking pixel, mailto, tel, and anchor links
-      if (!url.startsWith('http') || url.includes('/email-tracking/')) {
+      if (!url.startsWith("http") || url.includes("/email-tracking/")) {
         continue;
       }
       if (!links.includes(url)) {
@@ -57,7 +68,7 @@ export class EmailTrackingService {
     const trackingMap = new Map<string, string>();
     for (const originalUrl of links) {
       const trackingToken = this.generateToken();
-      
+
       await this.prisma.emailTrackingLink.create({
         data: {
           campaignId,
@@ -73,8 +84,8 @@ export class EmailTrackingService {
     // Replace all links with tracking URLs
     let trackedHtml = html;
     trackingMap.forEach((trackingUrl, originalUrl) => {
-      const escapedUrl = originalUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const regex = new RegExp(`href=["']${escapedUrl}["']`, 'gi');
+      const escapedUrl = originalUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const regex = new RegExp(`href=["']${escapedUrl}["']`, "gi");
       trackedHtml = trackedHtml.replace(regex, `href="${trackingUrl}"`);
     });
 
@@ -87,9 +98,9 @@ export class EmailTrackingService {
   injectTrackingPixel(html: string, pixelUrl: string): string {
     // Add tracking pixel at the end of the body or at the end of HTML
     const trackingPixel = `<img src="${pixelUrl}" width="1" height="1" alt="" style="display:none;" />`;
-    
-    if (html.includes('</body>')) {
-      return html.replace('</body>', `${trackingPixel}</body>`);
+
+    if (html.includes("</body>")) {
+      return html.replace("</body>", `${trackingPixel}</body>`);
     } else {
       return html + trackingPixel;
     }
@@ -114,17 +125,19 @@ export class EmailTrackingService {
       });
 
       if (!candidate) {
-        this.logger.warn(`Candidate ${candidateId} not found for tracking event`);
+        this.logger.warn(
+          `Candidate ${candidateId} not found for tracking event`,
+        );
         return null;
       }
 
       // Check if this exact event already exists (prevent duplicates)
-      if (eventType === 'OPEN') {
+      if (eventType === "OPEN") {
         const recentOpen = await this.prisma.emailTrackingEvent.findFirst({
           where: {
             campaignId,
             candidateId,
-            eventType: 'OPEN',
+            eventType: "OPEN",
             createdAt: {
               gte: new Date(Date.now() - 60000), // Within last minute
             },
@@ -132,7 +145,9 @@ export class EmailTrackingService {
         });
 
         if (recentOpen) {
-          this.logger.debug(`Duplicate OPEN event ignored for campaign ${campaignId}, candidate ${candidateId}`);
+          this.logger.debug(
+            `Duplicate OPEN event ignored for campaign ${campaignId}, candidate ${candidateId}`,
+          );
           return recentOpen;
         }
       }
@@ -149,10 +164,15 @@ export class EmailTrackingService {
         },
       });
 
-      this.logger.log(`Recorded ${eventType} event for campaign ${campaignId}, candidate ${candidateId}`);
+      this.logger.log(
+        `Recorded ${eventType} event for campaign ${campaignId}, candidate ${candidateId}`,
+      );
       return event;
     } catch (error) {
-      this.logger.error(`Failed to record tracking event: ${error.message}`, error.stack);
+      this.logger.error(
+        `Failed to record tracking event: ${error.message}`,
+        error.stack,
+      );
       return null;
     }
   }
@@ -182,28 +202,30 @@ export class EmailTrackingService {
 
     // Calculate unique counts
     const uniqueOpens = new Set(
-      events.filter(e => e.eventType === 'OPEN').map(e => e.candidateId)
+      events.filter((e) => e.eventType === "OPEN").map((e) => e.candidateId),
     ).size;
 
     const uniqueClicks = new Set(
-      events.filter(e => e.eventType === 'CLICK').map(e => e.candidateId)
+      events.filter((e) => e.eventType === "CLICK").map((e) => e.candidateId),
     ).size;
 
     const uniqueReplies = new Set(
-      events.filter(e => e.eventType === 'REPLY').map(e => e.candidateId)
+      events.filter((e) => e.eventType === "REPLY").map((e) => e.candidateId),
     ).size;
 
     const unsubscribes = new Set(
-      events.filter(e => e.eventType === 'UNSUBSCRIBE').map(e => e.candidateId)
+      events
+        .filter((e) => e.eventType === "UNSUBSCRIBE")
+        .map((e) => e.candidateId),
     ).size;
 
     const bounces = new Set(
-      events.filter(e => e.eventType === 'BOUNCE').map(e => e.candidateId)
+      events.filter((e) => e.eventType === "BOUNCE").map((e) => e.candidateId),
     ).size;
 
     // Total event counts
-    const totalOpens = events.filter(e => e.eventType === 'OPEN').length;
-    const totalClicks = events.filter(e => e.eventType === 'CLICK').length;
+    const totalOpens = events.filter((e) => e.eventType === "OPEN").length;
+    const totalClicks = events.filter((e) => e.eventType === "CLICK").length;
 
     return {
       uniqueOpens,
@@ -233,7 +255,7 @@ export class EmailTrackingService {
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
     // Group by candidate
@@ -241,7 +263,7 @@ export class EmailTrackingService {
 
     for (const event of events) {
       const candidateId = event.candidateId;
-      
+
       if (!recipientMap.has(candidateId)) {
         recipientMap.set(candidateId, {
           candidate: event.candidate,
@@ -260,24 +282,24 @@ export class EmailTrackingService {
       const recipient = recipientMap.get(candidateId);
 
       switch (event.eventType) {
-        case 'OPEN':
+        case "OPEN":
           recipient.opened = true;
           recipient.openCount++;
           if (!recipient.firstOpenAt) {
             recipient.firstOpenAt = event.createdAt;
           }
           break;
-        case 'CLICK':
+        case "CLICK":
           recipient.clicked = true;
           recipient.clickCount++;
           break;
-        case 'REPLY':
+        case "REPLY":
           recipient.replied = true;
           break;
-        case 'UNSUBSCRIBE':
+        case "UNSUBSCRIBE":
           recipient.unsubscribed = true;
           break;
-        case 'BOUNCE':
+        case "BOUNCE":
           recipient.bounced = true;
           break;
       }
@@ -296,7 +318,7 @@ export class EmailTrackingService {
       where: {
         campaignId,
         tenantId,
-        eventType: 'CLICK',
+        eventType: "CLICK",
       },
       include: {
         candidate: {
@@ -308,15 +330,15 @@ export class EmailTrackingService {
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
     // Group by URL
     const urlMap = new Map<string, any>();
 
     for (const event of clickEvents) {
-      const url = event.eventData?.['url'] || 'Unknown URL';
-      
+      const url = event.eventData?.["url"] || "Unknown URL";
+
       if (!urlMap.has(url)) {
         urlMap.set(url, {
           url,
@@ -329,7 +351,7 @@ export class EmailTrackingService {
       const urlData = urlMap.get(url);
       urlData.clicks++;
       urlData.uniqueClickers.add(event.candidateId);
-      
+
       if (urlData.recentClicks.length < 10) {
         urlData.recentClicks.push({
           candidate: event.candidate,
@@ -338,7 +360,7 @@ export class EmailTrackingService {
       }
     }
 
-    return Array.from(urlMap.values()).map(data => ({
+    return Array.from(urlMap.values()).map((data) => ({
       url: data.url,
       clicks: data.clicks,
       uniqueClickers: data.uniqueClickers.size,

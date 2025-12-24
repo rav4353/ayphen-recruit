@@ -5,14 +5,15 @@ import { useAuthStore } from '../stores/auth';
 export interface StatusColors {
     job: Record<string, { bg: string; text: string; label?: string }>;
     application: Record<string, { bg: string; text: string; label?: string }>;
+    interview: Record<string, { bg: string; text: string; label?: string }>;
 }
 
 interface StatusColorContextType {
     colors: StatusColors | null;
     updateColors: (newColors: StatusColors) => Promise<void>;
     resetColors: () => Promise<void>;
-    getStatusColor: (type: 'job' | 'application', status: string) => { bg: string; text: string; label?: string } | undefined;
-    getStatusLabel: (type: 'job' | 'application', status: string) => string;
+    getStatusColor: (type: 'job' | 'application' | 'interview', status: string) => { bg: string; text: string; label?: string } | undefined;
+    getStatusLabel: (type: 'job' | 'application' | 'interview', status: string) => string;
     isLoading: boolean;
 }
 
@@ -24,6 +25,7 @@ const DEFAULT_COLORS: StatusColors = {
         ON_HOLD: { bg: '#FEF3C7', text: '#92400E' },
         PENDING_APPROVAL: { bg: '#DBEAFE', text: '#1E40AF' },
         APPROVED: { bg: '#E0E7FF', text: '#3730A3' },
+        REJECTED: { bg: '#FEE2E2', text: '#991B1B' },
         CANCELLED: { bg: '#FEE2E2', text: '#991B1B' },
     },
     application: {
@@ -35,6 +37,15 @@ const DEFAULT_COLORS: StatusColors = {
         HIRED: { bg: '#10B981', text: '#FFFFFF' },
         REJECTED: { bg: '#FEE2E2', text: '#991B1B' },
         WITHDRAWN: { bg: '#F3F4F6', text: '#374151' },
+    },
+    interview: {
+        PENDING_CONFIRMATION: { bg: '#FEF3C7', text: '#92400E', label: 'Pending Confirmation' },
+        CONFIRMED: { bg: '#D1FAE5', text: '#065F46', label: 'Confirmed' },
+        PENDING_APPROVAL: { bg: '#DBEAFE', text: '#1E40AF', label: 'Pending Approval' },
+        APPROVED: { bg: '#E0E7FF', text: '#3730A3', label: 'Approved' },
+        REJECTED: { bg: '#FEE2E2', text: '#991B1B', label: 'Rejected' },
+        CANCELLED: { bg: '#F3F4F6', text: '#374151', label: 'Cancelled' },
+        COMPLETED: { bg: '#10B981', text: '#FFFFFF', label: 'Completed' },
     },
 };
 
@@ -134,14 +145,14 @@ export function StatusColorProvider({ children }: { children: React.ReactNode })
         }
     };
 
-    const getStatusColor = (type: 'job' | 'application', status: string) => {
+    const getStatusColor = (type: 'job' | 'application' | 'interview', status: string) => {
         if (!colors) return undefined;
         const typeColors = colors[type];
         if (!typeColors) return undefined;
         return typeColors[status] || typeColors[status.toUpperCase()];
     };
 
-    const getStatusLabel = (type: 'job' | 'application', status: string): string => {
+    const getStatusLabel = (type: 'job' | 'application' | 'interview', status: string): string => {
         const statusConfig = getStatusColor(type, status);
         if (statusConfig?.label) {
             return statusConfig.label;

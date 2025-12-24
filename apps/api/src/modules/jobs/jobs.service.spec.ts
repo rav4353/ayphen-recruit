@@ -1,10 +1,10 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { JobsService } from './jobs.service';
-import { PrismaService } from '../../prisma/prisma.service';
-import { JobBoardsService } from '../integrations/job-boards.service';
-import { SettingsService } from '../settings/settings.service';
+import { Test, TestingModule } from "@nestjs/testing";
+import { JobsService } from "./jobs.service";
+import { PrismaService } from "../../prisma/prisma.service";
+import { JobBoardsService } from "../integrations/job-boards.service";
+import { SettingsService } from "../settings/settings.service";
 
-describe('JobsService', () => {
+describe("JobsService", () => {
   let service: JobsService;
 
   const mockPrismaService = {
@@ -57,67 +57,80 @@ describe('JobsService', () => {
     jest.clearAllMocks();
   });
 
-  it('should be defined', () => {
+  it("should be defined", () => {
     expect(service).toBeDefined();
   });
 
-  describe('findAll', () => {
-    it('should return jobs with pagination', async () => {
+  describe("findAll", () => {
+    it("should return jobs with pagination", async () => {
       const mockJobs = [
-        { id: '1', title: 'Software Engineer', status: 'PUBLISHED' },
-        { id: '2', title: 'Product Manager', status: 'DRAFT' },
+        { id: "1", title: "Software Engineer", status: "PUBLISHED" },
+        { id: "2", title: "Product Manager", status: "DRAFT" },
       ];
 
       mockPrismaService.job.findMany.mockResolvedValue(mockJobs);
       mockPrismaService.job.count.mockResolvedValue(2);
 
-      const result = await service.findAll('tenant-1', { skip: 0, take: 20 } as any);
+      const result = await service.findAll("tenant-1", {
+        skip: 0,
+        take: 20,
+      } as any);
 
       expect(mockPrismaService.job.findMany).toHaveBeenCalled();
       expect(result.jobs).toHaveLength(2);
     });
 
-    it('should filter by status', async () => {
+    it("should filter by status", async () => {
       mockPrismaService.job.findMany.mockResolvedValue([]);
       mockPrismaService.job.count.mockResolvedValue(0);
 
-      await service.findAll('tenant-1', { skip: 0, take: 20, status: 'PUBLISHED' } as any);
+      await service.findAll("tenant-1", {
+        skip: 0,
+        take: 20,
+        status: "PUBLISHED",
+      } as any);
 
       expect(mockPrismaService.job.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
-            status: 'PUBLISHED',
+            status: "PUBLISHED",
           }),
         }),
       );
     });
   });
 
-  describe('create', () => {
-    it('should create a new job', async () => {
+  describe("create", () => {
+    it("should create a new job", async () => {
       const createDto = {
-        title: 'Software Engineer',
-        description: 'A great opportunity',
-        departmentId: 'dept-1',
-        locationId: 'loc-1',
+        title: "Software Engineer",
+        description: "A great opportunity",
+        departmentId: "dept-1",
+        locationId: "loc-1",
       };
 
       const mockCreated = {
-        id: '1',
-        jobCode: 'JOB-123456',
+        id: "1",
+        jobCode: "JOB-123456",
         ...createDto,
-        tenantId: 'tenant-1',
-        status: 'DRAFT',
+        tenantId: "tenant-1",
+        status: "DRAFT",
       };
 
-      mockPrismaService.pipeline.findFirst.mockResolvedValue({ id: 'pipeline-1' });
+      mockPrismaService.pipeline.findFirst.mockResolvedValue({
+        id: "pipeline-1",
+      });
       mockPrismaService.job.create.mockResolvedValue(mockCreated);
       mockPrismaService.activityLog.create.mockResolvedValue({});
 
-      const result = await service.create(createDto as any, 'tenant-1', 'user-1');
+      const result = await service.create(
+        createDto as any,
+        "tenant-1",
+        "user-1",
+      );
 
       expect(mockPrismaService.job.create).toHaveBeenCalled();
-      expect(result.title).toBe('Software Engineer');
+      expect(result.title).toBe("Software Engineer");
     });
   });
 });

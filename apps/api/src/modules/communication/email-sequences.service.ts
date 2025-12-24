@@ -1,7 +1,11 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
-import { Cron, CronExpression } from '@nestjs/schedule';
-import * as crypto from 'crypto';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from "@nestjs/common";
+import { PrismaService } from "../../prisma/prisma.service";
+import { Cron, CronExpression } from "@nestjs/schedule";
+import * as crypto from "crypto";
 
 interface EmailSequenceStep {
   id: string;
@@ -15,9 +19,13 @@ interface EmailSequenceStep {
 interface CreateSequenceDto {
   name: string;
   description?: string;
-  triggerType: 'MANUAL' | 'APPLICATION_CREATED' | 'STAGE_ENTERED' | 'OFFER_SENT';
+  triggerType:
+    | "MANUAL"
+    | "APPLICATION_CREATED"
+    | "STAGE_ENTERED"
+    | "OFFER_SENT";
   triggerStageId?: string;
-  steps: Omit<EmailSequenceStep, 'id'>[];
+  steps: Omit<EmailSequenceStep, "id">[];
 }
 
 @Injectable()
@@ -25,24 +33,24 @@ export class EmailSequencesService {
   constructor(private readonly prisma: PrismaService) {}
 
   private generateId(prefix: string): string {
-    return `${prefix}-${Date.now()}-${crypto.randomBytes(6).toString('hex')}`;
+    return `${prefix}-${Date.now()}-${crypto.randomBytes(6).toString("hex")}`;
   }
 
   /**
    * Create a new email sequence
    */
   async create(dto: CreateSequenceDto, tenantId: string, userId: string) {
-    const sequenceId = this.generateId('seq');
+    const sequenceId = this.generateId("seq");
 
     const steps = dto.steps.map((step, index) => ({
       ...step,
-      id: this.generateId('step'),
+      id: this.generateId("step"),
       order: index + 1,
     }));
 
     await this.prisma.activityLog.create({
       data: {
-        action: 'EMAIL_SEQUENCE_CREATED',
+        action: "EMAIL_SEQUENCE_CREATED",
         description: `Email sequence created: ${dto.name}`,
         userId,
         metadata: {
@@ -53,7 +61,7 @@ export class EmailSequencesService {
           triggerType: dto.triggerType,
           triggerStageId: dto.triggerStageId,
           steps,
-          status: 'ACTIVE',
+          status: "ACTIVE",
           createdAt: new Date().toISOString(),
           createdBy: userId,
         },
@@ -66,7 +74,7 @@ export class EmailSequencesService {
       description: dto.description,
       triggerType: dto.triggerType,
       stepCount: steps.length,
-      status: 'ACTIVE',
+      status: "ACTIVE",
     };
   }
 
@@ -76,16 +84,16 @@ export class EmailSequencesService {
   async findAll(tenantId: string) {
     const logs = await this.prisma.activityLog.findMany({
       where: {
-        action: 'EMAIL_SEQUENCE_CREATED',
-        metadata: { path: ['tenantId'], equals: tenantId },
+        action: "EMAIL_SEQUENCE_CREATED",
+        metadata: { path: ["tenantId"], equals: tenantId },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
     const sequenceMap = new Map<string, any>();
     for (const log of logs) {
       const meta = log.metadata as any;
-      if (!sequenceMap.has(meta.sequenceId) && meta.status !== 'DELETED') {
+      if (!sequenceMap.has(meta.sequenceId) && meta.status !== "DELETED") {
         sequenceMap.set(meta.sequenceId, {
           id: meta.sequenceId,
           name: meta.name,
@@ -107,17 +115,17 @@ export class EmailSequencesService {
   async findById(sequenceId: string, tenantId: string) {
     const log = await this.prisma.activityLog.findFirst({
       where: {
-        action: 'EMAIL_SEQUENCE_CREATED',
-        metadata: { path: ['sequenceId'], equals: sequenceId },
+        action: "EMAIL_SEQUENCE_CREATED",
+        metadata: { path: ["sequenceId"], equals: sequenceId },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
-    if (!log) throw new NotFoundException('Sequence not found');
+    if (!log) throw new NotFoundException("Sequence not found");
 
     const meta = log.metadata as any;
-    if (meta.tenantId !== tenantId || meta.status === 'DELETED') {
-      throw new NotFoundException('Sequence not found');
+    if (meta.tenantId !== tenantId || meta.status === "DELETED") {
+      throw new NotFoundException("Sequence not found");
     }
 
     return {
@@ -135,20 +143,25 @@ export class EmailSequencesService {
   /**
    * Update sequence
    */
-  async update(sequenceId: string, dto: Partial<CreateSequenceDto>, tenantId: string, userId: string) {
+  async update(
+    sequenceId: string,
+    dto: Partial<CreateSequenceDto>,
+    tenantId: string,
+    userId: string,
+  ) {
     const existing = await this.findById(sequenceId, tenantId);
 
     const steps = dto.steps
       ? dto.steps.map((step, index) => ({
           ...step,
-          id: this.generateId('step'),
+          id: this.generateId("step"),
           order: index + 1,
         }))
       : (existing as any).steps;
 
     await this.prisma.activityLog.create({
       data: {
-        action: 'EMAIL_SEQUENCE_CREATED',
+        action: "EMAIL_SEQUENCE_CREATED",
         description: `Email sequence updated: ${dto.name || existing.name}`,
         userId,
         metadata: {
@@ -178,14 +191,14 @@ export class EmailSequencesService {
 
     await this.prisma.activityLog.create({
       data: {
-        action: 'EMAIL_SEQUENCE_CREATED',
+        action: "EMAIL_SEQUENCE_CREATED",
         description: `Email sequence deleted: ${existing.name}`,
         userId,
         metadata: {
           ...(existing as any),
           sequenceId,
           tenantId,
-          status: 'DELETED',
+          status: "DELETED",
           deletedAt: new Date().toISOString(),
           deletedBy: userId,
         },
@@ -198,16 +211,21 @@ export class EmailSequencesService {
   /**
    * Enroll a candidate in a sequence
    */
-  async enrollCandidate(sequenceId: string, candidateId: string, tenantId: string, userId: string) {
+  async enrollCandidate(
+    sequenceId: string,
+    candidateId: string,
+    tenantId: string,
+    userId: string,
+  ) {
     const sequence = await this.findById(sequenceId, tenantId);
 
     // Check if already enrolled
     const existingEnrollment = await this.prisma.activityLog.findFirst({
       where: {
-        action: 'SEQUENCE_ENROLLMENT',
+        action: "SEQUENCE_ENROLLMENT",
         candidateId,
         metadata: {
-          path: ['sequenceId'],
+          path: ["sequenceId"],
           equals: sequenceId,
         },
       },
@@ -215,16 +233,18 @@ export class EmailSequencesService {
 
     if (existingEnrollment) {
       const meta = existingEnrollment.metadata as any;
-      if (meta.status === 'ACTIVE') {
-        throw new BadRequestException('Candidate is already enrolled in this sequence');
+      if (meta.status === "ACTIVE") {
+        throw new BadRequestException(
+          "Candidate is already enrolled in this sequence",
+        );
       }
     }
 
-    const enrollmentId = this.generateId('enroll');
+    const enrollmentId = this.generateId("enroll");
 
     await this.prisma.activityLog.create({
       data: {
-        action: 'SEQUENCE_ENROLLMENT',
+        action: "SEQUENCE_ENROLLMENT",
         description: `Enrolled in sequence: ${sequence.name}`,
         userId,
         candidateId,
@@ -234,7 +254,7 @@ export class EmailSequencesService {
           tenantId,
           candidateId,
           currentStepIndex: 0,
-          status: 'ACTIVE',
+          status: "ACTIVE",
           enrolledAt: new Date().toISOString(),
           enrolledBy: userId,
           nextSendAt: this.calculateNextSendTime(sequence.steps[0]),
@@ -242,40 +262,45 @@ export class EmailSequencesService {
       },
     });
 
-    return { enrollmentId, sequenceId, candidateId, status: 'ACTIVE' };
+    return { enrollmentId, sequenceId, candidateId, status: "ACTIVE" };
   }
 
   /**
    * Unenroll a candidate from a sequence
    */
-  async unenrollCandidate(sequenceId: string, candidateId: string, tenantId: string, userId: string) {
+  async unenrollCandidate(
+    sequenceId: string,
+    candidateId: string,
+    tenantId: string,
+    userId: string,
+  ) {
     const enrollment = await this.prisma.activityLog.findFirst({
       where: {
-        action: 'SEQUENCE_ENROLLMENT',
+        action: "SEQUENCE_ENROLLMENT",
         candidateId,
         metadata: {
-          path: ['sequenceId'],
+          path: ["sequenceId"],
           equals: sequenceId,
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
     if (!enrollment) {
-      throw new NotFoundException('Enrollment not found');
+      throw new NotFoundException("Enrollment not found");
     }
 
     const meta = enrollment.metadata as any;
 
     await this.prisma.activityLog.create({
       data: {
-        action: 'SEQUENCE_ENROLLMENT',
-        description: 'Unenrolled from sequence',
+        action: "SEQUENCE_ENROLLMENT",
+        description: "Unenrolled from sequence",
         userId,
         candidateId,
         metadata: {
           ...meta,
-          status: 'CANCELLED',
+          status: "CANCELLED",
           cancelledAt: new Date().toISOString(),
           cancelledBy: userId,
         },
@@ -291,11 +316,11 @@ export class EmailSequencesService {
   async getCandidateEnrollments(candidateId: string, tenantId: string) {
     const logs = await this.prisma.activityLog.findMany({
       where: {
-        action: 'SEQUENCE_ENROLLMENT',
+        action: "SEQUENCE_ENROLLMENT",
         candidateId,
-        metadata: { path: ['tenantId'], equals: tenantId },
+        metadata: { path: ["tenantId"], equals: tenantId },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
     const enrollmentMap = new Map<string, any>();
@@ -326,17 +351,17 @@ export class EmailSequencesService {
     // Find active enrollments with pending emails
     const enrollments = await this.prisma.activityLog.findMany({
       where: {
-        action: 'SEQUENCE_ENROLLMENT',
-        metadata: { path: ['status'], equals: 'ACTIVE' },
+        action: "SEQUENCE_ENROLLMENT",
+        metadata: { path: ["status"], equals: "ACTIVE" },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
     const processedEnrollments = new Set<string>();
 
     for (const log of enrollments) {
       const meta = log.metadata as any;
-      
+
       if (processedEnrollments.has(meta.enrollmentId)) continue;
       processedEnrollments.add(meta.enrollmentId);
 
@@ -348,19 +373,22 @@ export class EmailSequencesService {
 
   private async sendSequenceEmail(enrollment: any) {
     try {
-      const sequence = await this.findById(enrollment.sequenceId, enrollment.tenantId);
+      const sequence = await this.findById(
+        enrollment.sequenceId,
+        enrollment.tenantId,
+      );
       const currentStep = sequence.steps[enrollment.currentStepIndex];
 
       if (!currentStep) {
         // Sequence complete
         await this.prisma.activityLog.create({
           data: {
-            action: 'SEQUENCE_ENROLLMENT',
-            description: 'Sequence completed',
+            action: "SEQUENCE_ENROLLMENT",
+            description: "Sequence completed",
             candidateId: enrollment.candidateId,
             metadata: {
               ...enrollment,
-              status: 'COMPLETED',
+              status: "COMPLETED",
               completedAt: new Date().toISOString(),
             },
           },
@@ -379,7 +407,7 @@ export class EmailSequencesService {
       // Log the email send (actual sending would be done by email service)
       await this.prisma.activityLog.create({
         data: {
-          action: 'SEQUENCE_EMAIL_SENT',
+          action: "SEQUENCE_EMAIL_SENT",
           description: `Sequence email sent: ${currentStep.subject}`,
           candidateId: enrollment.candidateId,
           metadata: {
@@ -399,26 +427,31 @@ export class EmailSequencesService {
 
       await this.prisma.activityLog.create({
         data: {
-          action: 'SEQUENCE_ENROLLMENT',
-          description: nextStep ? 'Advanced to next step' : 'Sequence completed',
+          action: "SEQUENCE_ENROLLMENT",
+          description: nextStep
+            ? "Advanced to next step"
+            : "Sequence completed",
           candidateId: enrollment.candidateId,
           metadata: {
             ...enrollment,
             currentStepIndex: nextStepIndex,
-            status: nextStep ? 'ACTIVE' : 'COMPLETED',
+            status: nextStep ? "ACTIVE" : "COMPLETED",
             nextSendAt: nextStep ? this.calculateNextSendTime(nextStep) : null,
             ...(nextStep ? {} : { completedAt: new Date().toISOString() }),
           },
         },
       });
     } catch (error) {
-      console.error('Error sending sequence email:', error);
+      console.error("Error sending sequence email:", error);
     }
   }
 
   private calculateNextSendTime(step: any): string {
     const now = new Date();
-    const delayMs = ((step.delayDays || 0) * 24 * 60 + (step.delayHours || 0) * 60) * 60 * 1000;
+    const delayMs =
+      ((step.delayDays || 0) * 24 * 60 + (step.delayHours || 0) * 60) *
+      60 *
+      1000;
     return new Date(now.getTime() + delayMs).toISOString();
   }
 }

@@ -1,13 +1,18 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
-import { NotificationsService } from '../notifications/notifications.service';
-import { EmailService } from '../../common/services/email.service';
-import { ConfigService } from '@nestjs/config';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  Logger,
+} from "@nestjs/common";
+import { PrismaService } from "../../prisma/prisma.service";
+import { NotificationsService } from "../notifications/notifications.service";
+import { EmailService } from "../../common/services/email.service";
+import { ConfigService } from "@nestjs/config";
 
 interface AssessmentQuestion {
   id: string;
   question: string;
-  type?: 'MULTIPLE_CHOICE' | 'TEXT' | 'CODE' | 'RATING';
+  type?: "MULTIPLE_CHOICE" | "TEXT" | "CODE" | "RATING";
   options?: string[];
   correctAnswer?: string;
   points?: number;
@@ -19,7 +24,7 @@ interface CreateAssessmentDto {
   skills: string[];
   duration?: number;
   passingScore?: number;
-  questions?: Omit<AssessmentQuestion, 'id'>[];
+  questions?: Omit<AssessmentQuestion, "id">[];
 }
 
 interface SubmitAnswersDto {
@@ -53,7 +58,7 @@ export class AssessmentsService {
   async create(dto: CreateAssessmentDto, tenantId: string, userId: string) {
     const assessmentId = this.generateAssessmentId();
 
-    const questions = (dto.questions || []).map(q => ({
+    const questions = (dto.questions || []).map((q) => ({
       ...q,
       id: this.generateQuestionId(),
       points: q.points || 10,
@@ -63,7 +68,7 @@ export class AssessmentsService {
 
     await this.prisma.activityLog.create({
       data: {
-        action: 'ASSESSMENT_CREATED',
+        action: "ASSESSMENT_CREATED",
         description: `Skill assessment created: ${dto.name}`,
         userId,
         metadata: {
@@ -76,7 +81,7 @@ export class AssessmentsService {
           passingScore: dto.passingScore || 70,
           questions,
           totalPoints,
-          status: 'ACTIVE',
+          status: "ACTIVE",
           createdAt: new Date().toISOString(),
           createdBy: userId,
         },
@@ -92,7 +97,7 @@ export class AssessmentsService {
       passingScore: dto.passingScore || 70,
       questionCount: questions.length,
       totalPoints,
-      status: 'ACTIVE',
+      status: "ACTIVE",
       createdAt: new Date().toISOString(),
     };
   }
@@ -103,13 +108,13 @@ export class AssessmentsService {
   async findAll(tenantId: string) {
     const logs = await this.prisma.activityLog.findMany({
       where: {
-        action: 'ASSESSMENT_CREATED',
+        action: "ASSESSMENT_CREATED",
         metadata: {
-          path: ['tenantId'],
+          path: ["tenantId"],
           equals: tenantId,
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
     const assessmentMap = new Map<string, any>();
@@ -141,23 +146,23 @@ export class AssessmentsService {
   async findById(assessmentId: string, tenantId: string) {
     const log = await this.prisma.activityLog.findFirst({
       where: {
-        action: 'ASSESSMENT_CREATED',
+        action: "ASSESSMENT_CREATED",
         metadata: {
-          path: ['assessmentId'],
+          path: ["assessmentId"],
           equals: assessmentId,
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
     if (!log) {
-      throw new NotFoundException('Assessment not found');
+      throw new NotFoundException("Assessment not found");
     }
 
     const meta = log.metadata as any;
 
     if (meta.tenantId !== tenantId) {
-      throw new NotFoundException('Assessment not found');
+      throw new NotFoundException("Assessment not found");
     }
 
     return {
@@ -177,22 +182,30 @@ export class AssessmentsService {
   /**
    * Update assessment
    */
-  async update(assessmentId: string, tenantId: string, userId: string, updates: Partial<CreateAssessmentDto>) {
+  async update(
+    assessmentId: string,
+    tenantId: string,
+    userId: string,
+    updates: Partial<CreateAssessmentDto>,
+  ) {
     const existing = await this.findById(assessmentId, tenantId);
 
     const questions = updates.questions
-      ? updates.questions.map(q => ({
+      ? updates.questions.map((q) => ({
           ...q,
           id: this.generateQuestionId(),
           points: q.points || 10,
         }))
       : (existing as any).questions;
 
-    const totalPoints = questions.reduce((sum: number, q: any) => sum + q.points, 0);
+    const totalPoints = questions.reduce(
+      (sum: number, q: any) => sum + q.points,
+      0,
+    );
 
     await this.prisma.activityLog.create({
       data: {
-        action: 'ASSESSMENT_CREATED',
+        action: "ASSESSMENT_CREATED",
         description: `Assessment updated: ${updates.name || existing.name}`,
         userId,
         metadata: {
@@ -224,12 +237,12 @@ export class AssessmentsService {
 
     await this.prisma.activityLog.create({
       data: {
-        action: 'ASSESSMENT_CREATED',
+        action: "ASSESSMENT_CREATED",
         description: `Assessment deleted: ${existing.name}`,
         userId,
         metadata: {
           ...(existing as any),
-          status: 'DELETED',
+          status: "DELETED",
           deletedAt: new Date().toISOString(),
           deletedBy: userId,
         },
@@ -250,13 +263,13 @@ export class AssessmentsService {
     applicationId?: string,
   ) {
     const assessment = await this.findById(assessmentId, tenantId);
-    
+
     const candidate = await this.prisma.candidate.findFirst({
       where: { id: candidateId, tenantId },
     });
 
     if (!candidate) {
-      throw new NotFoundException('Candidate not found');
+      throw new NotFoundException("Candidate not found");
     }
 
     const inviteId = `inv-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -265,7 +278,7 @@ export class AssessmentsService {
 
     await this.prisma.activityLog.create({
       data: {
-        action: 'ASSESSMENT_INVITED',
+        action: "ASSESSMENT_INVITED",
         description: `Assessment "${assessment.name}" sent to ${candidate.firstName} ${candidate.lastName}`,
         userId,
         candidateId,
@@ -278,7 +291,7 @@ export class AssessmentsService {
           candidateEmail: candidate.email,
           applicationId,
           tenantId,
-          status: 'PENDING',
+          status: "PENDING",
           sentAt: new Date().toISOString(),
           expiresAt: expiresAt.toISOString(),
         },
@@ -287,7 +300,8 @@ export class AssessmentsService {
 
     // Send email notification to candidate
     try {
-      const appUrl = this.configService.get<string>('APP_URL') || 'http://localhost:5173';
+      const appUrl =
+        this.configService.get<string>("APP_URL") || "http://localhost:5173";
       const assessmentLink = `${appUrl}/assessments/${inviteId}`;
       const candidateName = `${candidate.firstName} ${candidate.lastName}`;
 
@@ -300,9 +314,14 @@ export class AssessmentsService {
         tenantId,
       );
 
-      this.logger.log(`Assessment invitation email sent to ${candidate.email} for assessment ${assessment.name}`);
+      this.logger.log(
+        `Assessment invitation email sent to ${candidate.email} for assessment ${assessment.name}`,
+      );
     } catch (error) {
-      this.logger.error(`Failed to send assessment invitation email to ${candidate.email}:`, error);
+      this.logger.error(
+        `Failed to send assessment invitation email to ${candidate.email}:`,
+        error,
+      );
       // Don't throw - we still want to return success as the invite was created
     }
 
@@ -310,7 +329,7 @@ export class AssessmentsService {
       inviteId,
       assessmentId,
       candidateId,
-      status: 'PENDING',
+      status: "PENDING",
       expiresAt: expiresAt.toISOString(),
     };
   }
@@ -318,27 +337,31 @@ export class AssessmentsService {
   /**
    * Get assessment results for a candidate
    */
-  async getResults(assessmentId: string, candidateId: string, tenantId: string) {
+  async getResults(
+    assessmentId: string,
+    candidateId: string,
+    tenantId: string,
+  ) {
     const resultLog = await this.prisma.activityLog.findFirst({
       where: {
-        action: 'ASSESSMENT_COMPLETED',
+        action: "ASSESSMENT_COMPLETED",
         candidateId,
         metadata: {
-          path: ['assessmentId'],
+          path: ["assessmentId"],
           equals: assessmentId,
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
     if (!resultLog) {
       // Check if invited but not completed
       const inviteLog = await this.prisma.activityLog.findFirst({
         where: {
-          action: 'ASSESSMENT_INVITED',
+          action: "ASSESSMENT_INVITED",
           candidateId,
           metadata: {
-            path: ['assessmentId'],
+            path: ["assessmentId"],
             equals: assessmentId,
           },
         },
@@ -346,12 +369,12 @@ export class AssessmentsService {
 
       if (inviteLog) {
         return {
-          status: 'PENDING',
+          status: "PENDING",
           invitedAt: (inviteLog.metadata as any).sentAt,
         };
       }
 
-      throw new NotFoundException('Assessment results not found');
+      throw new NotFoundException("Assessment results not found");
     }
 
     const meta = resultLog.metadata as any;
@@ -389,13 +412,14 @@ export class AssessmentsService {
       let correct = false;
       let pointsEarned = 0;
 
-      if (question.type === 'MULTIPLE_CHOICE' && question.correctAnswer) {
+      if (question.type === "MULTIPLE_CHOICE" && question.correctAnswer) {
         correct = answer === question.correctAnswer;
         pointsEarned = correct ? question.points : 0;
-      } else if (question.type === 'TEXT' || question.type === 'CODE') {
+      } else if (question.type === "TEXT" || question.type === "CODE") {
         // For text/code questions, award partial points for non-empty answers
-        pointsEarned = answer && answer.trim() ? Math.floor(question.points * 0.5) : 0;
-      } else if (question.type === 'RATING') {
+        pointsEarned =
+          answer && answer.trim() ? Math.floor(question.points * 0.5) : 0;
+      } else if (question.type === "RATING") {
         pointsEarned = answer ? parseInt(answer) || 0 : 0;
       }
 
@@ -411,14 +435,15 @@ export class AssessmentsService {
       });
     }
 
-    const percentage = assessment.totalPoints > 0 
-      ? Math.round((score / assessment.totalPoints) * 100) 
-      : 0;
+    const percentage =
+      assessment.totalPoints > 0
+        ? Math.round((score / assessment.totalPoints) * 100)
+        : 0;
     const passed = percentage >= assessment.passingScore;
 
     await this.prisma.activityLog.create({
       data: {
-        action: 'ASSESSMENT_COMPLETED',
+        action: "ASSESSMENT_COMPLETED",
         description: `Assessment "${assessment.name}" completed with ${percentage}%`,
         candidateId: dto.candidateId,
         metadata: {
@@ -459,29 +484,33 @@ export class AssessmentsService {
 
     const logs = await this.prisma.activityLog.findMany({
       where: {
-        action: 'ASSESSMENT_COMPLETED',
+        action: "ASSESSMENT_COMPLETED",
         metadata: {
-          path: ['assessmentId'],
+          path: ["assessmentId"],
           equals: assessmentId,
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
-    const candidateIds = logs.map(l => (l.metadata as any).candidateId).filter(Boolean);
+    const candidateIds = logs
+      .map((l) => (l.metadata as any).candidateId)
+      .filter(Boolean);
     const candidates = await this.prisma.candidate.findMany({
       where: { id: { in: candidateIds } },
       select: { id: true, firstName: true, lastName: true, email: true },
     });
 
-    const candidateMap = new Map(candidates.map(c => [c.id, c]));
+    const candidateMap = new Map(candidates.map((c) => [c.id, c]));
 
-    return logs.map(log => {
+    return logs.map((log) => {
       const meta = log.metadata as any;
       const candidate = candidateMap.get(meta.candidateId);
       return {
         candidateId: meta.candidateId,
-        candidateName: candidate ? `${candidate.firstName} ${candidate.lastName}` : 'Unknown',
+        candidateName: candidate
+          ? `${candidate.firstName} ${candidate.lastName}`
+          : "Unknown",
         candidateEmail: candidate?.email,
         score: meta.score,
         totalPoints: meta.totalPoints,

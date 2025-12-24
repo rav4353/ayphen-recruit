@@ -1,6 +1,6 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../../prisma/prisma.service';
-import { SuperAdminSecurityService } from '../../super-admin/services/super-admin-security.service';
+import { Injectable } from "@nestjs/common";
+import { PrismaService } from "../../../prisma/prisma.service";
+import { SuperAdminSecurityService } from "../../super-admin/services/super-admin-security.service";
 
 @Injectable()
 export class LoginAttemptService {
@@ -11,7 +11,7 @@ export class LoginAttemptService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly securityService: SuperAdminSecurityService,
-  ) { }
+  ) {}
 
   async recordAttempt(
     email: string,
@@ -22,7 +22,7 @@ export class LoginAttemptService {
     await this.prisma.loginAttempt.create({
       data: {
         email,
-        tenantId: tenantId || 'global',
+        tenantId: tenantId || "global",
         ipAddress,
         success,
       },
@@ -36,19 +36,24 @@ export class LoginAttemptService {
       try {
         await this.securityService.checkSecuritySpikes(ipAddress);
       } catch (error) {
-        console.error('Failed to check security spikes:', error);
+        console.error("Failed to check security spikes:", error);
       }
     }
   }
 
-  async isAccountLocked(email: string, tenantId: string | undefined): Promise<{
+  async isAccountLocked(
+    email: string,
+    tenantId: string | undefined,
+  ): Promise<{
     locked: boolean;
     remainingMinutes?: number;
     attemptsRemaining?: number;
   }> {
-    const effectiveTenantId = tenantId || 'global';
+    const effectiveTenantId = tenantId || "global";
     const windowStart = new Date();
-    windowStart.setMinutes(windowStart.getMinutes() - this.ATTEMPT_WINDOW_MINUTES);
+    windowStart.setMinutes(
+      windowStart.getMinutes() - this.ATTEMPT_WINDOW_MINUTES,
+    );
 
     const failedAttempts = await this.prisma.loginAttempt.count({
       where: {
@@ -67,12 +72,14 @@ export class LoginAttemptService {
           tenantId: effectiveTenantId,
           success: false,
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
       });
 
       if (lastAttempt) {
         const lockoutEnd = new Date(lastAttempt.createdAt);
-        lockoutEnd.setMinutes(lockoutEnd.getMinutes() + this.LOCKOUT_DURATION_MINUTES);
+        lockoutEnd.setMinutes(
+          lockoutEnd.getMinutes() + this.LOCKOUT_DURATION_MINUTES,
+        );
 
         if (lockoutEnd > new Date()) {
           const remainingMs = lockoutEnd.getTime() - Date.now();
@@ -88,14 +95,19 @@ export class LoginAttemptService {
     };
   }
 
-  async clearFailedAttempts(email: string, tenantId: string | undefined): Promise<void> {
+  async clearFailedAttempts(
+    email: string,
+    tenantId: string | undefined,
+  ): Promise<void> {
     const windowStart = new Date();
-    windowStart.setMinutes(windowStart.getMinutes() - this.ATTEMPT_WINDOW_MINUTES);
+    windowStart.setMinutes(
+      windowStart.getMinutes() - this.ATTEMPT_WINDOW_MINUTES,
+    );
 
     await this.prisma.loginAttempt.deleteMany({
       where: {
         email,
-        tenantId: tenantId || 'global',
+        tenantId: tenantId || "global",
         success: false,
         createdAt: { gte: windowStart },
       },
@@ -106,14 +118,16 @@ export class LoginAttemptService {
     email: string,
     tenantId: string | undefined,
     limit = 10,
-  ): Promise<Array<{
-    ipAddress: string | null;
-    success: boolean;
-    createdAt: Date;
-  }>> {
+  ): Promise<
+    Array<{
+      ipAddress: string | null;
+      success: boolean;
+      createdAt: Date;
+    }>
+  > {
     return this.prisma.loginAttempt.findMany({
-      where: { email, tenantId: tenantId || 'global' },
-      orderBy: { createdAt: 'desc' },
+      where: { email, tenantId: tenantId || "global" },
+      orderBy: { createdAt: "desc" },
       take: limit,
       select: {
         ipAddress: true,
